@@ -40,8 +40,12 @@ const lessonLater = [{ ...plan[0], students: [child('Secret Child A', '1600 - 17
 const reopened = L.buildWeek({ id: '2026-11-09', coaches, schools: dbSchools, plan: L.matchSchools(dbSchools, lessonLater), planError: null, saved: holidaySaved, previous: null })
 assert.equal(reopened.days[3].blocks.find((b) => b.schoolId === 5).noLesson, undefined)
 
-// weekend with no earlier week = OTHERS only; availability defaults to available
-assert.deepEqual(wk.days[5].blocks.map((b) => b.kind), ['other'])
+// weekend with no earlier week = the standard programmes + OTHERS; availability defaults to available
+for (const day of wk.days.slice(5)) {
+  assert.deepEqual(day.blocks.map((b) => b.name), ['WCP Robotics (Regular)', 'WCP Coding', 'DV Robotics (Regular)', 'WCP Robotics (Dream)', 'DV Robotics (Dream)', 'OTHERS'])
+  assert.ok(day.blocks.every((b) => b.coaches.length === 0))
+  assert.deepEqual(day.blocks.slice(0, 5).map((b) => b.base), ['WCP', 'WCP', 'DV', 'WCP', 'DV'])
+}
 assert.deepEqual(wk.availability[String(coaches[0].id)], Array(7).fill('available'))
 
 // saved decisions keep coaches, fresh counts replace stale ones

@@ -4,6 +4,8 @@
 export const MAX_STUDENTS_PER_COACH = 6
 export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri']
 export const INTERN_QUOTA = { weekdays: 4, weekend: 1 }
+export const INTERN_WEEKDAY_OFF = ['tue', 'wed']
+const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday' }
 
 export const isWeekend = (dayKey) => !WEEKDAYS.includes(dayKey)
 // Only weekday venue lessons have a Lead; weekend programmes and OTHERS don't.
@@ -34,7 +36,7 @@ export function venueList(roster) {
 export const availability = (week, coachId, dayKey) =>
   week.availability[coachId]?.[dayIndex(week, dayKey)] ?? 'unavailable'
 
-// Weekday lessons and weekend programmes both use the ratio; programmes count students only once entered.
+// Only auto-fill uses the ratio; the screen shows no coach cap. Programmes count students only once entered.
 export function requiredCoaches(block) {
   if (block.kind === 'other' || block.noLesson) return 0
   const most = Math.max(0, ...block.slots.map((s) => Number(s.students) || 0))
@@ -47,11 +49,8 @@ export const countedCoaches = (block) => block.coaches.filter((c) => c.role !== 
 export function blockStatus(block) {
   if (block.kind === 'other') return null
   if (block.noLesson) return { tone: 'grey', label: 'No lesson' }
-  const need = requiredCoaches(block)
-  const have = countedCoaches(block)
-  if (have < need) return { tone: 'red', label: `Short ${need - have}` }
   if (block.kind === 'program' && block.coaches.length === 0) return { tone: 'grey', label: 'No class' }
-  if (block.kind === 'lesson' && need === 0 && block.coaches.length === 0) return { tone: 'grey', label: 'No students' }
+  if (block.kind === 'lesson' && requiredCoaches(block) === 0 && block.coaches.length === 0) return { tone: 'grey', label: 'No students' }
   if (needsLead(block) && !block.coaches.some((c) => c.role === 'lead')) return { tone: 'yellow', label: 'No lead' }
   return { tone: 'green', label: 'OK' }
 }
@@ -81,7 +80,6 @@ export function dayTotals(week, dayKey, coaches) {
   const wcp = isWeekend(dayKey) ? 0 : baseCoaches(week, dayKey, 'WCP', coaches).length
   return {
     assigned: day.blocks.reduce((n, b) => n + countedCoaches(b), 0) + wcp,
-    required: day.blocks.reduce((n, b) => n + requiredCoaches(b), 0),
     available: coaches.filter((c) => availability(week, c.id, dayKey) === 'available').length,
   }
 }
@@ -103,7 +101,10 @@ export function quotaWarnings(week, coaches) {
       const worked = week.days.filter((d) => isWorking(week, d.key, c))
       const weekdays = worked.filter((d) => !isWeekend(d.key)).length
       const weekend = worked.length - weekdays
-      if (weekdays === INTERN_QUOTA.weekdays && weekend === INTERN_QUOTA.weekend) return null
+      if (weekdays === INTERN_QUOTA.weekdays && weekend === INTERN_QUOTA.weekend) {
+        const off = week.days.find((d) => !isWeekend(d.key) && !worked.includes(d)).key
+        return INTERN_WEEKDAY_OFF.includes(off) ? null : `Intern ${c.name}'s weekday off is ${DAY_NAMES[off]}; it must be Tuesday or Wednesday.`
+      }
       return `Intern ${c.name} is assigned to ${weekdays} weekday${weekdays === 1 ? '' : 's'} + ${weekend} weekend day${weekend === 1 ? '' : 's'}; needs ${INTERN_QUOTA.weekdays} weekdays + ${INTERN_QUOTA.weekend} weekend.`
     })
     .filter(Boolean)

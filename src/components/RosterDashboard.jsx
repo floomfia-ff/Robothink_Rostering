@@ -64,7 +64,7 @@ export default function RosterDashboard() {
             <>
               <HeaderControls />
               {/* one scroll area so the grid and availability columns stay aligned */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:overflow-visible print:rounded-none print:border-0">
+              <div id="roster-picture" className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:overflow-visible print:rounded-none print:border-0">
                 <WeeklyGrid />
                 <AvailabilityPanel />
               </div>

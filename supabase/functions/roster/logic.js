@@ -4,6 +4,9 @@ import { normaliseTime } from './plan.js'
 export const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DAY_MS = 86400000
+// The supervisor's standard weekend, used when there is no earlier week to copy.
+const WEEKEND_PROGRAMS = [['WCP Robotics (Regular)', 'WCP'], ['WCP Coding', 'WCP'], ['DV Robotics (Regular)', 'DV'],
+  ['WCP Robotics (Dream)', 'WCP'], ['DV Robotics (Dream)', 'DV']]
 
 export function isMonday(id) {
   const t = Date.parse(id)
@@ -78,7 +81,9 @@ export function buildWeek({ id, coaches, schools, plan, planError, saved, previo
       const prev = previous?.data.days.find((d) => d.key === day.key)
       day.blocks = savedDay ? savedDay.blocks.map((b) => ({ ...b, coaches: keep(b.coaches) }))
         : prev ? prev.blocks.map((b) => ({ ...b, id: b.id.replace(previous.id, id), coaches: [] }))
-        : [{ id: `${id}-${day.key}-others`, kind: 'other', name: 'OTHERS', slots: [], coaches: [] }]
+        : [...WEEKEND_PROGRAMS.map(([name, base]) => ({ id: `${id}-${day.key}-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+          kind: 'program', name, base, slots: [{ time: '09:00 - 16:00' }], coaches: [] })),
+          { id: `${id}-${day.key}-others`, kind: 'other', name: 'OTHERS', slots: [], coaches: [] }]
       return
     }
     for (const s of schools.filter((x) => x.class_day === day.key.toUpperCase())) {

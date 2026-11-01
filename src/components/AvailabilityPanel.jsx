@@ -20,9 +20,8 @@ export default function AvailabilityPanel() {
       {totals.map((t, i) => (
         <div
           key={i}
-          className={`flex items-baseline justify-between border-t border-l border-slate-200 px-2 py-2 ${t.assigned < t.required ? 'bg-red-100' : 'bg-yellow-200'}`}
+          className="flex items-baseline justify-end border-t border-l border-slate-200 bg-yellow-200 px-2 py-2"
         >
-          <span className="text-xs text-slate-600">Req {t.required} (venues)</span>
           <span className="text-lg font-bold text-slate-900">{t.assigned}</span>
         </div>
       ))}

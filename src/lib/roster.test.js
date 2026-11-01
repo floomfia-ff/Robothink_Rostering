@@ -18,6 +18,13 @@ for (const w of weeks) for (const d of w.days) for (const b of d.blocks) {
 assert.deepEqual(R.baseCoaches(weeks[0], 'mon', 'WCP', coaches).map((c) => c.id), [id('Reyes'), id('Linette')])
 assert.deepEqual(R.quotaWarnings(weeks[0], coaches), [], 'week 1 meets intern quota')
 assert.deepEqual(R.quotaWarnings(weeks[1], coaches), [], 'week 2 meets intern quota')
+// an intern's weekday off must be Tuesday or Wednesday
+let q = structuredClone(weeks[0])
+const qa = id('Ameer')
+const offDay = q.days.findIndex((d) => !R.isWeekend(d.key) && R.availability(q, qa, d.key) !== 'available')
+R.setAvailability(q, q.days[offDay].key, qa, 'available')
+R.setAvailability(q, 'thu', qa, 'off')
+assert.match(R.quotaWarnings(q, coaches).join(' '), /Ameer's weekday off is Thursday; it must be Tuesday or Wednesday/)
 for (const w of weeks) for (const d of w.days) for (const b of d.blocks) {
   assert.notEqual(R.blockStatus(b)?.tone, 'red', `${w.id} ${d.key} ${b.name} staffed`)
 }
@@ -39,9 +46,11 @@ w = structuredClone(weeks[0])
 const dover = w.days[0].blocks[1]
 R.removeCoach(w, 'mon', dover.id, 0)
 R.removeCoach(w, 'mon', dover.id, 0)
-assert.equal(R.blockStatus(dover).tone, 'red')
+assert.equal(R.countedCoaches(dover), 1)
+assert.notEqual(R.blockStatus(dover).tone, 'red', 'no coach cap: a school with few coaches is never red')
+assert.equal('required' in R.dayTotals(w, 'mon', coaches), false, 'no required count is shown')
 R.autoFill(w, coaches)
-assert.equal(R.blockStatus(dover).tone, 'green')
+assert.ok(R.countedCoaches(dover) >= R.requiredCoaches(dover), 'auto-fill still quietly tops up to 1 per 6')
 assert.ok(w.days.filter((d) => R.isWeekend(d.key)).every((d) => d.blocks.every((b) => b.coaches.every((c) => c.role !== 'lead'))), 'auto-fill adds no weekend leads')
 
 // OFF removes the coach from the venue and triggers a quota warning
@@ -130,13 +139,12 @@ w = structuredClone(weeks[0])
 const coding = w.days[5].blocks[1] // WCP Coding, nobody on Sat 24-Oct
 assert.equal(R.blockStatus(coding).label, 'No class')
 coding.slots[0].students = 8
-assert.equal(R.blockStatus(coding).label, 'Short 2')
+assert.equal(R.blockStatus(coding).label, 'No class', 'no cap: students alone never make it short')
 R.autoFill(w, coaches)
-assert.equal(R.blockStatus(coding).tone, 'red', 'everyone on Sat is already placed, so it stays short')
+assert.equal(R.countedCoaches(coding), 0, 'everyone on Sat is already placed')
 coding.slots[0].students = 5
 w.availability[id('Suzanne')][5] = 'available'
 R.autoFill(w, coaches)
-assert.equal(R.blockStatus(coding).tone, 'green', 'auto-fill staffs a short programme from free coaches')
 assert.ok(coding.coaches.some((c) => c.id === id('Suzanne')))
 
 // fair leads: fewest Leads this week wins

@@ -34,7 +34,7 @@ If you need a different shape, tell the UI owner and update this file in the sam
 | `id` | number | Stable. Used everywhere else to point at the coach. |
 | `name` | string | Read-only here (edited in the feedback site). |
 | `active` | boolean | Inactive coaches are still returned so past weeks show them. The UI stops them being placed on new days; the server only checks that the id exists. |
-| `employment_type` | `"intern"` \| `"part-timer"` | Editable. Interns have the 4 weekdays + 1 weekend quota. New coaches default to `part-timer`. |
+| `employment_type` | `"intern"` \| `"part-timer"` | Editable. Interns get one weekday off (Tue or Wed) and one weekend day off. New coaches default to `part-timer`. |
 | `mrt_station` | string \| null | Editable. Nearest MRT station (free text). |
 
 ### School (a weekday venue)
@@ -161,14 +161,17 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 
 | Rule | Value |
 |---|---|
-| Coaches needed | `ceil(largest slot's students ÷ 6)`. Shadows don't count. |
+| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate alone still fills to `ceil(largest slot's students ÷ 6)` (shadows don't count). |
 | Leads | Exactly **one** Lead per weekday lesson. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
-| Intern quota | Exactly 4 weekdays + 1 weekend day. Weekday interns not at a venue count as working at WCP. |
+| Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. Breaking it is a warning, not a block. |
 | Availability | Never place a coach on a day marked `off` or `unavailable`. |
 
-Status colours: red **Short n** (fewer coaches than needed) → yellow **No lead** → green **OK**.
-Grey means no lesson, no class or no students.
+Status badges: yellow **No lead** → green **OK**. Grey means no lesson, no class or no students.
+
+A new week with no earlier saved week starts each weekend day with WCP Robotics (Regular), WCP Coding,
+DV Robotics (Regular), WCP Robotics (Dream), DV Robotics (Dream) and OTHERS, all 9am to 4pm with no coaches.
+Later weeks copy the previous saved week's weekend programmes.
 
 Screen behaviour that follows from live data: weekday slots are read-only; weekday blocks cannot be
 added or removed (only "No lesson" toggles); coach names, school names and base names are read-only.

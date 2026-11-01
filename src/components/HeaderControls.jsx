@@ -1,20 +1,46 @@
+import { useState } from 'react'
+import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
-import { blockStatus, coachDay, isValidSlotTime, quotaWarnings } from '../lib/roster.js'
+import { coachDay, isValidSlotTime, quotaWarnings } from '../lib/roster.js'
+
+// The whole week grid as one PNG: full width even when scrolled sideways, edit buttons left out.
+function rosterPicture() {
+  const el = document.getElementById('roster-picture')
+  return toBlob(el, {
+    width: el.scrollWidth, height: el.scrollHeight, pixelRatio: 2, backgroundColor: '#ffffff',
+    style: { overflow: 'visible' }, filter: (n) => !n.classList?.contains('print:hidden'),
+  })
+}
 
 export default function HeaderControls() {
   const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, saveDraft, publish, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
+  const [picture, setPicture] = useState('')
+  const copyPicture = async () => {
+    try {
+      // ClipboardItem takes the promise so the copy still counts as part of the click
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': rosterPicture() })])
+      setPicture('Copied — paste it into the chat')
+    } catch {
+      setPicture("Couldn't copy here — use Download picture")
+    }
+  }
+  const downloadPicture = async () => {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(await rosterPicture())
+    a.download = `Roster ${week.label}.png`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   const quota = quotaWarnings(week, coaches)
-  const short = week.days.flatMap((d) =>
-    d.blocks.filter((b) => blockStatus(b)?.tone === 'red').map((b) => `${d.label} ${d.date}: ${b.name} is understaffed (${blockStatus(b).label.toLowerCase()}).`),
-  )
   const badTimes = week.days.flatMap((d) =>
     d.blocks.filter((b) => b.kind === 'lesson' && b.slots.some((s) => !isValidSlotTime(s.time))).map((b) => `${d.label} ${d.date}: ${b.name} has a time in an unexpected format on the lesson plan sheet.`),
   )
-  const alerts = [...short, ...badTimes, ...quota]
+  const alerts = [...badTimes, ...quota]
 
   const onPublish = () => {
     const msg = alerts.length
@@ -96,7 +122,14 @@ export default function HeaderControls() {
               ))}
             </select>
           </label>
-          <div className="ml-auto flex flex-wrap gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {picture && <span role="status" className="text-xs text-slate-500">{picture}</span>}
+            <button type="button" onClick={copyPicture} className={quiet}>
+              Copy picture
+            </button>
+            <button type="button" onClick={downloadPicture} className={quiet}>
+              Download picture
+            </button>
             <button type="button" onClick={() => downloadXlsx(week, coaches, Object.values(coachById))} className={quiet}>
               Export to Excel
             </button>
@@ -161,7 +194,7 @@ export default function HeaderControls() {
         </div>
       ) : (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800 print:hidden">
-          ✓ All venues staffed and every intern meets the 4 weekdays + 1 weekend quota.
+          ✓ Every intern has one weekday off (Tuesday or Wednesday) and one weekend day off.
         </div>
       )}
     </header>

@@ -1,5 +1,5 @@
 import { useRoster } from '../context/RosterContext.jsx'
-import { blockStatus, countedCoaches, requiredCoaches } from '../lib/roster.js'
+import { blockStatus, countedCoaches } from '../lib/roster.js'
 import CoachChip, { useCoachDrop } from './CoachChip.jsx'
 
 // Header colour per day column, like the spreadsheet.
@@ -9,7 +9,6 @@ export const DAY_TONE = {
 }
 const STATUS_TONE = {
   green: 'bg-emerald-100 text-emerald-800 ring-emerald-300',
-  red: 'bg-red-100 text-red-700 ring-red-300',
   yellow: 'bg-amber-100 text-amber-800 ring-amber-300',
   grey: 'bg-slate-100 text-slate-500 ring-slate-200',
 }
@@ -40,7 +39,6 @@ export default function VenueRow({ band }) {
 function VenueCell({ day, block }) {
   const { coachById, openSwap, updateSlot, removeBlock, setNoLesson } = useRoster()
   const status = blockStatus(block)
-  const need = requiredCoaches(block)
   const isLesson = block.kind === 'lesson'
   const drop = useCoachDrop(day.key, block.id)
   const target = !block.noLesson && drop.valid
@@ -49,7 +47,7 @@ function VenueCell({ day, block }) {
     <div
       {...(target ? drop.props : {})}
       className={`flex flex-col border-t border-l border-slate-200 ${target && drop.over ? 'bg-indigo-50' : 'bg-white'} ${
-        target ? 'outline-2 -outline-offset-2 outline-dashed outline-indigo-300' : status?.tone === 'red' ? 'ring-2 ring-inset ring-red-300' : ''
+        target ? 'outline-2 -outline-offset-2 outline-dashed outline-indigo-300' : ''
       }`}
     >
       <div className={`group/head relative flex items-center gap-1 px-2 py-1 text-sm font-semibold text-slate-800 ${DAY_TONE[day.key]}`}>
@@ -132,7 +130,7 @@ function VenueCell({ day, block }) {
 
       <div className="flex items-center justify-between border-t border-slate-100 px-2 py-1 text-[11px] text-slate-500">
         <span>
-          {(isLesson && !block.noLesson) || need > 0 ? `${countedCoaches(block)} / ${need} coaches` : `${countedCoaches(block)} coach${countedCoaches(block) === 1 ? '' : 'es'}`}
+          {countedCoaches(block)} coach{countedCoaches(block) === 1 ? '' : 'es'}
         </span>
         <StatusBadge status={status} />
       </div>
