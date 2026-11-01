@@ -7,6 +7,7 @@ const CODE = import.meta.env.VITE_ROSTER_CODE
 let baseline = null // what the server last had, so saveDraft only sends what changed
 
 async function request(method, path, body) {
+  if (!URL) throw new Error('VITE_ROSTER_API_URL is not set — copy .env.example to .env.local.')
   const res = await fetch(URL + path, {
     method,
     headers: { 'x-roster-code': CODE, ...(body ? { 'Content-Type': 'application/json' } : {}) },
@@ -32,7 +33,7 @@ export async function saveDraft(roster) {
   const patches = (list, old, fields, path) =>
     list.flatMap((item) => {
       const was = old.find((o) => o.id === item.id)
-      const patch = Object.fromEntries(fields.filter((f) => !was || item[f] !== was[f]).map((f) => [f, item[f]]))
+      const patch = Object.fromEntries(fields.filter((f) => item[f] !== was?.[f]).map((f) => [f, item[f]]))
       return was && Object.keys(patch).length ? [{ path: `${path}/${item.id}`, patch, item, was }] : []
     })
   const sends = [

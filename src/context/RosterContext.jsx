@@ -158,6 +158,7 @@ export function RosterProvider({ children }) {
         remember()
         setRoster((r) => ({ ...r, weeks: [...r.weeks, next] }))
         setWeekId(next.id)
+        setDirty(true)
         say(`Created ${next.label}`)
       }),
     canUndo: history.length > 0,
