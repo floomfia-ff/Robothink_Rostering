@@ -12,7 +12,7 @@ export default function HeaderControls() {
     d.blocks.filter((b) => blockStatus(b)?.tone === 'red').map((b) => `${d.label} ${d.date}: ${b.name} is understaffed (${blockStatus(b).label.toLowerCase()}).`),
   )
   const badTimes = week.days.flatMap((d) =>
-    d.blocks.filter((b) => b.kind === 'lesson' && b.slots.some((s) => !isValidSlotTime(s.time))).map((b) => `${d.label} ${d.date}: ${b.name} has a time slot that isn't HH:MM - HH:MM.`),
+    d.blocks.filter((b) => b.kind === 'lesson' && b.slots.some((s) => !isValidSlotTime(s.time))).map((b) => `${d.label} ${d.date}: ${b.name} has a time in an unexpected format on the lesson plan sheet.`),
   )
   const alerts = [...short, ...badTimes, ...quota]
 
@@ -97,7 +97,7 @@ export default function HeaderControls() {
             </select>
           </label>
           <div className="ml-auto flex flex-wrap gap-2">
-            <button type="button" onClick={() => downloadXlsx(week, coaches)} className={quiet}>
+            <button type="button" onClick={() => downloadXlsx(week, coaches, Object.values(coachById))} className={quiet}>
               Export to Excel
             </button>
             <button type="button" onClick={() => window.print()} className={quiet}>

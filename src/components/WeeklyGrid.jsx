@@ -45,17 +45,16 @@ export default function WeeklyGrid() {
   )
 }
 
-// Add a venue (weekday) or programme (weekend) to one day. Suggests names already used on the roster.
+// Add a programme to a weekend day. Suggests programme names already used on the roster.
 function AddVenue({ day }) {
-  const { weeks, venues, addBlock } = useRoster()
+  const { weeks, addBlock } = useRoster()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [base, setBase] = useState('WCP')
-  const weekend = isWeekend(day.key)
 
-  // Weekend suggestions are programme names; picking one also picks its base.
+  // Picking a suggested programme also picks its base.
   const programBase = new Map(weeks.flatMap((w) => w.days.flatMap((d) => d.blocks.filter((b) => b.kind === 'program').map((b) => [b.name, b.base]))))
-  const suggestions = weekend ? [...programBase.keys()] : venues.map((v) => v.name).filter((n) => n !== 'WCP' && n !== 'DV')
+  const suggestions = [...programBase.keys()]
   const taken = !!name.trim() && blockNameTaken(day, name)
   const listId = `venue-suggest-${day.key}`
 
@@ -66,7 +65,7 @@ function AddVenue({ day }) {
   const submit = (e) => {
     e.preventDefault()
     if (!name.trim() || taken) return
-    addBlock(day.key, name, weekend ? base : undefined)
+    addBlock(day.key, name, base)
     close()
   }
 
@@ -74,7 +73,7 @@ function AddVenue({ day }) {
     return (
       <div className="border-t border-l border-slate-200 bg-slate-50 px-2 py-1 print:hidden">
         <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium text-slate-400 hover:text-indigo-600">
-          + Add {weekend ? 'programme' : 'venue'}
+          + Add programme
         </button>
       </div>
     )
@@ -90,8 +89,8 @@ function AddVenue({ day }) {
           if (programBase.has(e.target.value)) setBase(programBase.get(e.target.value))
         }}
         onKeyDown={(e) => e.key === 'Escape' && close()}
-        placeholder={weekend ? 'Programme name' : 'Venue name'}
-        aria-label={`New ${weekend ? 'programme' : 'venue'} on ${day.label}`}
+        placeholder="Programme name"
+        aria-label={`New programme on ${day.label}`}
         aria-invalid={taken}
         className={`w-full rounded border px-2 py-1 text-xs focus:outline-none ${taken ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-indigo-400'}`}
       />
@@ -101,12 +100,10 @@ function AddVenue({ day }) {
         ))}
       </datalist>
       {taken && <p className="text-[11px] text-red-600">Already on {day.label}</p>}
-      {weekend && (
-        <select value={base} onChange={(e) => setBase(e.target.value)} aria-label="Base" className="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs">
-          <option value="WCP">WCP base</option>
-          <option value="DV">DV base</option>
-        </select>
-      )}
+      <select value={base} onChange={(e) => setBase(e.target.value)} aria-label="Base" className="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs">
+        <option value="WCP">WCP base</option>
+        <option value="DV">DV base</option>
+      </select>
       <div className="flex gap-1">
         <button type="submit" disabled={!name.trim() || taken} className="rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40">
           Add

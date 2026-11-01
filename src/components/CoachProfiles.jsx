@@ -38,36 +38,34 @@ export default function CoachProfiles() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {coaches.map((c) => {
-              return (
-                <tr key={c.id} className="align-top">
-                  <td className="w-44 px-3 py-2">
-                    <span className="font-medium text-slate-800">{c.name}</span>
-                  </td>
-                  <td className="w-36 px-3 py-2">
-                    <select
-                      value={c.employment_type}
-                      onChange={(e) => updateCoach(c.id, { employment_type: e.target.value })}
-                      aria-label={`Type for ${c.name || 'new coach'}`}
-                      className={`${field} border-slate-200 bg-white`}
-                    >
-                      <option value="intern">Intern</option>
-                      <option value="part-timer">Part-timer</option>
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      value={c.mrt_station ?? ''}
-                      list="mrt-stations"
-                      placeholder="e.g. Toa Payoh"
-                      onChange={(e) => updateCoach(c.id, { mrt_station: e.target.value })}
-                      aria-label={`Nearest MRT for ${c.name || 'new coach'}`}
-                      className={`${field} border-slate-200`}
-                    />
-                  </td>
-                </tr>
-              )
-            })}
+            {coaches.map((c) => (
+              <tr key={c.id} className="align-top">
+                <td className="w-44 px-3 py-2">
+                  <span className="font-medium text-slate-800">{c.name}</span>
+                </td>
+                <td className="w-36 px-3 py-2">
+                  <select
+                    value={c.employment_type}
+                    onChange={(e) => updateCoach(c.id, { employment_type: e.target.value })}
+                    aria-label={`Type for ${c.name}`}
+                    className={`${field} border-slate-200 bg-white`}
+                  >
+                    <option value="intern">Intern</option>
+                    <option value="part-timer">Part-timer</option>
+                  </select>
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    value={c.mrt_station ?? ''}
+                    list="mrt-stations"
+                    placeholder="e.g. Toa Payoh"
+                    onChange={(e) => updateCoach(c.id, { mrt_station: e.target.value })}
+                    aria-label={`Nearest MRT for ${c.name}`}
+                    className={`${field} border-slate-200`}
+                  />
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
         <datalist id="mrt-stations">

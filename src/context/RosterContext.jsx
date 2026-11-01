@@ -129,8 +129,6 @@ export function RosterProvider({ children }) {
     setAvailability: (d, id, s) => edit((w) => R.setAvailability(w, d, id, s)),
     updateSlot: (d, blockId, i, patch) =>
       edit((w) => Object.assign(blockIn(w, d, blockId).slots[i], patch), `slot:${blockId}:${i}:${Object.keys(patch)}`),
-    addSlot: (d, blockId) => edit((w) => blockIn(w, d, blockId).slots.push({ time: '', students: 0 })),
-    removeSlot: (d, blockId, i) => edit((w) => blockIn(w, d, blockId).slots.splice(i, 1)),
     addBlock: (d, name, base) => edit((w) => R.addBlock(w, d, name, base)),
     removeBlock: (d, blockId) => edit((w) => R.removeBlock(w, d, blockId)),
     setNoLesson: (d, blockId, on) => edit((w) => R.setNoLesson(w, d, blockId, on)),

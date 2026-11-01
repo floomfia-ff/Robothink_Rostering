@@ -11,12 +11,13 @@ const YELLOW = 'FFFFFF00'
 const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
 const thin = { style: 'thin' }
 
-export function buildRosterSheet(wb, week, coaches) {
+// `coaches` = active coaches (availability rows); `everyone` also has inactive ones still placed in blocks.
+export function buildRosterSheet(wb, week, coaches, everyone = coaches) {
   const ws = wb.addWorksheet(week.label.replace(/[\\/?*[\]:]/g, '-'))
   ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
   ws.columns = [{ width: 16 }, ...week.days.flatMap(() => [{ width: 24 }, { width: 4 }])]
 
-  const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  const byId = Object.fromEntries(everyone.map((c) => [c.id, c]))
   const name = (c) => (c.role === 'lead' ? '*' : c.role === 'shadow' ? '#' : '') + (byId[c.id]?.name ?? c.id)
   const names = (list) => list.map(name).join('/')
   const text = (i) => 2 + 2 * i
@@ -125,10 +126,10 @@ export function buildRosterSheet(wb, week, coaches) {
   return ws
 }
 
-export async function downloadXlsx(week, coaches) {
+export async function downloadXlsx(week, coaches, everyone) {
   const { default: ExcelJS } = await import('exceljs') // loaded only on export
   const wb = new ExcelJS.Workbook()
-  buildRosterSheet(wb, week, coaches)
+  buildRosterSheet(wb, week, coaches, everyone)
   const blob = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
   Object.assign(document.createElement('a'), { href: url, download: `roster-${week.id}.xlsx` }).click()
