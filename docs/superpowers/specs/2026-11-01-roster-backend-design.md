@@ -168,6 +168,26 @@ Known uses to update (from `grep`): `AvailabilityPanel.jsx`, `CoachChip.jsx`,
 `RosterContext.jsx`, `lib/export.js`, `lib/roster.js`, `lib/roster.test.js`,
 `data/mockRoster.json`.
 
+The roster object the UI holds becomes
+`{ coaches, schools, bases, weeks, planError, unmatchedSchools }` (`venues` goes away).
+
+### Screen behaviour that changes with live data
+
+- **Weekday lesson slots are read-only.** Time and student count come from the sheet;
+  the slot shows its build breakdown. Weekend programme student counts stay editable.
+- **Weekday blocks come from `schools.class_day`.** "Add a venue to this day" and
+  "Remove" are hidden on weekdays; "No lesson" still works. Weekend programmes can still
+  be added and removed.
+- **Coach Profiles:** name is read-only; "+ Add coach" and "Remove" are removed (done in
+  the feedback site). Type and MRT stay editable. Inactive coaches are not listed.
+- **Venue Profiles:** lists schools then bases; name is read-only; the postal code
+  column, "+ Add venue" and "Remove" are removed. Address stays editable.
+- **"Reset to mock" is removed.**
+- **"New week" asks the server** for the week after the latest one, so its slots are
+  fresh from the sheet (see §6 step 5), instead of copying the open week in the browser.
+- Coach and venue edits are still saved with the existing **Save** button, so Undo and
+  the unsaved-changes warning keep working.
+
 ### Endpoints
 
 All requests go to the one function and carry `x-roster-code`. `api.js` keeps its
@@ -175,12 +195,11 @@ existing function names, so screens only change where field names change.
 
 | `api.js` function | Request | Does |
 |---|---|---|
-| `loadRoster(weekIds)` | `GET ?weeks=2026-11-02,2026-11-09` | Coaches, schools, bases, and each requested week (saved decisions merged with fresh slots) |
-| `saveDraft(roster)` | `PUT /weeks/:id` per changed week | Upserts the week's decisions. Sets `changed_since_publish` if the week was published. |
-| `saveCoach(id, fields)` (new) | `PATCH /coaches/:id` | Only `mrt_station`, `employment_type` |
-| `saveVenue(kind, id, fields)` (new) | `PATCH /schools/:id` or `/bases/:id` | Only `address` |
-| `publishRoster(roster, weekId)` | save, then `POST /weeks/:id/publish` | `status = 'published'`, `changed_since_publish = false` |
-| `generateRoster(week, coaches)` | none | Unchanged: in-browser `autoFill()` |
+| `loadRoster()` | `GET /` | Coaches, schools, bases, every saved week plus the current week (Singapore time) if it is not saved yet |
+| `loadWeek(weekId)` (new) | `GET /weeks/:id` | One week built fresh (or the saved one, merged), for "New week" |
+| `saveDraft(roster)` | `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one, then `PUT /weeks/:id` for each changed week | Coaches: only `mrt_station`, `employment_type`. Schools and bases: only `address`. Weeks: upserts the decisions; sets `changed_since_publish` if the week was published. `api.js` compares against what was last loaded or saved to find what changed. |
+| `publishRoster(roster, weekId)` | `saveDraft`, then `POST /weeks/:id/publish` | `status = 'published'`, `changed_since_publish = false` |
+| `generateRoster(week, coaches)` | none | Unchanged: in-browser `autoFill()`, given active coaches only |
 
 Errors keep the contract's shape: non-2xx with `{ "error": "Readable message" }`, and
 `api.js` throws `new Error(body.error)`.
@@ -204,9 +223,10 @@ For week `W` (a Monday):
    - No children that date → the block is `noLesson: true` (holiday).
 4. Lay saved decisions on top: a saved lesson block with the same `schoolId` keeps its
    `coaches` and `noLesson`; saved weekend blocks are used as they are.
-5. A week with no saved row is a draft with no coaches, and its weekend programmes are
-   copied (without coaches) from the most recent earlier saved week, or none if there is
-   no earlier week.
+5. A week with no saved row is a draft with no coaches. Its weekend programmes are
+   copied (without coaches) from the most recent earlier saved week; with no earlier
+   week, each weekend day has only the OTHERS row. Availability is copied from that
+   earlier week too; coaches not in it, or with no earlier week, start `available`.
 
 Sheet time text is normalised to the contract's `"HH:MM - HH:MM"` (24-hour), for example
 `1600 - 1700` → `16:00 - 17:00`.
