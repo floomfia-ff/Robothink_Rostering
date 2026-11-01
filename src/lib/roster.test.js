@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import * as R from './roster.js'
 
-const { coaches, weeks } = JSON.parse(readFileSync(new URL('../data/mockRoster.json', import.meta.url)))
+const { coaches, schools, bases, weeks } = JSON.parse(readFileSync(new URL('../data/mockRoster.json', import.meta.url)))
+const id = (name) => coaches.find((c) => c.name === name).id
 const totals = (w) => w.days.map((d) => R.dayTotals(w, d.key, coaches).assigned)
 
 // No shadows in the mock, so every working coach counts (= the sheet's "Coaches Available" row).
@@ -14,7 +15,7 @@ for (const w of weeks) for (const d of w.days) for (const b of d.blocks) {
   const leads = b.coaches.filter((c) => c.role === 'lead').length
   assert.equal(leads, R.needsLead(b) && b.coaches.length ? 1 : 0, `${b.id} lead count`)
 }
-assert.deepEqual(R.baseCoaches(weeks[0], 'mon', 'WCP', coaches).map((c) => c.id), ['reyes', 'linette'])
+assert.deepEqual(R.baseCoaches(weeks[0], 'mon', 'WCP', coaches).map((c) => c.id), [id('Reyes'), id('Linette')])
 assert.deepEqual(R.quotaWarnings(weeks[0], coaches), [], 'week 1 meets intern quota')
 assert.deepEqual(R.quotaWarnings(weeks[1], coaches), [], 'week 2 meets intern quota')
 for (const w of weeks) for (const d of w.days) for (const b of d.blocks) {
@@ -24,14 +25,14 @@ for (const w of weeks) for (const d of w.days) for (const b of d.blocks) {
 // swap: Reyes (WCP on Mon) replaces Ameer at Tanjong Pagar -> Ameer goes to WCP
 let w = structuredClone(weeks[0])
 const tp = w.days[0].blocks[0]
-R.assignCoach(w, 'mon', tp.id, 0, 'reyes')
-assert.equal(tp.coaches[0].id, 'reyes')
+R.assignCoach(w, 'mon', tp.id, 0, id('Reyes'))
+assert.equal(tp.coaches[0].id, id('Reyes'))
 assert.equal(tp.coaches[0].role, 'lead')
-assert.ok(R.baseCoaches(w, 'mon', 'WCP', coaches).some((c) => c.id === 'ameer'))
+assert.ok(R.baseCoaches(w, 'mon', 'WCP', coaches).some((c) => c.id === id('Ameer')))
 
 // swap between two venues trades places
-R.assignCoach(w, 'mon', tp.id, 1, 'kathleen')
-assert.equal(w.days[0].blocks[1].coaches[0].id, 'matin')
+R.assignCoach(w, 'mon', tp.id, 1, id('Kathleen'))
+assert.equal(w.days[0].blocks[1].coaches[0].id, id('Matin'))
 
 // removing two of Dover's 3 coaches makes it short (9 students needs 2); auto-fill tops up from WCP
 w = structuredClone(weeks[0])
@@ -45,45 +46,33 @@ assert.ok(w.days.filter((d) => R.isWeekend(d.key)).every((d) => d.blocks.every((
 
 // OFF removes the coach from the venue and triggers a quota warning
 w = structuredClone(weeks[0])
-R.setAvailability(w, 'tue', 'kathleen', 'off')
-assert.ok(!w.days[1].blocks[0].coaches.some((c) => c.id === 'kathleen'))
+R.setAvailability(w, 'tue', id('Kathleen'), 'off')
+assert.ok(!w.days[1].blocks[0].coaches.some((c) => c.id === id('Kathleen')))
 assert.match(R.quotaWarnings(w, coaches)[0], /Kathleen is assigned to 3 weekdays/)
 
 console.log('roster rules: all checks passed')
 
-// slot time + postal code validation
+// slot time + address validation
 assert.ok(R.isValidSlotTime('15:30 - 16:30'))
 assert.ok(!R.isValidSlotTime('16:30 - 15:30'), 'end before start')
 assert.ok(!R.isValidSlotTime('3:30 - 4:30'), 'needs HH:MM')
 assert.ok(!R.isValidSlotTime(''))
-assert.ok(R.isValidPostalCode('310123'))
-assert.ok(!R.isValidPostalCode('31012'))
+assert.ok(R.isValidAddress('1 Fusionopolis Way 138632'))
+assert.ok(!R.isValidAddress('1 Fusionopolis Way'))
 console.log('validation: all checks passed')
 
-// venue list: every weekday venue once (Toa Payoh is Thu + Fri) plus WCP / DV; saved details merge in
-const roster = JSON.parse(readFileSync(new URL('../data/mockRoster.json', import.meta.url)))
-const vl = R.venueList(roster)
+// venue list: every active school once (Toa Payoh is Thu + Fri) plus the WCP / DV bases; saved details merge in
+const vl = R.venueList({ schools, bases, weeks })
 assert.equal(vl.length, 14)
 assert.deepEqual(vl.find((v) => v.name === 'MBR Toa Payoh').days, ['THU', 'FRI'])
 assert.deepEqual(vl.find((v) => v.name === 'DV').days, ['SAT', 'SUN'])
-roster.venues[0].postalCode = '123456'
-assert.equal(R.venueList(roster)[0].postalCode, '123456')
-assert.equal(R.venueList({ weeks: roster.weeks }).length, 14, 'works on old saves without venues')
+assert.deepEqual(vl.filter((v) => v.kind === 'base').map((v) => v.name), ['WCP', 'DV'])
+assert.ok(vl.find((v) => v.name === 'MBR Tanjong Pagar').days.includes('MON'))
+const saved = structuredClone(schools)
+saved[0].address = '1 Raffles Quay 048583'
+assert.equal(R.venueList({ schools: saved, bases, weeks })[0].address, '1 Raffles Quay 048583')
+assert.equal(R.venueList({ schools: saved.map((s) => ({ ...s, active: false })), bases, weeks }).length, 2, 'inactive schools are hidden')
 console.log('venues: all checks passed')
-
-// new week: dated after the latest week, fresh block ids, Leads rotate, source untouched
-const nw = R.nextWeek(weeks[0], weeks[1])
-assert.equal(nw.id, '2026-11-02')
-assert.equal(nw.label, '2-Nov to 8-Nov')
-assert.equal(nw.status, 'draft')
-const ids = new Set(weeks.flatMap((w) => w.days.flatMap((d) => d.blocks.map((b) => b.id))))
-assert.ok(nw.days.every((d) => d.blocks.every((b) => !ids.has(b.id))), 'block ids are new')
-const leadOf = (w) => w.days[0].blocks[0].coaches.findIndex((c) => c.role === 'lead')
-const before = leadOf(weeks[0])
-assert.equal(leadOf(nw), (before + 1) % weeks[0].days[0].blocks[0].coaches.length, 'lead rotated')
-assert.equal(leadOf(weeks[0]), before, 'source week unchanged')
-assert.equal(R.nextWeek(weeks[0], { id: '2026-12-28' }).label, '4-Jan to 10-Jan', 'crosses year end')
-console.log('new week: all checks passed')
 
 // venues per day: add, duplicate guard, No Lesson, remove
 w = structuredClone(weeks[0])
@@ -103,10 +92,14 @@ assert.equal(R.blockStatus(creative).label, 'No lesson')
 assert.ok(R.baseCoaches(w, 'thu', 'WCP', coaches).length === 3, 'Creative coaches go to WCP')
 R.setNoLesson(w, 'thu', creative.id, false)
 assert.ok(!('noLesson' in creative))
+creative.holiday = true
+R.setNoLesson(w, 'thu', creative.id, true)
+assert.ok(!('holiday' in creative), 'admin toggle replaces a sheet-derived holiday')
+R.setNoLesson(w, 'thu', creative.id, false)
 R.removeBlock(w, 'tue', tue.at(-1).id)
 assert.ok(!w.days[1].blocks.some((b) => b.name === 'MBR Bishan'))
-const withSaved = { ...roster, venues: [...roster.venues, { name: 'MBR Bishan', address: '', postalCode: '' }] }
-assert.deepEqual(R.venueList(withSaved).find((v) => v.name === 'MBR Bishan').days, [], 'saved-only venue listed')
+const withSaved = { schools: [...schools, { id: 99, name: 'MBR Bishan', brand: 'MBR', class_day: 'TUE', active: true, address: '' }], bases, weeks }
+assert.deepEqual(R.venueList(withSaved).find((v) => v.name === 'MBR Bishan').days, [], 'school with no lessons listed')
 console.log('venues per day: all checks passed')
 
 // Excel export mirrors the supervisor's sheet
@@ -141,26 +134,26 @@ assert.equal(R.blockStatus(coding).label, 'Short 2')
 R.autoFill(w, coaches)
 assert.equal(R.blockStatus(coding).tone, 'red', 'everyone on Sat is already placed, so it stays short')
 coding.slots[0].students = 5
-w.availability.suzanne[5] = 'available'
+w.availability[id('Suzanne')][5] = 'available'
 R.autoFill(w, coaches)
 assert.equal(R.blockStatus(coding).tone, 'green', 'auto-fill staffs a short programme from free coaches')
-assert.ok(coding.coaches.some((c) => c.id === 'suzanne'))
+assert.ok(coding.coaches.some((c) => c.id === id('Suzanne')))
 
 // fair leads: fewest Leads this week wins
-const pool = [{ id: 'ameer' }, { id: 'matin' }, { id: 'peiqi' }]
-assert.equal(R.pickLead(pool, { ameer: 2, matin: 0, peiqi: 1 }).id, 'matin')
-assert.ok(['matin', 'peiqi'].includes(R.pickLead(pool, { ameer: 1 }).id))
+const pool = [{ id: 1 }, { id: 2 }, { id: 3 }]
+assert.equal(R.pickLead(pool, { 1: 2, 2: 0, 3: 1 }).id, 2)
+assert.ok([2, 3].includes(R.pickLead(pool, { 1: 1 }).id))
 
 // one weekend day per intern: Ameer works Sat; making him free on Sun doesn't put him on Sun too
 w = structuredClone(weeks[0])
-w.availability.ameer[6] = 'available'
+w.availability[id('Ameer')][6] = 'available'
 R.autoFill(w, coaches)
-assert.ok(!R.placementOf(w.days[6], 'ameer'), 'Ameer kept off Sunday')
+assert.ok(!R.placementOf(w.days[6], id('Ameer')), 'Ameer kept off Sunday')
 assert.deepEqual(R.quotaWarnings(w, coaches), [])
 // ...unless a Sunday programme is short and nobody else is free
 w.days[6].blocks[4].slots[0].students = 30 // DV Robotics (Dream): needs 5
 R.autoFill(w, coaches)
-assert.ok(R.placementOf(w.days[6], 'ameer'), 'Ameer used when Sunday is short')
+assert.ok(R.placementOf(w.days[6], id('Ameer')), 'Ameer used when Sunday is short')
 console.log('weekend + auto-fill: all checks passed')
 
 // drag-and-drop move + auto-generate diff
@@ -168,23 +161,23 @@ console.log('weekend + auto-fill: all checks passed')
   const w = structuredClone(weeks[0])
   const tp = w.days[0].blocks[0] // MBR Tanjong Pagar: Ameer (lead), Matin, Pei Qi
   const dover = w.days[0].blocks.find((b) => b.name === 'MBR Dover')
-  R.moveCoach(w, 'mon', 'matin', dover.id)
-  assert.ok(dover.coaches.some((c) => c.id === 'matin') && !tp.coaches.some((c) => c.id === 'matin'), 'moved to Dover')
-  R.moveCoach(w, 'mon', 'matin', dover.id) // same block: no-op
-  assert.equal(dover.coaches.filter((c) => c.id === 'matin').length, 1)
-  R.moveCoach(w, 'mon', 'matin', null)
-  assert.ok(!R.placementOf(w.days[0], 'matin'), 'back to WCP')
-  assert.ok(R.baseCoaches(w, 'mon', 'WCP', coaches).some((c) => c.id === 'matin'))
+  R.moveCoach(w, 'mon', id('Matin'), dover.id)
+  assert.ok(dover.coaches.some((c) => c.id === id('Matin')) && !tp.coaches.some((c) => c.id === id('Matin')), 'moved to Dover')
+  R.moveCoach(w, 'mon', id('Matin'), dover.id) // same block: no-op
+  assert.equal(dover.coaches.filter((c) => c.id === id('Matin')).length, 1)
+  R.moveCoach(w, 'mon', id('Matin'), null)
+  assert.ok(!R.placementOf(w.days[0], id('Matin')), 'back to WCP')
+  assert.ok(R.baseCoaches(w, 'mon', 'WCP', coaches).some((c) => c.id === id('Matin')))
 
   const before = structuredClone(weeks[0])
   const after = structuredClone(before)
   after.days[0].blocks[0].coaches = after.days[0].blocks[0].coaches.filter((c) => c.role !== 'lead') // Ameer removed
   after.days[0].blocks[0].coaches[0].role = 'lead' // Matin promoted
-  after.days[0].blocks[0].coaches.push({ id: 'reyes', role: 'coach' })
+  after.days[0].blocks[0].coaches.push({ id: id('Reyes'), role: 'coach' })
   const d = R.diffAssignments(before, after)
-  assert.deepEqual(d.added, [`${tp.id}:reyes`])
-  assert.deepEqual(d.removed, [`${tp.id}:ameer`])
-  assert.deepEqual(d.newLeads, [`${tp.id}:matin`])
+  assert.deepEqual(d.added, [`${tp.id}:${id('Reyes')}`])
+  assert.deepEqual(d.removed, [`${tp.id}:${id('Ameer')}`])
+  assert.deepEqual(d.newLeads, [`${tp.id}:${id('Matin')}`])
 }
 console.log('move + diff: all checks passed')
 

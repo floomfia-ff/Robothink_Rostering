@@ -16,19 +16,19 @@ export function isValidSlotTime(time) {
   const m = /^([01]\d|2[0-3]):([0-5]\d) - ([01]\d|2[0-3]):([0-5]\d)$/.exec((time ?? '').trim())
   return !!m && m[1] + m[2] < m[3] + m[4]
 }
-export const isValidPostalCode = (code) => /^\d{6}$/.test(code ?? '') // Singapore
+export { isValidAddress } from '../../supabase/functions/roster/logic.js'
 
-// Every place coaches report to: weekday venues (by name, across all weeks) plus the weekend bases.
-// Returns [{ name, days, address, postalCode }] merged with saved details in roster.venues.
+// Every place coaches report to: active schools, then the WCP / DV bases.
+// days = the day labels where a lesson block uses that school / a programme uses that base.
 export function venueList(roster) {
   const days = new Map()
+  const note = (key, label) => days.set(key, new Set(days.get(key)).add(label))
   for (const w of roster.weeks) for (const d of w.days) for (const b of d.blocks) {
-    const name = b.kind === 'lesson' ? b.name : b.kind === 'program' ? b.base : null
-    if (name) days.set(name, new Set(days.get(name)).add(d.label))
+    if (b.kind === 'lesson' && b.schoolId != null) note('school:' + b.schoolId, d.label)
+    else if (b.kind === 'program') note('base:' + b.base, d.label)
   }
-  for (const v of roster.venues ?? []) if (!days.has(v.name)) days.set(v.name, new Set()) // added on Venues tab, not rostered yet
-  const saved = Object.fromEntries((roster.venues ?? []).map((v) => [v.name, v]))
-  return [...days].map(([name, set]) => ({ address: '', postalCode: '', ...saved[name], name, days: [...set] }))
+  const list = (kind, items) => items.map((v) => ({ kind, id: v.id, name: kind === 'base' ? v.code : v.name, address: v.address ?? '', days: [...(days.get(kind + ':' + (kind === 'base' ? v.code : v.id)) ?? [])] }))
+  return [...list('school', (roster.schools ?? []).filter((s) => s.active)), ...list('base', roster.bases ?? [])]
 }
 
 export const availability = (week, coachId, dayKey) =>
@@ -64,7 +64,7 @@ export function baseCoaches(week, dayKey, base, coaches) {
   const day = getDay(week, dayKey)
   if (base === 'WCP' && !isWeekend(dayKey)) {
     return coaches
-      .filter((c) => c.type === 'intern' && availability(week, c.id, dayKey) === 'available' && !placementOf(day, c.id))
+      .filter((c) => c.employment_type === 'intern' && availability(week, c.id, dayKey) === 'available' && !placementOf(day, c.id))
       .map((c) => ({ id: c.id, role: 'coach' }))
   }
   return day.blocks.filter((b) => b.kind === 'program' && b.base === base).flatMap((b) => b.coaches)
@@ -73,7 +73,7 @@ export function baseCoaches(week, dayKey, base, coaches) {
 export function isWorking(week, dayKey, coach) {
   if (availability(week, coach.id, dayKey) !== 'available') return false
   if (placementOf(getDay(week, dayKey), coach.id)) return true
-  return coach.type === 'intern' && !isWeekend(dayKey) // at WCP
+  return coach.employment_type === 'intern' && !isWeekend(dayKey) // at WCP
 }
 
 export function dayTotals(week, dayKey, coaches) {
@@ -98,7 +98,7 @@ export function coachDay(week, dayKey, coach) {
 
 export function quotaWarnings(week, coaches) {
   return coaches
-    .filter((c) => c.type === 'intern')
+    .filter((c) => c.employment_type === 'intern')
     .map((c) => {
       const worked = week.days.filter((d) => isWorking(week, d.key, c))
       const weekdays = worked.filter((d) => !isWeekend(d.key)).length
@@ -107,40 +107,6 @@ export function quotaWarnings(week, coaches) {
       return `Intern ${c.name} is assigned to ${weekdays} weekday${weekdays === 1 ? '' : 's'} + ${weekend} weekend day${weekend === 1 ? '' : 's'}; needs ${INTERN_QUOTA.weekdays} weekdays + ${INTERN_QUOTA.weekend} weekend.`
     })
     .filter(Boolean)
-}
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-// Copy `source` into a new draft week starting 7 days after `latest` (so weeks never clash).
-// Same venues, slots, students, availability and coaches; each weekday Lead passes to the next coach.
-export function nextWeek(source, latest) {
-  const start = new Date(`${latest.id}T00:00:00Z`)
-  start.setUTCDate(start.getUTCDate() + 7)
-  const id = start.toISOString().slice(0, 10)
-  const dates = source.days.map((_, i) => {
-    const d = new Date(start)
-    d.setUTCDate(d.getUTCDate() + i)
-    return `${d.getUTCDate()}-${MONTHS[d.getUTCMonth()]}`
-  })
-  const week = structuredClone(source)
-  Object.assign(week, { id, label: `${dates[0]} to ${dates.at(-1)}`, status: 'draft' })
-  delete week.changedSincePublish
-  week.days.forEach((day, i) => {
-    day.date = dates[i]
-    for (const b of day.blocks) {
-      b.id = b.id.replace(source.id, id)
-      if (needsLead(b)) rotateLead(b)
-    }
-  })
-  return week
-}
-
-function rotateLead(block) {
-  const pool = block.coaches.filter((c) => c.role !== 'shadow')
-  const i = pool.findIndex((c) => c.role === 'lead')
-  if (i < 0 || pool.length < 2) return
-  pool[i].role = 'coach'
-  pool[(i + 1) % pool.length].role = 'lead'
 }
 
 // ---- edits (on a cloned week) ----
@@ -173,6 +139,7 @@ export function setNoLesson(week, dayKey, blockId, on) {
     block.noLesson = true
     block.coaches = []
   } else delete block.noLesson
+  delete block.holiday // an admin's explicit toggle is stored, not treated as sheet-derived
 }
 
 function findSlot(day, coachId) {
@@ -275,11 +242,11 @@ export function autoFill(week, coaches) {
     // Part-timers only come in when free that day, so use them before pulling interns off WCP.
     let free = coaches
       .filter((c) => availability(week, c.id, day.key) === 'available' && !seen.has(c.id))
-      .sort((a, b) => (a.type === b.type ? 0 : a.type === 'part-timer' ? -1 : 1))
+      .sort((a, b) => (a.employment_type === b.employment_type ? 0 : a.employment_type === 'part-timer' ? -1 : 1))
       .map((c) => c.id)
     // Interns already on the other weekend day are kept back: only used if a programme is short.
     const otherWeekendDay = day.key === 'sat' ? 'sun' : 'sat'
-    const isDouble = (id) => isWeekend(day.key) && byId[id].type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
+    const isDouble = (id) => isWeekend(day.key) && byId[id].employment_type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
     const spare = free.filter(isDouble)
     free = free.filter((id) => !isDouble(id))
 
