@@ -1,0 +1,1629 @@
+{
+  "coaches": [
+    {
+      "id": "ameer",
+      "name": "Ameer",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "kathleen",
+      "name": "Kathleen",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "reyes",
+      "name": "Reyes",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "matin",
+      "name": "Matin",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "yonghao",
+      "name": "Yong Hao",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "kaezel",
+      "name": "Kaezel",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "linette",
+      "name": "Linette",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "zeline",
+      "name": "Zeline",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "peiqi",
+      "name": "Pei Qi",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "nicole",
+      "name": "Nicole",
+      "type": "intern",
+      "mrt": ""
+    },
+    {
+      "id": "suzanne",
+      "name": "Suzanne",
+      "type": "part-timer",
+      "mrt": ""
+    },
+    {
+      "id": "kaihui",
+      "name": "Kai Hui",
+      "type": "part-timer",
+      "mrt": ""
+    },
+    {
+      "id": "junlong",
+      "name": "Jun Long",
+      "type": "part-timer",
+      "mrt": ""
+    },
+    {
+      "id": "hazel",
+      "name": "Hazel",
+      "type": "part-timer",
+      "mrt": ""
+    },
+    {
+      "id": "celest",
+      "name": "Celest",
+      "type": "part-timer",
+      "mrt": ""
+    }
+  ],
+  "venues": [
+    {
+      "name": "MBR Tanjong Pagar",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR Dover",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "SPL Woodlands",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR Fusionopolis",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR OUE",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "Adventist SH",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR Toa Payoh",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR Creative",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR East Coast",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR Cairnhill",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "MBR Punggol",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "SPL Bukit Timah",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "WCP",
+      "address": "",
+      "postalCode": ""
+    },
+    {
+      "name": "DV",
+      "address": "",
+      "postalCode": ""
+    }
+  ],
+  "weeks": [
+    {
+      "id": "2026-10-19",
+      "label": "19-Oct to 25-Oct",
+      "status": "draft",
+      "days": [
+        {
+          "key": "mon",
+          "label": "MON",
+          "date": "19-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-19-mon-mbr-tanjong-pagar",
+              "name": "MBR Tanjong Pagar",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 8
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 6
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "lead"
+                },
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-mon-mbr-dover",
+              "name": "MBR Dover",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:00 - 16:00",
+                  "students": 9
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                },
+                {
+                  "id": "zeline",
+                  "role": "coach"
+                },
+                {
+                  "id": "nicole",
+                  "role": "lead"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-mon-spl-woodlands",
+              "name": "SPL Woodlands",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 8
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 7
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "yonghao",
+                  "role": "lead"
+                },
+                {
+                  "id": "kaezel",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "tue",
+          "label": "TUE",
+          "date": "20-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-19-tue-mbr-fusionopolis",
+              "name": "MBR Fusionopolis",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:00 - 16:00",
+                  "students": 11
+                },
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 9
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kathleen",
+                  "role": "lead"
+                },
+                {
+                  "id": "yonghao",
+                  "role": "coach"
+                },
+                {
+                  "id": "nicole",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-tue-mbr-oue",
+              "name": "MBR OUE",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 6
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "lead"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "wed",
+          "label": "WED",
+          "date": "21-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-19-wed-adventist-sh",
+              "name": "Adventist SH",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 15
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "coach"
+                },
+                {
+                  "id": "kaezel",
+                  "role": "coach"
+                },
+                {
+                  "id": "linette",
+                  "role": "lead"
+                },
+                {
+                  "id": "zeline",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "thu",
+          "label": "THU",
+          "date": "22-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-19-thu-mbr-toa-payoh",
+              "name": "MBR Toa Payoh",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 15
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 16
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "yonghao",
+                  "role": "lead"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                },
+                {
+                  "id": "nicole",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-thu-mbr-creative",
+              "name": "MBR Creative",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 11
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 9
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "coach"
+                },
+                {
+                  "id": "reyes",
+                  "role": "coach"
+                },
+                {
+                  "id": "kaezel",
+                  "role": "lead"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-thu-mbr-east-coast",
+              "name": "MBR East Coast",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:00 - 16:00",
+                  "students": 10
+                },
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 8
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                },
+                {
+                  "id": "zeline",
+                  "role": "coach"
+                },
+                {
+                  "id": "linette",
+                  "role": "lead"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "fri",
+          "label": "FRI",
+          "date": "23-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-19-fri-mbr-toa-payoh",
+              "name": "MBR Toa Payoh",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 11
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "yonghao",
+                  "role": "coach"
+                },
+                {
+                  "id": "nicole",
+                  "role": "lead"
+                },
+                {
+                  "id": "hazel",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-fri-mbr-cairnhill",
+              "name": "MBR Cairnhill",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 7
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "reyes",
+                  "role": "coach"
+                },
+                {
+                  "id": "kaezel",
+                  "role": "lead"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-fri-mbr-punggol",
+              "name": "MBR Punggol",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 12
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "zeline",
+                  "role": "lead"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-fri-spl-bukit-timah",
+              "name": "SPL Bukit Timah",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 12
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "coach"
+                },
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                },
+                {
+                  "id": "linette",
+                  "role": "lead"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "sat",
+          "label": "SAT",
+          "date": "24-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-19-sat-wcp-robotics-regular",
+              "name": "WCP Robotics (Regular)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kaezel",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sat-wcp-coding",
+              "name": "WCP Coding",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": []
+            },
+            {
+              "id": "2026-10-19-sat-dv-robotics-regular",
+              "name": "DV Robotics (Regular)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kaihui",
+                  "role": "coach"
+                },
+                {
+                  "id": "ameer",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sat-wcp-robotics-dream",
+              "name": "WCP Robotics (Dream)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "nicole",
+                  "role": "coach"
+                },
+                {
+                  "id": "linette",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sat-dv-robotics-dream",
+              "name": "DV Robotics (Dream)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "zeline",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sat-others",
+              "name": "OTHERS",
+              "kind": "other",
+              "slots": [],
+              "coaches": [
+                {
+                  "id": "yonghao",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "sun",
+          "label": "SUN",
+          "date": "25-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-19-sun-wcp-robotics-regular",
+              "name": "WCP Robotics (Regular)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "suzanne",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sun-wcp-coding",
+              "name": "WCP Coding",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "reyes",
+                  "role": "coach"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sun-dv-robotics-regular",
+              "name": "DV Robotics (Regular)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "celest",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sun-wcp-robotics-dream",
+              "name": "WCP Robotics (Dream)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-19-sun-dv-robotics-dream",
+              "name": "DV Robotics (Dream)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": []
+            },
+            {
+              "id": "2026-10-19-sun-others",
+              "name": "OTHERS",
+              "kind": "other",
+              "slots": [],
+              "coaches": [
+                {
+                  "id": "junlong",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "availability": {
+        "ameer": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "kathleen": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "off",
+          "available"
+        ],
+        "reyes": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off",
+          "available"
+        ],
+        "matin": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "off",
+          "available"
+        ],
+        "yonghao": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "kaezel": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "linette": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "zeline": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "peiqi": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "off",
+          "available"
+        ],
+        "nicole": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "suzanne": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available"
+        ],
+        "kaihui": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available",
+          "unavailable"
+        ],
+        "junlong": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available"
+        ],
+        "hazel": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available",
+          "unavailable",
+          "unavailable"
+        ],
+        "celest": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available"
+        ]
+      }
+    },
+    {
+      "id": "2026-10-26",
+      "label": "26-Oct to 1-Nov",
+      "status": "draft",
+      "days": [
+        {
+          "key": "mon",
+          "label": "MON",
+          "date": "26-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-26-mon-mbr-tanjong-pagar",
+              "name": "MBR Tanjong Pagar",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 8
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 6
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "lead"
+                },
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-mon-mbr-dover",
+              "name": "MBR Dover",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:00 - 16:00",
+                  "students": 9
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                },
+                {
+                  "id": "zeline",
+                  "role": "lead"
+                },
+                {
+                  "id": "nicole",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-mon-spl-woodlands",
+              "name": "SPL Woodlands",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 8
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 7
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "yonghao",
+                  "role": "coach"
+                },
+                {
+                  "id": "kaezel",
+                  "role": "lead"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "tue",
+          "label": "TUE",
+          "date": "27-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-26-tue-mbr-fusionopolis",
+              "name": "MBR Fusionopolis",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:00 - 16:00",
+                  "students": 11
+                },
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 9
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                },
+                {
+                  "id": "yonghao",
+                  "role": "coach"
+                },
+                {
+                  "id": "nicole",
+                  "role": "lead"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-tue-mbr-oue",
+              "name": "MBR OUE",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 6
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "lead"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "wed",
+          "label": "WED",
+          "date": "28-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-26-wed-adventist-sh",
+              "name": "Adventist SH",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 15
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "coach"
+                },
+                {
+                  "id": "kaezel",
+                  "role": "coach"
+                },
+                {
+                  "id": "linette",
+                  "role": "lead"
+                },
+                {
+                  "id": "zeline",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "thu",
+          "label": "THU",
+          "date": "29-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-26-thu-mbr-toa-payoh",
+              "name": "MBR Toa Payoh",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 15
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 16
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "yonghao",
+                  "role": "lead"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                },
+                {
+                  "id": "nicole",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-thu-mbr-creative",
+              "name": "MBR Creative",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 0
+                },
+                {
+                  "time": "16:30 - 17:30",
+                  "students": 0
+                }
+              ],
+              "coaches": [],
+              "noLesson": true
+            },
+            {
+              "id": "2026-10-26-thu-mbr-east-coast",
+              "name": "MBR East Coast",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:00 - 16:00",
+                  "students": 10
+                },
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 8
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                },
+                {
+                  "id": "zeline",
+                  "role": "coach"
+                },
+                {
+                  "id": "linette",
+                  "role": "lead"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "fri",
+          "label": "FRI",
+          "date": "30-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-26-fri-mbr-toa-payoh",
+              "name": "MBR Toa Payoh",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 11
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "yonghao",
+                  "role": "coach"
+                },
+                {
+                  "id": "nicole",
+                  "role": "coach"
+                },
+                {
+                  "id": "hazel",
+                  "role": "lead"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-fri-mbr-cairnhill",
+              "name": "MBR Cairnhill",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "15:30 - 16:30",
+                  "students": 7
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "reyes",
+                  "role": "lead"
+                },
+                {
+                  "id": "kaezel",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-fri-mbr-punggol",
+              "name": "MBR Punggol",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 12
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "coach"
+                },
+                {
+                  "id": "zeline",
+                  "role": "lead"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-fri-spl-bukit-timah",
+              "name": "SPL Bukit Timah",
+              "kind": "lesson",
+              "slots": [
+                {
+                  "time": "16:00 - 17:00",
+                  "students": 12
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "coach"
+                },
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                },
+                {
+                  "id": "linette",
+                  "role": "lead"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "sat",
+          "label": "SAT",
+          "date": "31-Oct",
+          "blocks": [
+            {
+              "id": "2026-10-26-sat-wcp-robotics-regular",
+              "name": "WCP Robotics (Regular)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kaezel",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sat-wcp-coding",
+              "name": "WCP Coding",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "linette",
+                  "role": "coach"
+                },
+                {
+                  "id": "peiqi",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sat-dv-robotics-regular",
+              "name": "DV Robotics (Regular)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "ameer",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sat-wcp-robotics-dream",
+              "name": "WCP Robotics (Dream)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "nicole",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sat-dv-robotics-dream",
+              "name": "DV Robotics (Dream)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "kathleen",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sat-others",
+              "name": "OTHERS",
+              "kind": "other",
+              "slots": [],
+              "coaches": [
+                {
+                  "id": "yonghao",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "sun",
+          "label": "SUN",
+          "date": "1-Nov",
+          "blocks": [
+            {
+              "id": "2026-10-26-sun-wcp-robotics-regular",
+              "name": "WCP Robotics (Regular)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "suzanne",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sun-wcp-coding",
+              "name": "WCP Coding",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "reyes",
+                  "role": "coach"
+                },
+                {
+                  "id": "zeline",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sun-dv-robotics-regular",
+              "name": "DV Robotics (Regular)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "celest",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sun-wcp-robotics-dream",
+              "name": "WCP Robotics (Dream)",
+              "kind": "program",
+              "base": "WCP",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": [
+                {
+                  "id": "matin",
+                  "role": "coach"
+                }
+              ]
+            },
+            {
+              "id": "2026-10-26-sun-dv-robotics-dream",
+              "name": "DV Robotics (Dream)",
+              "kind": "program",
+              "base": "DV",
+              "slots": [
+                {
+                  "time": "09:00 - 16:00"
+                }
+              ],
+              "coaches": []
+            },
+            {
+              "id": "2026-10-26-sun-others",
+              "name": "OTHERS",
+              "kind": "other",
+              "slots": [],
+              "coaches": [
+                {
+                  "id": "junlong",
+                  "role": "coach"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "availability": {
+        "ameer": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "kathleen": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "reyes": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off",
+          "available"
+        ],
+        "matin": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "off",
+          "available"
+        ],
+        "yonghao": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "kaezel": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "linette": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "zeline": [
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off",
+          "available"
+        ],
+        "peiqi": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "nicole": [
+          "available",
+          "available",
+          "off",
+          "available",
+          "available",
+          "available",
+          "off"
+        ],
+        "suzanne": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available"
+        ],
+        "kaihui": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable"
+        ],
+        "junlong": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available"
+        ],
+        "hazel": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available",
+          "unavailable",
+          "unavailable"
+        ],
+        "celest": [
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "unavailable",
+          "available"
+        ]
+      }
+    }
+  ]
+}

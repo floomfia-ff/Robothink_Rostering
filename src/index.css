@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Print / PDF: the full week fits on A3 landscape */
+@media print {
+  @page { size: A3 landscape; margin: 8mm; }
+  body { background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
