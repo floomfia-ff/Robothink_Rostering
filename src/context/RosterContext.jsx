@@ -173,17 +173,24 @@ export function RosterProvider({ children }) {
       setDirty(true)
       say('Undone')
     },
-    saveDraft: async () => (await run('Saving', () => api.saveDraft(roster))) && savedAt('Draft saved'),
+    // Actions the header buttons await resolve true / false so the button can show ✓ or the failure.
+    saveDraft: async () => {
+      const ok = await run('Saving', () => api.saveDraft(roster))
+      if (ok) savedAt('Draft saved')
+      return ok
+    },
     // Marked published only once the server says so.
     publish: async () => {
       const next = {
         ...roster,
         weeks: roster.weeks.map((w) => (w.id === weekId ? { ...w, status: 'published', changedSincePublish: false } : w)),
       }
-      if (await run('Publishing', () => api.publishRoster(next, weekId))) {
+      const ok = await run('Publishing', () => api.publishRoster(next, weekId))
+      if (ok) {
         setRoster(next)
         savedAt('Published')
       }
+      return ok
     },
   }
 

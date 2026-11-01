@@ -37,9 +37,29 @@ async function rosterPicture(week, coaches, everyone) {
   }
 }
 
-const PICTURE_TEXT = {
-  copy: { idle: 'Copy picture', working: 'Copying…', done: '✓ Copied', failed: "Couldn't copy" },
-  download: { idle: 'Download picture', working: 'Saving…', done: '✓ Downloaded', failed: "Couldn't save" },
+// A button that shows its own result: `working` while the action runs, then green "✓ done" or red "failed"
+// for a moment. The action resolves false for a failure and null when the admin cancelled (no message).
+const BTN = 'rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-wait disabled:opacity-50'
+function ActionButton({ action, label, working, done, failed = 'Failed', className, disabled }) {
+  const [state, setState] = useState('idle')
+  const click = async () => {
+    setState('working')
+    let result
+    try {
+      result = await action()
+    } catch {
+      result = false
+    }
+    if (result === null) return setState('idle')
+    setState(result === false ? 'failed' : 'done')
+    setTimeout(() => setState('idle'), 2500)
+  }
+  const tone = { done: 'bg-emerald-600 text-white ring-1 ring-emerald-600', failed: 'bg-red-600 text-white ring-1 ring-red-600' }[state]
+  return (
+    <button type="button" onClick={click} disabled={disabled || state === 'working'} aria-live="polite" className={`${BTN} ${tone ?? className}`}>
+      {{ idle: label, working, done: `✓ ${done}`, failed }[state]}
+    </button>
+  )
 }
 
 export default function HeaderControls() {
@@ -47,37 +67,20 @@ export default function HeaderControls() {
     useRoster()
 
   const [showWarnings, setShowWarnings] = useState(false)
-  const [picture, setPicture] = useState({}) // { copy, download }: 'working' | 'done' | 'failed'
-  const pictureRun = async (key, fn) => {
-    setPicture((p) => ({ ...p, [key]: 'working' }))
-    let state = 'done'
-    try {
-      await fn(rosterPicture(week, coaches, Object.values(coachById)))
-    } catch {
-      state = 'failed'
-    }
-    setPicture((p) => ({ ...p, [key]: state }))
-    setTimeout(() => setPicture((p) => ({ ...p, [key]: undefined })), 2500)
-  }
+  const everyone = Object.values(coachById)
   // ClipboardItem takes the promise so the copy still counts as part of the click
-  const copyPicture = () => pictureRun('copy', (png) => navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]))
-  const downloadPicture = () =>
-    pictureRun('download', async (png) => {
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(await png)
-      a.download = `Roster ${week.label}.png`
-      a.click()
-      URL.revokeObjectURL(a.href)
-    })
-  const pictureButton = (key, onClick) => {
-    const state = picture[key] ?? 'idle'
-    const tone = state === 'done' ? 'bg-emerald-600 text-white ring-emerald-600' : state === 'failed' ? 'bg-red-600 text-white ring-red-600' : ''
-    return (
-      <button type="button" onClick={onClick} disabled={state === 'working'} aria-live="polite" className={`${quiet} min-w-36 ${tone}`}>
-        {PICTURE_TEXT[key][state]}
-      </button>
-    )
+  const copyPicture = () => navigator.clipboard.write([new ClipboardItem({ 'image/png': rosterPicture(week, coaches, everyone) })])
+  const downloadPicture = async () => {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(await rosterPicture(week, coaches, everyone))
+    a.download = `Roster ${week.label}.png`
+    a.click()
+    URL.revokeObjectURL(a.href)
   }
+  const onClear = () =>
+    window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays, and Undo brings them back.`)
+      ? clearCoaches()
+      : null
 
   const quota = quotaWarnings(week, coaches)
   const badTimes = week.days.flatMap((d) =>
@@ -89,11 +92,10 @@ export default function HeaderControls() {
     const msg = alerts.length
       ? `There are ${alerts.length} warning(s). Publish the ${week.label} roster anyway?`
       : `Publish the ${week.label} roster to all coaches?`
-    if (window.confirm(msg)) publish()
+    return window.confirm(msg) ? publish() : null
   }
 
-  const btn = 'rounded-lg px-3 py-1.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-wait disabled:opacity-50'
-  const quiet = `${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50`
+  const quiet = 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
   const status =
     week.status !== 'published'
       ? ['Draft', 'bg-slate-100 text-slate-600 ring-slate-200']
@@ -125,14 +127,9 @@ export default function HeaderControls() {
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={createWeek}
-              title={`Copy ${week.label} into a new week after the last one. Leads move to the next coach.`}
-              className="rounded-lg px-2 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50 print:hidden"
-            >
-              + New week
-            </button>
+            <span className="print:hidden" title="Add the week after the last one, with fresh counts from the lesson plan.">
+              <ActionButton action={createWeek} label="+ New week" working="Creating…" done="Week added" failed="Couldn't add" disabled={!!busy} className="text-indigo-700 hover:bg-indigo-50" />
+            </span>
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${status[1]}`}>{status[0]}</span>
             {alerts.length > 0 ? (
               <button
@@ -150,27 +147,22 @@ export default function HeaderControls() {
             <SaveStatus />
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
-            <button type="button" onClick={saveDraft} disabled={!!busy} className={quiet}>
-              {busy === 'Saving' ? 'Saving…' : 'Save Draft'}
-            </button>
-            <button type="button" onClick={onPublish} disabled={!!busy} className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`}>
-              {busy === 'Publishing' ? 'Publishing…' : week.changedSincePublish ? 'Republish Roster' : 'Publish Roster'}
-            </button>
+            <ActionButton action={saveDraft} label="Save Draft" working="Saving…" done="Saved" failed="Save failed" disabled={!!busy} className={quiet} />
+            <ActionButton
+              action={onPublish}
+              label={week.changedSincePublish ? 'Republish Roster' : 'Publish Roster'}
+              working="Publishing…"
+              done="Published"
+              failed="Publish failed"
+              disabled={!!busy}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+            />
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 print:hidden">
-          <button type="button" onClick={autoGenerate} disabled={!!busy} className={`${btn} bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}>
-            {busy === 'Generating' ? 'Generating…' : '✨ Auto-Generate Draft'}
-          </button>
-          <button
-            type="button"
-            onClick={() => window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays, and Undo brings them back.`) && clearCoaches()}
-            disabled={!!busy}
-            className={quiet}
-          >
-            Clear coaches
-          </button>
+          <ActionButton action={autoGenerate} label="✨ Auto-Generate Draft" working="Generating…" done="Generated" failed="Couldn't generate" disabled={!!busy} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100" />
+          <ActionButton action={onClear} label="Clear coaches" working="Clearing…" done="Cleared" disabled={!!busy} className={quiet} />
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Find coach
             <select
@@ -187,14 +179,10 @@ export default function HeaderControls() {
             </select>
           </label>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {pictureButton('copy', copyPicture)}
-            {pictureButton('download', downloadPicture)}
-            <button type="button" onClick={() => downloadXlsx(week, coaches, Object.values(coachById))} className={quiet}>
-              Export to Excel
-            </button>
-            <button type="button" onClick={() => window.print()} className={quiet}>
-              Print / PDF
-            </button>
+            <ActionButton action={copyPicture} label="Copy picture" working="Copying…" done="Copied" failed="Couldn't copy" className={quiet} />
+            <ActionButton action={downloadPicture} label="Download picture" working="Saving…" done="Downloaded" failed="Couldn't save" className={quiet} />
+            <ActionButton action={() => downloadXlsx(week, coaches, everyone)} label="Export to Excel" working="Exporting…" done="Exported" failed="Couldn't export" className={quiet} />
+            <ActionButton action={() => window.print()} label="Print / PDF" working="Opening…" done="Print opened" className={quiet} />
           </div>
         </div>
 
