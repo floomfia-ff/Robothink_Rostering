@@ -72,7 +72,11 @@ export function buildWeek({ id, coaches, schools, plan, planError, saved, previo
   // coaches can be hard-deleted by the feedback app; drop their ids so the page and PUT keep working
   const known = new Set(coaches.map((c) => c.id))
   const keep = (list) => list.filter((c) => known.has(c.id))
-  for (const c of coaches) week.availability[String(c.id)] = base[String(c.id)] || Array(7).fill('available')
+  // A new week starts part-timers as X (admins pick them in by hand); interns carry their days over.
+  for (const c of coaches) {
+    const intern = c.employment_type === 'intern'
+    week.availability[String(c.id)] = ((saved || intern) && base[String(c.id)]) || Array(7).fill(intern ? 'available' : 'unavailable')
+  }
 
   week.days.forEach((day, i) => {
     const date = addDays(id, i)

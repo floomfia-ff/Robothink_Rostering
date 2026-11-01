@@ -48,6 +48,16 @@ for (const day of wk.days.slice(5)) {
 }
 assert.deepEqual(wk.availability[String(coaches[0].id)], Array(7).fill('available'))
 
+// part-timers start every new week unavailable (admins pick them in by hand); interns carry over
+assert.deepEqual(wk.availability['2'], Array(7).fill('unavailable'), 'part-timer starts as X')
+const lastWeek = { id: '2026-10-26', status: 'draft', changed_since_publish: false,
+  data: { availability: { 1: ['available', 'off', ...Array(4).fill('available'), 'off'], 2: Array(7).fill('available') }, days: [] } }
+const nextWk = L.buildWeek({ id: '2026-11-02', coaches, schools: dbSchools, plan: null, planError: 'x', saved: null, previous: lastWeek })
+assert.deepEqual(nextWk.availability['1'], lastWeek.data.availability[1], "intern's days off carry over")
+assert.deepEqual(nextWk.availability['2'], Array(7).fill('unavailable'), 'part-timer back to X in a new week')
+const savedWk = L.buildWeek({ id: '2026-10-26', coaches, schools: dbSchools, plan: null, planError: 'x', saved: lastWeek, previous: null })
+assert.deepEqual(savedWk.availability['2'], Array(7).fill('available'), 'a saved week keeps what the admin picked')
+
 // saved decisions keep coaches, fresh counts replace stale ones
 const saved = { id: '2026-11-02', status: 'published', changed_since_publish: false,
   data: L.toStored({ ...wk, days: wk.days.map((d) => d.key !== 'thu' ? d :

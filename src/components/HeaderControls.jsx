@@ -46,6 +46,7 @@ export default function HeaderControls() {
   const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, saveDraft, publish, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
+  const [showWarnings, setShowWarnings] = useState(false)
   const [picture, setPicture] = useState({}) // { copy, download }: 'working' | 'done' | 'failed'
   const pictureRun = async (key, fn) => {
     setPicture((p) => ({ ...p, [key]: 'working' }))
@@ -133,6 +134,19 @@ export default function HeaderControls() {
               + New week
             </button>
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${status[1]}`}>{status[0]}</span>
+            {alerts.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowWarnings((s) => !s)}
+                aria-expanded={showWarnings}
+                aria-controls="roster-warnings"
+                className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-300 hover:bg-amber-200 print:hidden"
+              >
+                ⚠ {alerts.length} warning{alerts.length === 1 ? '' : 's'} {showWarnings ? '▴' : '▾'}
+              </button>
+            ) : (
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 print:hidden">✓ No warnings</span>
+            )}
             <SaveStatus />
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
@@ -226,21 +240,12 @@ export default function HeaderControls() {
         </div>
       )}
 
-      {alerts.length > 0 ? (
-        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
-          <p className="font-semibold">
-            ⚠ {alerts.length} warning{alerts.length === 1 ? '' : 's'}
-          </p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-5">
-            {alerts.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800 print:hidden">
-          ✓ Every intern has one weekday off (Tuesday or Wednesday) and one weekend day off.
-        </div>
+      {showWarnings && alerts.length > 0 && (
+        <ul id="roster-warnings" className="list-disc space-y-0.5 rounded-xl border border-amber-200 bg-amber-50 py-2.5 pr-4 pl-9 text-sm text-amber-900 print:hidden">
+          {alerts.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
       )}
     </header>
   )
