@@ -1,11 +1,10 @@
 # Roster API contract (frontend ⇄ backend ⇄ engine)
 
-The admin UI (Dev 1) talks to the server **only** through `src/lib/api.js`.
-Today those functions save to the browser (localStorage). To connect the real backend,
-replace each function body with a `fetch()` call to the endpoint below. Keep the same
-inputs and outputs, and no screen has to change.
+The admin UI talks to the server **only** through `src/lib/api.js`, which calls the Supabase Edge
+Function `roster` (`supabase/functions/roster/`). Every request sends the header `x-roster-code`.
+Names below are the database's own column names, so everyone sees one set of names.
 
-Anything here can still change. If you need a different shape, tell Dev 1 and update this file in the same PR.
+If you need a different shape, tell the UI owner and update this file in the same PR.
 
 ---
 
@@ -14,30 +13,46 @@ Anything here can still change. If you need a different shape, tell Dev 1 and up
 ### Roster (everything)
 
 ```json
-{ "coaches": [Coach], "venues": [Venue], "weeks": [Week] }
+{ "coaches": [Coach], "schools": [School], "bases": [Base], "weeks": [Week],
+  "planError": null, "unmatchedSchools": [] }
 ```
+
+| Field | Notes |
+|---|---|
+| `planError` | Text when the lesson plan sheet could not be read, otherwise `null`. Everything else still loads. |
+| `unmatchedSchools` | Names of active schools in the database that are not on the sheet (check the spelling). |
+| `weeks` | Every saved week, plus the current week (Singapore time) if it is not saved yet. |
 
 ### Coach
 
 ```json
-{ "id": "ameer", "name": "Ameer", "type": "intern", "mrt": "Toa Payoh" }
+{ "id": 12, "name": "Ameer", "active": true, "employment_type": "intern", "mrt_station": "Toa Payoh" }
 ```
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | string | Stable and unique. Used everywhere else to point at the coach. |
-| `name` | string | |
-| `type` | `"intern"` \| `"part-timer"` | Interns have the 4 weekdays + 1 weekend quota. |
-| `mrt` | string | Nearest MRT station (free text). Dev 4 can turn it into a location. |
+| `id` | number | Stable. Used everywhere else to point at the coach. |
+| `name` | string | Read-only here (edited in the feedback site). |
+| `active` | boolean | Inactive coaches are still returned so past weeks show them. They cannot be placed on new days. |
+| `employment_type` | `"intern"` \| `"part-timer"` | Editable. Interns have the 4 weekdays + 1 weekend quota. New coaches default to `part-timer`. |
+| `mrt_station` | string \| null | Editable. Nearest MRT station (free text). |
 
-### Venue
+### School (a weekday venue)
 
 ```json
-{ "name": "MBR Tanjong Pagar", "address": "", "postalCode": "" }
+{ "id": 3, "name": "MBR Tanjong Pagar", "brand": "MBR", "class_day": "MON", "active": true, "address": "1 Example Road, Singapore 123456" }
 ```
 
-`name` is the key for now. It matches the block `name` on weekdays and the `base` (`WCP` / `DV`) on weekends.
-`postalCode` is 6 digits (Singapore). **Backend:** give venues a real `id` and the UI will switch to it.
+`address` is editable and must end in a 6-digit postal code. Everything else is read-only here.
+`class_day` (`MON`–`FRI`) decides which weekday the school's lesson appears on.
+
+### Base (weekend location)
+
+```json
+{ "id": 1, "code": "WCP", "name": "RoboThink West Coast Plaza", "address": "154 West Coast Road, Singapore 127371" }
+```
+
+`code` (`WCP` / `DV`) matches `base` on weekend programmes. Only `address` is editable.
 
 ### Week
 
@@ -48,16 +63,20 @@ Anything here can still change. If you need a different shape, tell Dev 1 and up
   "status": "draft",
   "changedSincePublish": false,
   "days": [Day × 7, mon → sun],
-  "availability": { "ameer": ["available", "off", "available", "available", "available", "available", "off"] }
+  "availability": { "12": ["available", "off", "available", "available", "available", "available", "off"] }
 }
 ```
 
 | Field | Notes |
 |---|---|
 | `id` | Monday's date, `YYYY-MM-DD`. |
-| `status` | `"draft"` or `"published"`. |
-| `changedSincePublish` | `true` when a published week was edited and not republished. |
-| `availability[coachId]` | 7 values, Mon → Sun: `"available"`, `"off"` (requested off), `"unavailable"` (X). |
+| `status` | `"draft"` or `"published"`. Only the publish endpoint changes it. |
+| `changedSincePublish` | `true` when a published week was saved again and not republished. |
+| `availability[coachId]` | Keyed by the coach id **as a string**. 7 values, Mon → Sun: `"available"`, `"off"` (requested off), `"unavailable"` (X). |
+
+A week that has never been saved is a draft with no coaches. Its weekend programmes (without coaches)
+and availability are copied from the most recent earlier saved week; with none, each weekend day has
+only the OTHERS row and every coach is `available`.
 
 ### Day
 
@@ -67,44 +86,72 @@ Anything here can still change. If you need a different shape, tell Dev 1 and up
 
 ### Block (one venue / programme on one day)
 
-Weekday venue lesson:
+Weekday lesson (built from `schools.class_day` and the lesson plan sheet):
 
 ```json
 {
-  "id": "2026-10-19-mon-mbr-tanjong-pagar",
-  "name": "MBR Tanjong Pagar",
+  "id": "2026-10-19-mon-school-3",
   "kind": "lesson",
+  "schoolId": 3,
+  "name": "MBR Tanjong Pagar",
   "noLesson": false,
-  "slots": [ { "time": "15:30 - 16:30", "students": 8 }, { "time": "16:30 - 17:30", "students": 6 } ],
-  "coaches": [ { "id": "ameer", "role": "lead" }, { "id": "matin", "role": "coach" } ]
+  "slots": [
+    { "time": "15:30 - 16:30", "students": 8, "builds": [ { "build": "L1-2A Example", "students": 5 }, { "build": "L1-3B Example", "students": 3 } ] }
+  ],
+  "coaches": [ { "id": 12, "role": "lead" }, { "id": 7, "role": "coach" } ]
 }
 ```
 
-Weekend programme (9am–4pm, at a base):
+Weekend programme (entered by hand, at a base):
 
 ```json
 {
-  "id": "2026-10-19-sat-wcp-robotics-regular",
-  "name": "WCP Robotics (Regular)",
+  "id": "2026-10-24-sat-wcp-robotics-regular",
   "kind": "program",
+  "name": "WCP Robotics (Regular)",
   "base": "WCP",
   "slots": [ { "time": "09:00 - 16:00", "students": 8 } ],
-  "coaches": [ { "id": "kaezel", "role": "coach" } ]
+  "coaches": [ { "id": 4, "role": "coach" } ]
 }
 ```
 
-Weekend OTHERS row: `{ "id": "...-sat-others", "name": "OTHERS", "kind": "other", "slots": [], "coaches": [...] }`
+Weekend OTHERS row: `{ "id": "...-sat-others", "kind": "other", "name": "OTHERS", "slots": [], "coaches": [...] }`
 
 | Field | Notes |
 |---|---|
-| `kind` | `"lesson"` (weekday venue), `"program"` (weekend), `"other"` (OTHERS row). |
-| `slots[].time` | `"HH:MM - HH:MM"`, 24-hour, start before end. |
-| `slots[].students` | Number. For programmes it's optional (blank = class not set up yet). |
-| `noLesson` | Lesson cancelled that day; it has no coaches. |
+| `kind` | `"lesson"` (weekday school), `"program"` (weekend), `"other"` (OTHERS row). |
+| `schoolId` | Lessons only. Points at `schools[].id`. |
+| `slots[].time` | `"HH:MM - HH:MM"`, 24-hour, start before end. Sheet text like `1600 - 1700` is converted. |
+| `slots[].students` | Number. Lessons: counted from the sheet. Programmes: optional (blank = class not set up yet). |
+| `slots[].builds` | Lessons only: `{ build, students }`, most students first. A double ("A & B") counts the child once in `students`. |
+| `noLesson` | Lesson cancelled that day; it has no coaches. Set by the admin, or by the server when the sheet has no children that date. |
+| `holiday` | `true` when `noLesson` came from the sheet. Never saved. The admin toggling "No lesson" clears it and the choice is saved. |
+| `inactive` | `true` on a lesson whose school was deactivated but that the published week already had. |
+| `coaches[].id` | Number, matches `coaches[].id`. |
 | `coaches[].role` | `"lead"`, `"coach"` or `"shadow"`. |
+
+Weekday lesson names, slots and counts are rebuilt from the database and sheet on every load, so they
+are never saved. Children's names never leave the server: the sheet is reduced to counts and build names.
+
+**Stored shape** (`roster_weeks.data`, one row per week, for reference):
+
+```json
+{
+  "availability": { "12": ["available", "off", "available", "available", "available", "available", "off"] },
+  "days": [
+    { "key": "mon", "blocks": [ { "kind": "lesson", "schoolId": 3, "noLesson": false, "coaches": [ { "id": 12, "role": "lead" } ] } ] },
+    { "key": "sat", "blocks": [ { "kind": "program", "id": "...", "name": "...", "base": "WCP", "slots": [], "coaches": [] },
+                               { "kind": "other", "id": "...", "name": "OTHERS", "slots": [], "coaches": [] } ] }
+  ]
+}
+```
+
+A lesson stores only `schoolId`, `noLesson` and `coaches`. Weekend programme and OTHERS blocks are stored whole.
 
 **Not stored, worked out by the UI:** weekday WCP (available interns not at a venue), weekend WCP / DV rows
 (all coaches in that base's programmes), totals, and status colours.
+
+Inactive schools do not appear on draft weeks. A published week that already had the school keeps it.
 
 ---
 
@@ -123,37 +170,62 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 Status colours: red **Short n** (fewer coaches than needed) → yellow **No lead** → green **OK**.
 Grey means no lesson, no class or no students.
 
+Screen behaviour that follows from live data: weekday slots are read-only; weekday blocks cannot be
+added or removed (only "No lesson" toggles); coach names, school names and base names are read-only.
+
 ---
 
 ## 3. Endpoints
 
-| `api.js` function | Endpoint | Sends | Gets back |
+All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on every call, and
+`Content-Type: application/json` when there is a body.
+
+| `api.js` function | Request | Sends | Gets back |
 |---|---|---|---|
-| `loadRoster()` | `GET /roster` | — | Roster |
-| `saveDraft(roster)` | `PUT /roster` *(backend may split into `PUT /weeks/:id`, `PUT /coaches`, `PUT /venues`)* | Roster | `204` |
-| `publishRoster(roster, weekId)` | `POST /weeks/:id/publish` | — (after saving) | `204`. Backend sets `status: "published"`, `changedSincePublish: false`, and triggers coach notifications (Dev 4). |
-| `generateRoster(week, coaches)` | `POST /weeks/:id/generate` | — | Week with `days[].blocks[].coaches` filled in (Dev 3). |
+| `loadRoster()` | `GET /` | — | Roster |
+| `loadWeek(id)` | `GET /weeks/:id` | — | One Week, built fresh (or the saved one merged with fresh slots). Used for "New week". |
+| `saveDraft(roster)` | `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one, then `PUT /weeks/:id` for each changed week | see below | `204` each |
+| `publishRoster(roster, weekId)` | `saveDraft`, then `POST /weeks/:id/publish` | — | `204`. Sets `status: "published"`, `changedSincePublish: false`. |
+| `generateRoster(week, coaches)` | none yet | — | Runs `autoFill()` in the browser. |
+
+`api.js` compares against what it last loaded or saved, and sends only what changed.
+
+| Request | Body | Notes |
+|---|---|---|
+| `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern" }` (either or both) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`. |
+| `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. |
+| `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
+| `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
+| `POST /weeks/:id/publish` | — | The week must already be saved. |
+
+These edits go straight into the shared `coaches` and `schools` rows, so the feedback site shows them on its next load.
 
 ### Errors
 
-Return a non-2xx status with `{ "error": "Readable message for the admin" }`.
-`api.js` should `throw new Error(body.error)`. The UI shows the message in red, keeps the admin's
-unsaved changes, and lets them try again. A failed publish does **not** mark the week published.
+Non-2xx status with `{ "error": "Readable message for the admin" }`. `api.js` throws `new Error(body.error)`.
+The UI shows the message in red, keeps the admin's unsaved changes, and lets them try again.
+A failed publish does **not** mark the week published.
 
-### `POST /weeks/:id/generate` (Dev 3)
+| Status | When |
+|---|---|
+| `401` | Missing or wrong code: "Roster code not accepted." Nothing is read or saved. |
+| `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
+| `404` | "No such coach / school / base."; publishing a week that was never saved ("Save the week before publishing it."); any other path. |
+| `500` | The function is missing a secret, or the database failed. The message says which. |
 
-- Reads coaches, availability, slots and student counts from the database.
-- **Keeps** valid assignments the admin already made. Fills only what's short.
-- Returns the whole week in the shape above. The UI replaces that week's `days` with it.
-  The admin reviews it, edits it by hand, and then saves or publishes.
-- Should finish in a few seconds. The UI shows "Generating…" and disables the buttons meanwhile.
-- Today's stand-in is `autoFill()` in `src/lib/roster.js`. Its tests show the expected behaviour.
+If the lesson plan sheet cannot be read, that is **not** an error: the response carries `planError`,
+lesson blocks have `slots: []`, and saving still works.
 
 ---
 
-## 4. Not done in the UI yet
+## 4. Not done yet
 
-- **Logins and roles (Dev 2):** the UI assumes an admin. Send a `401` and the UI will need a login screen.
-- **Coach mobile view, maps and notifications (Dev 4):** they use the same Week / Coach data.
-- **Two admins editing the same week:** last save wins. If that matters, the backend can return `409`
-  when the week changed since it was loaded, and the UI will reload it.
+- **Google Maps travel time (spec #2):** will use the MRT stations and addresses now available.
+- **Auto-generate engine (Dev 3):** `generateRoster()` still fills the week in the browser with `autoFill()`
+  in `src/lib/roster.js`. The planned `POST /weeks/:id/generate` should keep valid assignments, fill only what
+  is short, and return the whole week in the shape above. Its tests show the expected behaviour.
+- **Notifications on publish, coach mobile view (Dev 4).**
+- **Logins:** none, by design. The roster code is compiled into the site's JavaScript, so anyone with the
+  site's link can use the roster and edit MRT stations, employment types and addresses. Accepted because
+  the link is shared only with the supervisor and developers; if it spreads, change `ROSTER_CODE` and rebuild.
+- **Two admins editing the same week:** last save wins.
