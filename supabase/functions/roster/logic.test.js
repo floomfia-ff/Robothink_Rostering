@@ -72,6 +72,21 @@ for (const name of ['Secret Child A', 'Secret Child B', 'Secret Child C']) {
   assert.ok(!JSON.stringify(merged).includes(name), `${name} leaked`)
 }
 
+// a coach deleted from the database (id 99) is dropped from saved lesson and weekend blocks
+const ghost = structuredClone(saved)
+ghost.data.days[3].blocks.find((b) => b.schoolId === 5).coaches.push({ id: 99, role: 'coach' })
+ghost.data.days[5].blocks[0].coaches = [{ id: 99, role: 'lead' }, { id: 2, role: 'coach' }]
+const deGhosted = L.buildWeek({ id: '2026-11-02', coaches, schools: dbSchools, plan: m, planError: null, saved: ghost, previous: null })
+assert.ok(!JSON.stringify(deGhosted.days.flatMap((d) => d.blocks)).includes('"id":99'), 'deleted coach dropped')
+assert.deepEqual(deGhosted.days[5].blocks[0].coaches, [{ id: 2, role: 'coach' }])
+assert.equal(L.validateWeek(deGhosted, new Set(coaches.map((c) => c.id))), null)
+
+// a sheet holiday the admin overrode (coaches assigned, No lesson off) stays a lesson on reload
+const overrode = structuredClone(holidaySaved)
+overrode.data.days[3].blocks.find((b) => b.schoolId === 5).coaches = [{ id: 1, role: 'lead' }]
+assert.equal(L.buildWeek({ id: '2026-11-09', coaches, schools: dbSchools, plan: m, planError: null, saved: overrode, previous: null })
+  .days[3].blocks.find((b) => b.schoolId === 5).noLesson, undefined)
+
 // validation
 assert.equal(typeof L.validateWeek({ ...merged, days: merged.days.map((d) => ({ key: d.key })) }, new Set([1, 2])), 'string')
 assert.equal(L.isMonday('2026-11-02'), true)
@@ -81,6 +96,9 @@ assert.equal(typeof L.validateWeek({ ...merged, days: merged.days.map((d) => ({ 
 assert.equal(L.validateWeek(merged, new Set(coaches.map((c) => c.id))), null)
 assert.match(L.validateWeek(merged, new Set([2])), /coach 1/i)
 assert.match(L.validateWeek({ ...merged, id: '2026-11-03' }, new Set([1])), /Monday/)
+const badSchool = structuredClone(merged)
+badSchool.days[3].blocks.find((b) => b.schoolId === 5).schoolId = '5'
+assert.match(L.validateWeek(badSchool, new Set([1, 2])), /schoolId/)
 
 // address check
 assert.equal(L.isValidAddress('90 Jurong East Street 13, Singapore 609648 '), true)

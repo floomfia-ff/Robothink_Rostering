@@ -66,6 +66,9 @@ export function buildWeek({ id, coaches, schools, plan, planError, saved, previo
     week.changedSincePublish = saved.changed_since_publish
   }
   const base = (saved || previous)?.data.availability || {}
+  // coaches can be hard-deleted by the feedback app; drop their ids so the page and PUT keep working
+  const known = new Set(coaches.map((c) => c.id))
+  const keep = (list) => list.filter((c) => known.has(c.id))
   for (const c of coaches) week.availability[String(c.id)] = base[String(c.id)] || Array(7).fill('available')
 
   week.days.forEach((day, i) => {
@@ -73,7 +76,7 @@ export function buildWeek({ id, coaches, schools, plan, planError, saved, previo
     const savedDay = saved?.data.days.find((d) => d.key === day.key)
     if (i >= 5) {
       const prev = previous?.data.days.find((d) => d.key === day.key)
-      day.blocks = savedDay ? savedDay.blocks
+      day.blocks = savedDay ? savedDay.blocks.map((b) => ({ ...b, coaches: keep(b.coaches) }))
         : prev ? prev.blocks.map((b) => ({ ...b, id: b.id.replace(previous.id, id), coaches: [] }))
         : [{ id: `${id}-${day.key}-others`, kind: 'other', name: 'OTHERS', slots: [], coaches: [] }]
       return
@@ -85,9 +88,9 @@ export function buildWeek({ id, coaches, schools, plan, planError, saved, previo
       const p = plan?.byId.get(s.id)
       const slots = p ? lessonSlots(p, date) : []
       const block = { id: `${id}-${day.key}-school-${s.id}`, kind: 'lesson', schoolId: s.id, name: s.name, slots,
-        coaches: old?.coaches || [] }
+        coaches: keep(old?.coaches || []) }
       if (old?.noLesson) block.noLesson = true
-      else if (p && !slots.length) Object.assign(block, { noLesson: true, holiday: true }) // holiday: from the sheet, never stored
+      else if (p && !slots.length && !block.coaches.length) Object.assign(block, { noLesson: true, holiday: true }) // holiday: from the sheet, never stored; saved coaches mean the admin overrode it
       if (!s.active) block.inactive = true
       day.blocks.push(block)
     }
@@ -111,6 +114,7 @@ export function validateWeek(week, coachIds) {
   if (week.days?.length !== 7 || week.days.some((d, i) => d?.key !== DAY_KEYS[i])) return 'A week needs 7 days, Monday first.'
   if (week.days.some((d) => !Array.isArray(d.blocks) || d.blocks.some((b) => !b || !Array.isArray(b.coaches) || b.coaches.some((c) => !c)))) return 'Every day needs blocks, and every block needs coaches.'
   for (const b of week.days.flatMap((d) => d.blocks)) {
+    if (b.kind === 'lesson' && !Number.isInteger(b.schoolId)) return 'Every lesson block needs a whole-number schoolId.'
     for (const c of b.coaches) {
       if (!coachIds.has(c.id)) return `Unknown coach ${c.id}.`
       if (!ROLES.includes(c.role)) return `Bad role "${c.role}" for coach ${c.id}.`

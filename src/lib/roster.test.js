@@ -61,7 +61,7 @@ assert.ok(R.isValidAddress('1 Fusionopolis Way 138632'))
 assert.ok(!R.isValidAddress('1 Fusionopolis Way'))
 console.log('validation: all checks passed')
 
-// venue list: every active school once (Toa Payoh is Thu + Fri) plus the WCP / DV bases; saved details merge in
+// venue list: every active school once (Toa Payoh is Thu + Fri) plus the WCP / DV bases; an address on the school row shows through
 const vl = R.venueList({ schools, bases, weeks })
 assert.equal(vl.length, 14)
 assert.deepEqual(vl.find((v) => v.name === 'MBR Toa Payoh').days, ['THU', 'FRI'])

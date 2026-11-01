@@ -41,16 +41,17 @@ export async function saveDraft(roster) {
     ...patches(roster.schools, baseline.schools, ['address'], '/schools'),
     ...patches(roster.bases, baseline.bases, ['address'], '/bases'),
   ]
-  for (const s of sends) {
-    await request('PATCH', s.path, s.patch)
-    Object.assign(s.was, s.patch)
-  }
+  // weeks first: they are the valuable data, so a bad venue edit can't block them
   for (const w of roster.weeks) {
     const i = baseline.weeks.findIndex((b) => b.id === w.id)
     if (i >= 0 && JSON.stringify(baseline.weeks[i]) === JSON.stringify(w)) continue
     await request('PUT', `/weeks/${w.id}`, w)
     if (i >= 0) baseline.weeks[i] = structuredClone(w)
     else baseline.weeks.push(structuredClone(w))
+  }
+  for (const s of sends) {
+    await request('PATCH', s.path, s.patch)
+    Object.assign(s.was, s.patch)
   }
 }
 

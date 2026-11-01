@@ -192,9 +192,11 @@ Deno.serve(async (req) => {
       const [, table, id] = r
       const fields = table === 'coaches' ? pickFields(body, ['mrt_station', 'employment_type']) : pickFields(body, ['address'])
       if (!Object.keys(fields).length) return fail('Nothing to update.', 400)
+      // clearing an address is allowed: blank is stored as null
+      if ('address' in fields && (fields.address === null || (typeof fields.address === 'string' && !fields.address.trim()))) fields.address = null
       const problem = table === 'coaches'
         ? validateCoachFields(fields)
-        : isValidAddress(fields.address) ? null : 'Address must end with a 6-digit postcode.'
+        : fields.address === null || isValidAddress(fields.address) ? null : 'Address must end with a 6-digit postcode.'
       if (problem) return fail(problem, 400)
       const rows = ok(await db.from(table === 'bases' ? 'roster_bases' : table).update(fields).eq('id', Number(id)).select('id'))
       return rows.length ? noContent() : fail(`No such ${table.slice(0, -1)}.`, 404)

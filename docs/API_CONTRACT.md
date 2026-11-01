@@ -33,7 +33,7 @@ If you need a different shape, tell the UI owner and update this file in the sam
 |---|---|---|
 | `id` | number | Stable. Used everywhere else to point at the coach. |
 | `name` | string | Read-only here (edited in the feedback site). |
-| `active` | boolean | Inactive coaches are still returned so past weeks show them. They cannot be placed on new days. |
+| `active` | boolean | Inactive coaches are still returned so past weeks show them. The UI stops them being placed on new days; the server only checks that the id exists. |
 | `employment_type` | `"intern"` \| `"part-timer"` | Editable. Interns have the 4 weekdays + 1 weekend quota. New coaches default to `part-timer`. |
 | `mrt_station` | string \| null | Editable. Nearest MRT station (free text). |
 
@@ -43,7 +43,7 @@ If you need a different shape, tell the UI owner and update this file in the sam
 { "id": 3, "name": "MBR Tanjong Pagar", "brand": "MBR", "class_day": "MON", "active": true, "address": "1 Example Road, Singapore 123456" }
 ```
 
-`address` is editable and must end in a 6-digit postal code. Everything else is read-only here.
+`address` is editable and must end in a 6-digit postal code, or be blank to clear it (stored as empty, returned as `null`). Everything else is read-only here.
 `class_day` (`MON`–`FRI`) decides which weekday the school's lesson appears on.
 
 ### Base (weekend location)
@@ -124,10 +124,10 @@ Weekend OTHERS row: `{ "id": "...-sat-others", "kind": "other", "name": "OTHERS"
 | `slots[].time` | `"HH:MM - HH:MM"`, 24-hour, start before end. Sheet text like `1600 - 1700` is converted. |
 | `slots[].students` | Number. Lessons: counted from the sheet. Programmes: optional (blank = class not set up yet). |
 | `slots[].builds` | Lessons only: `{ build, students }`, most students first. A double ("A & B") counts the child once in `students`. |
-| `noLesson` | Lesson cancelled that day; it has no coaches. Set by the admin, or by the server when the sheet has no children that date. |
-| `holiday` | `true` when `noLesson` came from the sheet. Never saved. The admin toggling "No lesson" clears it and the choice is saved. |
+| `noLesson` | Lesson cancelled that day; it has no coaches. Set by the admin, or by the server when the sheet has no children that date and the saved block has no coaches. |
+| `holiday` | `true` when `noLesson` came from the sheet. Never saved. A sheet holiday shows as No lesson unless the saved block has coaches (the admin turned No lesson off and assigned coaches). Turning No lesson on is saved. |
 | `inactive` | `true` on a lesson whose school was deactivated but that the published week already had. |
-| `coaches[].id` | Number, matches `coaches[].id`. |
+| `coaches[].id` | Number, matches `coaches[].id`. A coach deleted from the database is dropped from saved weeks on load. |
 | `coaches[].role` | `"lead"`, `"coach"` or `"shadow"`. |
 
 Weekday lesson names, slots and counts are rebuilt from the database and sheet on every load, so they
@@ -193,7 +193,7 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 | Request | Body | Notes |
 |---|---|---|
 | `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern" }` (either or both) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`. |
-| `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. |
+| `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. Blank or `null` clears it (stored as empty). |
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
 | `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
 | `POST /weeks/:id/publish` | — | The week must already be saved. |
@@ -209,8 +209,8 @@ A failed publish does **not** mark the week published.
 | Status | When |
 |---|---|
 | `401` | Missing or wrong code: "Roster code not accepted." Nothing is read or saved. |
-| `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
-| `404` | "No such coach / school / base."; publishing a week that was never saved ("Save the week before publishing it."); any other path. |
+| `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; non-blank address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; "Every day needs blocks, and every block needs coaches."; lesson `schoolId` not a whole number; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
+| `404` | "No such coach." / "No such school." / "No such base."; publishing a week that was never saved ("Save the week before publishing it."); any other path. |
 | `500` | The function is missing a secret, or the database failed. The message says which. |
 
 If the lesson plan sheet cannot be read, that is **not** an error: the response carries `planError`,
