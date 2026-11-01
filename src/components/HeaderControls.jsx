@@ -1,39 +1,81 @@
 import { useState } from 'react'
 import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
-import { downloadXlsx } from '../lib/export.js'
+import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
 import { coachDay, isValidSlotTime, quotaWarnings } from '../lib/roster.js'
 
-// The whole week grid as one PNG: full width even when scrolled sideways, edit buttons left out.
-function rosterPicture() {
-  const el = document.getElementById('roster-picture')
-  return toBlob(el, {
-    width: el.scrollWidth, height: el.scrollHeight, pixelRatio: 2, backgroundColor: '#ffffff',
-    style: { overflow: 'visible' }, filter: (n) => !n.classList?.contains('print:hidden'),
-  })
+// The week as a PNG drawn from the same sheet as the Excel export, so the two always match.
+async function rosterPicture(week, coaches, everyone) {
+  const ws = await sheetFor(week, coaches, everyone)
+  const widths = ws.columns.map((c) => Math.round((c.width ?? 9) * 7))
+  const table = document.createElement('table')
+  table.style.cssText = `width:${widths.reduce((a, b) => a + b)}px;border-collapse:collapse;table-layout:fixed;background:#fff;color:#000;font:13px Calibri,Arial,sans-serif`
+  table.innerHTML = `<colgroup>${widths.map((w) => `<col style="width:${w}px">`).join('')}</colgroup>`
+  for (const row of sheetCells(ws)) {
+    const tr = table.insertRow()
+    for (const cell of row) {
+      const td = tr.insertCell()
+      td.colSpan = cell.span
+      td.textContent = String(cell.value).replaceAll('/', '/​') // long "A/B/C" coach lists wrap after a slash
+      Object.assign(td.style, {
+        height: '20px', padding: '1px 4px', overflowWrap: 'anywhere',
+        textAlign: cell.center ? 'center' : typeof cell.value === 'number' ? 'right' : 'left',
+        background: cell.bg ?? '', fontWeight: cell.bold ? '700' : '400', color: cell.color ?? '',
+        border: cell.border ? '1px solid #bfbfbf' : '',
+      })
+    }
+  }
+  const holder = document.createElement('div') // in the page but off-screen, so the browser lays it out
+  holder.style.cssText = 'position:fixed;left:-99999px;top:0'
+  holder.appendChild(table)
+  document.body.appendChild(holder)
+  try {
+    return await toBlob(table, { pixelRatio: 2, backgroundColor: '#ffffff' })
+  } finally {
+    holder.remove()
+  }
+}
+
+const PICTURE_TEXT = {
+  copy: { idle: 'Copy picture', working: 'Copying…', done: '✓ Copied', failed: "Couldn't copy" },
+  download: { idle: 'Download picture', working: 'Saving…', done: '✓ Downloaded', failed: "Couldn't save" },
 }
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, saveDraft, publish, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, saveDraft, publish, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
-  const [picture, setPicture] = useState('')
-  const copyPicture = async () => {
+  const [picture, setPicture] = useState({}) // { copy, download }: 'working' | 'done' | 'failed'
+  const pictureRun = async (key, fn) => {
+    setPicture((p) => ({ ...p, [key]: 'working' }))
+    let state = 'done'
     try {
-      // ClipboardItem takes the promise so the copy still counts as part of the click
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': rosterPicture() })])
-      setPicture('Copied — paste it into the chat')
+      await fn(rosterPicture(week, coaches, Object.values(coachById)))
     } catch {
-      setPicture("Couldn't copy here — use Download picture")
+      state = 'failed'
     }
+    setPicture((p) => ({ ...p, [key]: state }))
+    setTimeout(() => setPicture((p) => ({ ...p, [key]: undefined })), 2500)
   }
-  const downloadPicture = async () => {
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(await rosterPicture())
-    a.download = `Roster ${week.label}.png`
-    a.click()
-    URL.revokeObjectURL(a.href)
+  // ClipboardItem takes the promise so the copy still counts as part of the click
+  const copyPicture = () => pictureRun('copy', (png) => navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]))
+  const downloadPicture = () =>
+    pictureRun('download', async (png) => {
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(await png)
+      a.download = `Roster ${week.label}.png`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    })
+  const pictureButton = (key, onClick) => {
+    const state = picture[key] ?? 'idle'
+    const tone = state === 'done' ? 'bg-emerald-600 text-white ring-emerald-600' : state === 'failed' ? 'bg-red-600 text-white ring-red-600' : ''
+    return (
+      <button type="button" onClick={onClick} disabled={state === 'working'} aria-live="polite" className={`${quiet} min-w-36 ${tone}`}>
+        {PICTURE_TEXT[key][state]}
+      </button>
+    )
   }
 
   const quota = quotaWarnings(week, coaches)
@@ -107,6 +149,14 @@ export default function HeaderControls() {
           <button type="button" onClick={autoGenerate} disabled={!!busy} className={`${btn} bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}>
             {busy === 'Generating' ? 'Generating…' : '✨ Auto-Generate Draft'}
           </button>
+          <button
+            type="button"
+            onClick={() => window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays, and Undo brings them back.`) && clearCoaches()}
+            disabled={!!busy}
+            className={quiet}
+          >
+            Clear coaches
+          </button>
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Find coach
             <select
@@ -123,13 +173,8 @@ export default function HeaderControls() {
             </select>
           </label>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            {picture && <span role="status" className="text-xs text-slate-500">{picture}</span>}
-            <button type="button" onClick={copyPicture} className={quiet}>
-              Copy picture
-            </button>
-            <button type="button" onClick={downloadPicture} className={quiet}>
-              Download picture
-            </button>
+            {pictureButton('copy', copyPicture)}
+            {pictureButton('download', downloadPicture)}
             <button type="button" onClick={() => downloadXlsx(week, coaches, Object.values(coachById))} className={quiet}>
               Export to Excel
             </button>

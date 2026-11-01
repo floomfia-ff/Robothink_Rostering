@@ -37,7 +37,7 @@ export default function VenueRow({ band }) {
 }
 
 function VenueCell({ day, block }) {
-  const { coachById, openSwap, updateSlot, removeBlock, setNoLesson } = useRoster()
+  const { coachById, openSwap, removeBlock, setNoLesson } = useRoster()
   const status = blockStatus(block)
   const isLesson = block.kind === 'lesson'
   const drop = useCoachDrop(day.key, block.id)
@@ -76,21 +76,6 @@ function VenueCell({ day, block }) {
           )}
         </span>
       </div>
-
-      {block.kind === 'program' && (
-        <label className="flex items-center justify-between gap-1 px-2 py-1 text-xs text-slate-500">
-          Students
-          <input
-            type="number"
-            min="0"
-            value={block.slots[0]?.students ?? ''}
-            placeholder="–"
-            onChange={(e) => updateSlot(day.key, block.id, 0, { students: Math.max(0, Number(e.target.value) || 0) })}
-            aria-label={`Students for ${block.name} on ${day.label}`}
-            className="w-12 rounded border border-slate-200 px-1 py-0.5 text-right text-slate-800 focus:border-indigo-400 focus:outline-none"
-          />
-        </label>
-      )}
 
       {isLesson && (
         <ul className="divide-y divide-slate-100 px-2 text-xs">

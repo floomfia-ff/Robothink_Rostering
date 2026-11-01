@@ -122,7 +122,7 @@ Weekend OTHERS row: `{ "id": "...-sat-others", "kind": "other", "name": "OTHERS"
 | `kind` | `"lesson"` (weekday school), `"program"` (weekend), `"other"` (OTHERS row). |
 | `schoolId` | Lessons only. Points at `schools[].id`. |
 | `slots[].time` | `"HH:MM - HH:MM"`, 24-hour, start before end. Sheet text like `1600 - 1700` is converted. |
-| `slots[].students` | Number. Lessons: counted from the sheet. Programmes: optional (blank = class not set up yet). |
+| `slots[].students` | Number. Lessons: counted from the sheet. Programmes: not used — weekends take coach names only. |
 | `slots[].builds` | Lessons only: `{ build, students }`, most students first. A double ("A & B") counts the child once in `students`. |
 | `noLesson` | Lesson cancelled that day; it has no coaches. Set by the admin, or by the server when the sheet has no children that date and the saved block has no coaches. |
 | `holiday` | `true` when `noLesson` came from the sheet. Never saved. A sheet holiday shows as No lesson unless the saved block has coaches (the admin turned No lesson off and assigned coaches). Turning No lesson on is saved. |
@@ -161,7 +161,7 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 
 | Rule | Value |
 |---|---|
-| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate alone still fills to `ceil(largest slot's students ÷ 6)` (shadows don't count). |
+| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate alone still fills weekday lessons to `ceil(largest slot's students ÷ 6)` (shadows don't count), and spreads spare coaches over running weekend programmes. |
 | Leads | Exactly **one** Lead per weekday lesson. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
 | Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. Breaking it is a warning, not a block. |

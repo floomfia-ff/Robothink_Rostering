@@ -36,9 +36,9 @@ export function venueList(roster) {
 export const availability = (week, coachId, dayKey) =>
   week.availability[coachId]?.[dayIndex(week, dayKey)] ?? 'unavailable'
 
-// Only auto-fill uses the ratio; the screen shows no coach cap. Programmes count students only once entered.
+// Only auto-fill uses the ratio, and only for weekday lessons; the screen shows no coach cap.
 export function requiredCoaches(block) {
-  if (block.kind === 'other' || block.noLesson) return 0
+  if (block.kind !== 'lesson' || block.noLesson) return 0
   const most = Math.max(0, ...block.slots.map((s) => Number(s.students) || 0))
   return Math.ceil(most / MAX_STUDENTS_PER_COACH)
 }
@@ -133,6 +133,11 @@ export function removeBlock(week, dayKey, blockId) {
   day.blocks = day.blocks.filter((b) => b.id !== blockId)
 }
 
+// Start the week's placements over; availability is kept.
+export function clearCoaches(week) {
+  for (const d of week.days) for (const b of d.blocks) b.coaches = []
+}
+
 // No Lesson frees the coaches (interns fall back to WCP).
 export function setNoLesson(week, dayKey, blockId, on) {
   const block = getDay(week, dayKey).blocks.find((b) => b.id === blockId)
@@ -221,8 +226,8 @@ export function pickLead(pool, leadCount) {
 }
 
 // Draft fill: keep valid assignments, drop unavailable/double-booked coaches,
-// top up short venues and programmes from free coaches, spread weekend leftovers across running programmes,
-// keep interns to one weekend day unless a programme is short, and share Leads out evenly.
+// top up weekday venues to 1 coach per 6 students from free coaches, spread weekend leftovers across running
+// programmes, keep interns to one weekend day, and share Leads out evenly.
 // shortcut: greedy and ignores home location; replace with the backend solver once postal codes are geocoded.
 export function autoFill(week, coaches) {
   const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
@@ -245,16 +250,13 @@ export function autoFill(week, coaches) {
       .filter((c) => availability(week, c.id, day.key) === 'available' && !seen.has(c.id))
       .sort((a, b) => (a.employment_type === b.employment_type ? 0 : a.employment_type === 'part-timer' ? -1 : 1))
       .map((c) => c.id)
-    // Interns already on the other weekend day are kept back: only used if a programme is short.
+    // Interns already on the other weekend day are kept back: one weekend day each.
     const otherWeekendDay = day.key === 'sat' ? 'sun' : 'sat'
     const isDouble = (id) => isWeekend(day.key) && byId[id].employment_type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
-    const spare = free.filter(isDouble)
     free = free.filter((id) => !isDouble(id))
 
     for (const b of day.blocks.filter((x) => requiredCoaches(x) > 0)) {
-      while (countedCoaches(b) < requiredCoaches(b) && (free.length || spare.length)) {
-        b.coaches.push({ id: free.length ? free.shift() : spare.shift(), role: 'coach' })
-      }
+      while (countedCoaches(b) < requiredCoaches(b) && free.length) b.coaches.push({ id: free.shift(), role: 'coach' })
     }
     if (isWeekend(day.key)) {
       // Leftovers go to programmes that are running; only open an empty one if none are.

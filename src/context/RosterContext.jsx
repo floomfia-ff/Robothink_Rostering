@@ -92,7 +92,6 @@ export function RosterProvider({ children }) {
     })
     setDirty(true)
   }
-  const blockIn = (w, dayKey, blockId) => w.days.find((x) => x.key === dayKey).blocks.find((b) => b.id === blockId)
 
   const say = (text, error = false) => {
     setNotice(text)
@@ -127,8 +126,11 @@ export function RosterProvider({ children }) {
     removeCoach: (d, b, i) => edit((w) => R.removeCoach(w, d, b, i)),
     setRole: (d, b, i, role) => edit((w) => R.setRole(w, d, b, i, role)),
     setAvailability: (d, id, s) => edit((w) => R.setAvailability(w, d, id, s)),
-    updateSlot: (d, blockId, i, patch) =>
-      edit((w) => Object.assign(blockIn(w, d, blockId).slots[i], patch), `slot:${blockId}:${i}:${Object.keys(patch)}`),
+    clearCoaches: () => {
+      edit((w) => R.clearCoaches(w))
+      setChanges(null)
+      say('All coaches cleared — Undo brings them back')
+    },
     addBlock: (d, name, base) => edit((w) => R.addBlock(w, d, name, base)),
     removeBlock: (d, blockId) => edit((w) => R.removeBlock(w, d, blockId)),
     setNoLesson: (d, blockId, on) => edit((w) => R.setNoLesson(w, d, blockId, on)),

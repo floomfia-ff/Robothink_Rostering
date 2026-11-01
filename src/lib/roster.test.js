@@ -113,7 +113,7 @@ console.log('venues per day: all checks passed')
 
 // Excel export mirrors the supervisor's sheet
 const { default: ExcelJS } = await import('exceljs')
-const { buildRosterSheet } = await import('./export.js')
+const { buildRosterSheet, sheetCells } = await import('./export.js')
 const wb = new ExcelJS.Workbook()
 buildRosterSheet(wb, weeks[0], coaches)
 const back = new ExcelJS.Workbook()
@@ -134,18 +134,31 @@ assert.ok(ws.getColumn(2).values.some((x) => /^\*\w/.test(x ?? '')), 'leads mark
 assert.ok(['WCP', 'DV', 'OTHERS'].every((b) => ws.getColumn(2).values.includes(b)))
 console.log('export: all checks passed')
 
-// weekend programmes: student count drives the ratio; empty + no students stays "No class"
+// the picture is drawn from the same sheet: merged headers span, fills and bold carry over
+const cells = sheetCells(ws)
+assert.equal(cells[0][0].value, '* Lead Coach')
+assert.deepEqual([cells[0][1].value, cells[0][1].span], ['MON', 2], 'day header spans text + count')
+const tpCell = cells[3].find((c) => c.value === 'MBR Tanjong Pagar')
+assert.deepEqual([tpCell.bg, tpCell.bold], ['#CCCCFF', true])
+assert.equal(cells[0].reduce((n, c) => n + c.span, 0), 15, 'every row covers all 15 columns')
+console.log('picture cells: all checks passed')
+
+// weekend programmes take only coach names: students never ask auto-fill for coaches
 w = structuredClone(weeks[0])
 const coding = w.days[5].blocks[1] // WCP Coding, nobody on Sat 24-Oct
 assert.equal(R.blockStatus(coding).label, 'No class')
 coding.slots[0].students = 8
-assert.equal(R.blockStatus(coding).label, 'No class', 'no cap: students alone never make it short')
-R.autoFill(w, coaches)
-assert.equal(R.countedCoaches(coding), 0, 'everyone on Sat is already placed')
-coding.slots[0].students = 5
+assert.equal(R.requiredCoaches(coding), 0, 'weekend student numbers are ignored')
 w.availability[id('Suzanne')][5] = 'available'
 R.autoFill(w, coaches)
-assert.ok(coding.coaches.some((c) => c.id === id('Suzanne')))
+assert.ok(w.days[5].blocks.some((b) => b.kind === 'program' && b.coaches.some((c) => c.id === id('Suzanne'))), 'a free coach is still spread onto a running programme')
+
+// clear coaches empties every block of the week but keeps availability
+w = structuredClone(weeks[0])
+const before = structuredClone(w.availability)
+R.clearCoaches(w)
+assert.ok(w.days.every((d) => d.blocks.every((b) => b.coaches.length === 0)))
+assert.deepEqual(w.availability, before)
 
 // fair leads: fewest Leads this week wins
 const pool = [{ id: 1 }, { id: 2 }, { id: 3 }]
@@ -158,10 +171,6 @@ w.availability[id('Ameer')][6] = 'available'
 R.autoFill(w, coaches)
 assert.ok(!R.placementOf(w.days[6], id('Ameer')), 'Ameer kept off Sunday')
 assert.deepEqual(R.quotaWarnings(w, coaches), [])
-// ...unless a Sunday programme is short and nobody else is free
-w.days[6].blocks[4].slots[0].students = 30 // DV Robotics (Dream): needs 5
-R.autoFill(w, coaches)
-assert.ok(R.placementOf(w.days[6], id('Ameer')), 'Ameer used when Sunday is short')
 console.log('weekend + auto-fill: all checks passed')
 
 // drag-and-drop move + auto-generate diff
