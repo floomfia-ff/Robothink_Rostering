@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
-import { isValidPostalCode } from '../lib/roster.js'
+import { isValidAddress } from '../lib/roster.js'
 
 // Where each venue is. With coach home postal codes, this lets the roster suggest the closest venue later.
 export default function VenueProfiles() {
@@ -14,7 +14,7 @@ export default function VenueProfiles() {
     updateVenue(newName.trim(), {})
     setNewName('')
   }
-  const missing = venues.filter((v) => !v.address || !isValidPostalCode(v.postalCode)).length
+  const missing = venues.filter((v) => !v.address || !isValidAddress(v.postalCode)).length
   const field = 'w-full rounded border px-2 py-1.5 text-sm focus:border-indigo-400 focus:outline-none'
 
   return (
@@ -47,7 +47,7 @@ export default function VenueProfiles() {
           </thead>
           <tbody className="divide-y divide-slate-200">
             {venues.map((v) => {
-              const badPostal = !!v.postalCode && !isValidPostalCode(v.postalCode)
+              const badPostal = !!v.postalCode && !isValidAddress(v.postalCode)
               return (
                 <tr key={v.name} className="align-top">
                   <td className="w-52 px-3 py-3 font-medium text-slate-800">{v.name}</td>

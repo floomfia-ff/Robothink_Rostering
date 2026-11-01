@@ -1,18 +1,19 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import * as api from '../lib/api.js'
 import * as R from '../lib/roster.js'
+import { addDays, currentMonday } from '../../supabase/functions/roster/logic.js'
 
 const MAX_UNDO = 50
 const RosterContext = createContext(null)
 export const useRoster = () => useContext(RosterContext)
 
 export function RosterProvider({ children }) {
-  const [roster, setRoster] = useState(null) // { coaches, weeks }
+  const [roster, setRoster] = useState(null) // { coaches, schools, bases, weeks, planError, unmatchedSchools }
   const [weekId, setWeekId] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
-  const [busy, setBusy] = useState('') // 'Saving' | 'Publishing' | 'Generating' while a server call runs
+  const [busy, setBusy] = useState('') // 'Saving' | 'Publishing' | 'Generating' | 'Creating' while a server call runs
   const [loadError, setLoadError] = useState('')
   const [swapTarget, setSwapTarget] = useState(null) // { dayKey, blockId, index? } — no index = add mode
   const [history, setHistory] = useState([]) // [{ roster, weekId }] before each change, newest last
@@ -27,7 +28,7 @@ export function RosterProvider({ children }) {
       .loadRoster()
       .then((r) => {
         setRoster(r)
-        setWeekId(r.weeks[0].id)
+        setWeekId((r.weeks.find((w) => w.id === currentMonday(new Date())) ?? r.weeks.at(-1)).id)
       })
       .catch((e) => setLoadError(e.message || 'Unknown error'))
   }
@@ -55,8 +56,8 @@ export function RosterProvider({ children }) {
   if (!roster) return <p className="p-8 text-slate-500">Loading roster…</p>
 
   const week = roster.weeks.find((w) => w.id === weekId)
-  const coaches = roster.coaches
-  const coachById = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  const coachById = Object.fromEntries(roster.coaches.map((c) => [c.id, c]))
+  const coaches = roster.coaches.filter((c) => c.active)
 
   // Save the current roster for Undo. Repeated edits with the same key (typing in one field) share one step.
   const remember = (key) => {
@@ -117,7 +118,7 @@ export function RosterProvider({ children }) {
   }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), dirty, notice, noticeError, busy,
+    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, dirty, notice, noticeError, busy,
     setWeekId, swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
@@ -137,33 +138,11 @@ export function RosterProvider({ children }) {
     moveCoach: (d, coachId, toBlockId) => edit((w) => R.moveCoach(w, d, coachId, toBlockId)),
     changes: changes?.weekId === weekId ? changes : null,
     clearChanges: () => setChanges(null),
-    removeVenue: (name) => editRoster((r) => (r.venues = (r.venues ?? []).filter((v) => v.name !== name))),
     highlight, setHighlight,
-    // Venues are keyed by name, so renaming a venue in the roster starts a fresh entry.
-    updateVenue: (name, patch) =>
-      editRoster((r) => {
-        r.venues ??= []
-        let v = r.venues.find((x) => x.name === name)
-        if (!v) r.venues.push((v = { name, address: '', postalCode: '' }))
-        Object.assign(v, patch)
-      }, `venue:${name}:${Object.keys(patch)}`),
+    updateVenue: (kind, id, patch) =>
+      editRoster((r) => Object.assign(r[kind === 'school' ? 'schools' : 'bases'].find((v) => v.id === id), patch), `venue:${kind}:${id}:${Object.keys(patch)}`),
     updateCoach: (id, patch) =>
       editRoster((r) => Object.assign(r.coaches.find((c) => c.id === id), patch), `coach:${id}:${Object.keys(patch)}`),
-    createCoach: () =>
-      editRoster((r) => {
-        const id = `coach-${Date.now()}`
-        r.coaches.push({ id, name: '', type: 'intern', mrt: '' })
-        // New coaches start unavailable every day; set their days in the availability panel.
-        for (const w of r.weeks) w.availability[id] = w.days.map(() => 'unavailable')
-      }),
-    deleteCoach: (id) =>
-      editRoster((r) => {
-        r.coaches = r.coaches.filter((c) => c.id !== id)
-        for (const w of r.weeks) {
-          delete w.availability[id]
-          for (const d of w.days) for (const b of d.blocks) b.coaches = b.coaches.filter((c) => c.id !== id)
-        }
-      }),
     // Applies to the week that was open when clicked, even if the admin switches weeks meanwhile.
     autoGenerate: () =>
       run('Generating', async () => {
@@ -173,14 +152,14 @@ export function RosterProvider({ children }) {
         setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })
         say('Draft auto-generated — review, then save')
       }),
-    createWeek: () => {
-      const next = R.nextWeek(week, roster.weeks.at(-1))
-      remember()
-      setRoster((r) => ({ ...r, weeks: [...r.weeks, next] }))
-      setWeekId(next.id)
-      setDirty(true)
-      say(`Created ${next.label} from ${week.label}`)
-    },
+    createWeek: () =>
+      run('Creating', async () => {
+        const next = await api.loadWeek(addDays(roster.weeks.at(-1).id, 7))
+        remember()
+        setRoster((r) => ({ ...r, weeks: [...r.weeks, next] }))
+        setWeekId(next.id)
+        say(`Created ${next.label}`)
+      }),
     canUndo: history.length > 0,
     undo: () => {
       const prev = history.at(-1)
@@ -204,16 +183,6 @@ export function RosterProvider({ children }) {
         setRoster(next)
         savedAt('Published')
       }
-    },
-    resetToMock: async () => {
-      api.resetToMock()
-      const r = await api.loadRoster()
-      setRoster(r)
-      setWeekId(r.weeks[0].id)
-      setHistory([])
-      setChanges(null)
-      setDirty(false)
-      say('Reset to mock data')
     },
   }
 
