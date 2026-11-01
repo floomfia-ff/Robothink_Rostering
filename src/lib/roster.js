@@ -203,6 +203,30 @@ export function addCoach(week, dayKey, blockId, coachId) {
   block.coaches.push({ id: coachId, role: lead ? 'lead' : 'coach' })
 }
 
+// Drag-and-drop: move a coach to another block on the same day (null = off the venue, back to base).
+export function moveCoach(week, dayKey, coachId, toBlockId) {
+  const day = getDay(week, dayKey)
+  const from = findSlot(day, coachId)
+  if (from?.block.id === toBlockId) return
+  if (!toBlockId) return from && from.block.coaches.splice(from.index, 1)
+  addCoach(week, dayKey, toBlockId, coachId)
+}
+
+// What changed between two versions of a week: keys are `${blockId}:${coachId}`.
+export function diffAssignments(before, after) {
+  const placed = (w) => {
+    const m = new Map()
+    for (const d of w.days) for (const b of d.blocks) for (const c of b.coaches) m.set(`${b.id}:${c.id}`, c.role)
+    return m
+  }
+  const a = placed(before)
+  const b = placed(after)
+  const added = [...b.keys()].filter((k) => !a.has(k))
+  const removed = [...a.keys()].filter((k) => !b.has(k))
+  const newLeads = [...b].filter(([k, role]) => role === 'lead' && a.has(k) && a.get(k) !== 'lead').map(([k]) => k)
+  return { added, removed, newLeads }
+}
+
 export function removeCoach(week, dayKey, blockId, index) {
   getDay(week, dayKey).blocks.find((b) => b.id === blockId).coaches.splice(index, 1)
 }

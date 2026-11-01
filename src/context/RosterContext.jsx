@@ -11,17 +11,27 @@ export function RosterProvider({ children }) {
   const [weekId, setWeekId] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [notice, setNotice] = useState('')
+  const [noticeError, setNoticeError] = useState(false)
+  const [busy, setBusy] = useState('') // 'Saving' | 'Publishing' | 'Generating' while a server call runs
+  const [loadError, setLoadError] = useState('')
   const [swapTarget, setSwapTarget] = useState(null) // { dayKey, blockId, index? } — no index = add mode
   const [history, setHistory] = useState([]) // [{ roster, weekId }] before each change, newest last
   const lastEditKey = useRef(null)
   const [highlight, setHighlight] = useState('') // coach id picked in "Find coach"
+  const [dragging, setDragging] = useState(null) // { dayKey, coachId } while a chip is dragged
+  const [changes, setChanges] = useState(null) // last Auto-Generate: { weekId, added, removed, newLeads, keys }
 
-  useEffect(() => {
-    api.loadRoster().then((r) => {
-      setRoster(r)
-      setWeekId(r.weeks[0].id)
-    })
-  }, [])
+  const load = () => {
+    setLoadError('')
+    api
+      .loadRoster()
+      .then((r) => {
+        setRoster(r)
+        setWeekId(r.weeks[0].id)
+      })
+      .catch((e) => setLoadError(e.message || 'Unknown error'))
+  }
+  useEffect(load, [])
 
   // Browser asks "Leave site?" when closing or refreshing with unsaved changes.
   useEffect(() => {
@@ -31,6 +41,17 @@ export function RosterProvider({ children }) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
+  if (loadError) {
+    return (
+      <div role="alert" className="m-8 max-w-md rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <p className="font-semibold">Couldn't load the roster.</p>
+        <p className="mt-1">{loadError}</p>
+        <button type="button" onClick={load} className="mt-3 rounded-lg bg-red-600 px-3 py-1.5 font-semibold text-white hover:bg-red-700">
+          Try again
+        </button>
+      </div>
+    )
+  }
   if (!roster) return <p className="p-8 text-slate-500">Loading roster…</p>
 
   const week = roster.weeks.find((w) => w.id === weekId)
@@ -72,18 +93,31 @@ export function RosterProvider({ children }) {
   }
   const blockIn = (w, dayKey, blockId) => w.days.find((x) => x.key === dayKey).blocks.find((b) => b.id === blockId)
 
-  const run = async (label, fn) => {
+  const say = (text, error = false) => {
+    setNotice(text)
+    setNoticeError(error)
+  }
+  // One server call at a time. On failure nothing is marked saved, so the admin can just retry.
+  const run = async (doing, fn) => {
+    if (busy) return false
+    setBusy(doing)
     try {
       await fn()
-      setDirty(false)
-      setNotice(`${label} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
+      return true
     } catch (e) {
-      setNotice(`${label} failed: ${e.message}`)
+      say(`${doing} failed: ${e.message || 'unknown error'}. Your changes are still here — try again.`, true)
+      return false
+    } finally {
+      setBusy('')
     }
+  }
+  const savedAt = (label) => {
+    setDirty(false)
+    say(`${label} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
   }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), dirty, notice,
+    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), dirty, notice, noticeError, busy,
     setWeekId, swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
@@ -99,6 +133,10 @@ export function RosterProvider({ children }) {
     addBlock: (d, name, base) => edit((w) => R.addBlock(w, d, name, base)),
     removeBlock: (d, blockId) => edit((w) => R.removeBlock(w, d, blockId)),
     setNoLesson: (d, blockId, on) => edit((w) => R.setNoLesson(w, d, blockId, on)),
+    dragging, setDragging,
+    moveCoach: (d, coachId, toBlockId) => edit((w) => R.moveCoach(w, d, coachId, toBlockId)),
+    changes: changes?.weekId === weekId ? changes : null,
+    clearChanges: () => setChanges(null),
     removeVenue: (name) => editRoster((r) => (r.venues = (r.venues ?? []).filter((v) => v.name !== name))),
     highlight, setHighlight,
     // Venues are keyed by name, so renaming a venue in the roster starts a fresh entry.
@@ -126,17 +164,22 @@ export function RosterProvider({ children }) {
           for (const d of w.days) for (const b of d.blocks) b.coaches = b.coaches.filter((c) => c.id !== id)
         }
       }),
-    autoGenerate: () => {
-      edit((w) => R.autoFill(w, coaches))
-      setNotice('Draft auto-generated — review, then save')
-    },
+    // Applies to the week that was open when clicked, even if the admin switches weeks meanwhile.
+    autoGenerate: () =>
+      run('Generating', async () => {
+        const filled = await api.generateRoster(week, coaches)
+        const diff = R.diffAssignments(week, filled)
+        edit((w) => (w.days = filled.days))
+        setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })
+        say('Draft auto-generated — review, then save')
+      }),
     createWeek: () => {
       const next = R.nextWeek(week, roster.weeks.at(-1))
       remember()
       setRoster((r) => ({ ...r, weeks: [...r.weeks, next] }))
       setWeekId(next.id)
       setDirty(true)
-      setNotice(`Created ${next.label} from ${week.label}`)
+      say(`Created ${next.label} from ${week.label}`)
     },
     canUndo: history.length > 0,
     undo: () => {
@@ -146,17 +189,21 @@ export function RosterProvider({ children }) {
       lastEditKey.current = null
       setRoster(prev.roster)
       setWeekId(prev.weekId) // back to the week the change was made on
+      setChanges(null)
       setDirty(true)
-      setNotice('Undone')
+      say('Undone')
     },
-    saveDraft: () => run('Draft saved', () => api.saveDraft(roster)),
-    publish: () => {
+    saveDraft: async () => (await run('Saving', () => api.saveDraft(roster))) && savedAt('Draft saved'),
+    // Marked published only once the server says so.
+    publish: async () => {
       const next = {
         ...roster,
         weeks: roster.weeks.map((w) => (w.id === weekId ? { ...w, status: 'published', changedSincePublish: false } : w)),
       }
-      setRoster(next)
-      return run('Published', () => api.publishRoster(next, weekId))
+      if (await run('Publishing', () => api.publishRoster(next, weekId))) {
+        setRoster(next)
+        savedAt('Published')
+      }
     },
     resetToMock: async () => {
       api.resetToMock()
@@ -164,8 +211,9 @@ export function RosterProvider({ children }) {
       setRoster(r)
       setWeekId(r.weeks[0].id)
       setHistory([])
+      setChanges(null)
       setDirty(false)
-      setNotice('Reset to mock data')
+      say('Reset to mock data')
     },
   }
 

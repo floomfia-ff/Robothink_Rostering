@@ -15,3 +15,7 @@ npm run dev
 ```
 
 Tests: `npm test`
+
+## For the backend and engine devs
+
+Data shapes, rules and endpoints the UI expects: [docs/API_CONTRACT.md](docs/API_CONTRACT.md)

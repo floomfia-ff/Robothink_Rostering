@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
+import SaveStatus from './SaveStatus.jsx'
 import { isValidPostalCode } from '../lib/roster.js'
 
 // Where each venue is. With coach home postal codes, this lets the roster suggest the closest venue later.
 export default function VenueProfiles() {
-  const { venues, updateVenue, removeVenue, saveDraft, dirty, notice } = useRoster()
+  const { venues, updateVenue, removeVenue, saveDraft, busy } = useRoster()
   const [newName, setNewName] = useState('')
   const taken = venues.some((v) => v.name.toLowerCase() === newName.trim().toLowerCase())
   const addVenue = (e) => {
@@ -21,10 +22,10 @@ export default function VenueProfiles() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h1 id="venues-title" className="text-xl font-bold text-slate-900">Venues</h1>
-          {dirty ? <span className="text-xs font-medium text-amber-700">Unsaved changes</span> : notice && <span className="text-xs text-slate-500">{notice}</span>}
+          <SaveStatus />
         </div>
-        <button type="button" onClick={saveDraft} className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-          Save
+        <button type="button" onClick={saveDraft} disabled={!!busy} className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50">
+          {busy === 'Saving' ? 'Saving…' : 'Save'}
         </button>
       </div>
 

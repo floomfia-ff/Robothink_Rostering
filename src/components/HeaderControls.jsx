@@ -1,9 +1,10 @@
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx } from '../lib/export.js'
+import SaveStatus from './SaveStatus.jsx'
 import { blockStatus, coachDay, isValidSlotTime, quotaWarnings } from '../lib/roster.js'
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, dirty, notice, autoGenerate, saveDraft, publish, resetToMock, createWeek, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, saveDraft, publish, resetToMock, createWeek, highlight, setHighlight } =
     useRoster()
 
   const quota = quotaWarnings(week, coaches)
@@ -22,7 +23,7 @@ export default function HeaderControls() {
     if (window.confirm(msg)) publish()
   }
 
-  const btn = 'rounded-lg px-3 py-1.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
+  const btn = 'rounded-lg px-3 py-1.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-wait disabled:opacity-50'
   const quiet = `${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50`
   const status =
     week.status !== 'published'
@@ -58,22 +59,21 @@ export default function HeaderControls() {
               + New week
             </button>
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${status[1]}`}>{status[0]}</span>
-            {dirty && <span className="text-xs font-medium text-amber-700">● Unsaved changes</span>}
-            {notice && !dirty && <span className="text-xs text-slate-500">{notice}</span>}
+            <SaveStatus />
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
-            <button type="button" onClick={saveDraft} className={quiet}>
-              Save Draft
+            <button type="button" onClick={saveDraft} disabled={!!busy} className={quiet}>
+              {busy === 'Saving' ? 'Saving…' : 'Save Draft'}
             </button>
-            <button type="button" onClick={onPublish} className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`}>
-              {week.changedSincePublish ? 'Republish Roster' : 'Publish Roster'}
+            <button type="button" onClick={onPublish} disabled={!!busy} className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`}>
+              {busy === 'Publishing' ? 'Publishing…' : week.changedSincePublish ? 'Republish Roster' : 'Publish Roster'}
             </button>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 print:hidden">
-          <button type="button" onClick={autoGenerate} className={`${btn} bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}>
-            ✨ Auto-Generate Draft
+          <button type="button" onClick={autoGenerate} disabled={!!busy} className={`${btn} bg-indigo-50 text-indigo-700 hover:bg-indigo-100`}>
+            {busy === 'Generating' ? 'Generating…' : '✨ Auto-Generate Draft'}
           </button>
           <label className="flex items-center gap-2 text-sm text-slate-600">
             Find coach
@@ -122,6 +122,35 @@ export default function HeaderControls() {
           </p>
         )}
       </div>
+
+      {changes && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm text-slate-700 print:hidden">
+          <span className="h-3 w-3 rounded-full ring-2 ring-emerald-400 ring-offset-1" aria-hidden="true" />
+          <span>
+            {changes.added.length + changes.newLeads.length + changes.removed.length === 0 ? (
+              'Auto-Generate found nothing to change.'
+            ) : (
+              <>
+                Auto-Generate added <b>{changes.added.length}</b> coach{changes.added.length === 1 ? '' : 'es'}
+                {changes.newLeads.length > 0 && (
+                  <>
+                    {' '}and set <b>{changes.newLeads.length}</b> Lead{changes.newLeads.length === 1 ? '' : 's'}
+                  </>
+                )}
+                {' '}(green ring)
+                {changes.removed.length > 0 &&
+                  `. Took off ${changes.removed.length} who were unavailable or double-booked: ${[
+                    ...new Set(changes.removed.map((k) => coachById[k.split(':').at(-1)]?.name ?? '?')),
+                  ].join(', ')}`}
+                .
+              </>
+            )}
+          </span>
+          <button type="button" onClick={clearChanges} className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-800">
+            Clear highlights
+          </button>
+        </div>
+      )}
 
       {alerts.length > 0 ? (
         <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">

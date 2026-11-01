@@ -162,3 +162,29 @@ w.days[6].blocks[4].slots[0].students = 30 // DV Robotics (Dream): needs 5
 R.autoFill(w, coaches)
 assert.ok(R.placementOf(w.days[6], 'ameer'), 'Ameer used when Sunday is short')
 console.log('weekend + auto-fill: all checks passed')
+
+// drag-and-drop move + auto-generate diff
+{
+  const w = structuredClone(weeks[0])
+  const tp = w.days[0].blocks[0] // MBR Tanjong Pagar: Ameer (lead), Matin, Pei Qi
+  const dover = w.days[0].blocks.find((b) => b.name === 'MBR Dover')
+  R.moveCoach(w, 'mon', 'matin', dover.id)
+  assert.ok(dover.coaches.some((c) => c.id === 'matin') && !tp.coaches.some((c) => c.id === 'matin'), 'moved to Dover')
+  R.moveCoach(w, 'mon', 'matin', dover.id) // same block: no-op
+  assert.equal(dover.coaches.filter((c) => c.id === 'matin').length, 1)
+  R.moveCoach(w, 'mon', 'matin', null)
+  assert.ok(!R.placementOf(w.days[0], 'matin'), 'back to WCP')
+  assert.ok(R.baseCoaches(w, 'mon', 'WCP', coaches).some((c) => c.id === 'matin'))
+
+  const before = structuredClone(weeks[0])
+  const after = structuredClone(before)
+  after.days[0].blocks[0].coaches = after.days[0].blocks[0].coaches.filter((c) => c.role !== 'lead') // Ameer removed
+  after.days[0].blocks[0].coaches[0].role = 'lead' // Matin promoted
+  after.days[0].blocks[0].coaches.push({ id: 'reyes', role: 'coach' })
+  const d = R.diffAssignments(before, after)
+  assert.deepEqual(d.added, [`${tp.id}:reyes`])
+  assert.deepEqual(d.removed, [`${tp.id}:ameer`])
+  assert.deepEqual(d.newLeads, [`${tp.id}:matin`])
+}
+console.log('move + diff: all checks passed')
+

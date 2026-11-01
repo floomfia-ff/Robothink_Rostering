@@ -1,6 +1,6 @@
 import { useRoster } from '../context/RosterContext.jsx'
 import { blockStatus, countedCoaches, isValidSlotTime, requiredCoaches } from '../lib/roster.js'
-import CoachChip from './CoachChip.jsx'
+import CoachChip, { useCoachDrop } from './CoachChip.jsx'
 
 // Header colour per day column, like the spreadsheet.
 export const DAY_TONE = {
@@ -42,9 +42,16 @@ function VenueCell({ day, block }) {
   const status = blockStatus(block)
   const need = requiredCoaches(block)
   const isLesson = block.kind === 'lesson'
+  const drop = useCoachDrop(day.key, block.id)
+  const target = !block.noLesson && drop.valid
 
   return (
-    <div className={`flex flex-col border-t border-l border-slate-200 bg-white ${status?.tone === 'red' ? 'ring-2 ring-inset ring-red-300' : ''}`}>
+    <div
+      {...(target ? drop.props : {})}
+      className={`flex flex-col border-t border-l border-slate-200 ${target && drop.over ? 'bg-indigo-50' : 'bg-white'} ${
+        target ? 'outline-2 -outline-offset-2 outline-dashed outline-indigo-300' : status?.tone === 'red' ? 'ring-2 ring-inset ring-red-300' : ''
+      }`}
+    >
       <div className={`group/head relative flex items-center gap-1 px-2 py-1 text-sm font-semibold text-slate-800 ${DAY_TONE[day.key]}`}>
         <span className="flex-1 text-center leading-tight" title={block.name}>{block.name}</span>
         <span className="absolute right-1 top-1 flex gap-0.5 opacity-0 group-hover/head:opacity-100 focus-within:opacity-100 print:hidden">
@@ -137,7 +144,7 @@ function VenueCell({ day, block }) {
       <div className="flex flex-1 flex-wrap content-start gap-1 px-2 py-1.5">
         {block.noLesson && <span className="text-xs font-semibold text-red-600">No Lesson</span>}
         {block.coaches.map((c, i) => (
-          <CoachChip key={`${c.id}-${i}`} coach={coachById[c.id]} role={c.role} onClick={() => openSwap(day.key, block.id, i)} />
+          <CoachChip key={`${c.id}-${i}`} coach={coachById[c.id]} role={c.role} dayKey={day.key} blockId={block.id} onClick={() => openSwap(day.key, block.id, i)} />
         ))}
         {!block.noLesson && (
           <button
