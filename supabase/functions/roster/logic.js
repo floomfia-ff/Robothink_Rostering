@@ -86,7 +86,8 @@ export function buildWeek({ id, coaches, schools, plan, planError, saved, previo
       const slots = p ? lessonSlots(p, date) : []
       const block = { id: `${id}-${day.key}-school-${s.id}`, kind: 'lesson', schoolId: s.id, name: s.name, slots,
         coaches: old?.coaches || [] }
-      if (old?.noLesson || (p && !slots.length)) block.noLesson = true
+      if (old?.noLesson) block.noLesson = true
+      else if (p && !slots.length) Object.assign(block, { noLesson: true, holiday: true }) // holiday: from the sheet, never stored
       if (!s.active) block.inactive = true
       day.blocks.push(block)
     }
@@ -99,7 +100,7 @@ export function buildWeek({ id, coaches, schools, plan, planError, saved, previo
 export const toStored = (week) => ({
   availability: week.availability,
   days: week.days.map((d) => ({ key: d.key, blocks: d.blocks.map((b) => b.kind !== 'lesson' ? b
-    : { kind: 'lesson', schoolId: b.schoolId, noLesson: !!b.noLesson, coaches: b.coaches }) })),
+    : { kind: 'lesson', schoolId: b.schoolId, noLesson: !!b.noLesson && !b.holiday, coaches: b.coaches }) })),
 })
 
 const ROLES = ['lead', 'coach', 'shadow']
@@ -108,6 +109,7 @@ const STATES = ['available', 'off', 'unavailable']
 export function validateWeek(week, coachIds) {
   if (!isMonday(week.id)) return 'Week id must be a Monday (YYYY-MM-DD).'
   if (week.days?.length !== 7 || week.days.some((d, i) => d.key !== DAY_KEYS[i])) return 'A week needs 7 days, Monday first.'
+  if (week.days.some((d) => !Array.isArray(d.blocks) || d.blocks.some((b) => !Array.isArray(b.coaches)))) return 'Every day needs blocks, and every block needs coaches.'
   for (const b of week.days.flatMap((d) => d.blocks)) {
     for (const c of b.coaches) {
       if (!coachIds.has(c.id)) return `Unknown coach ${c.id}.`

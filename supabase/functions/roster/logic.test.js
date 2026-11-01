@@ -34,6 +34,12 @@ assert.equal(thu.blocks.find((b) => b.schoolId === 5).noLesson, undefined)
 const wk2 = L.buildWeek({ id: '2026-11-09', coaches, schools: dbSchools, plan: m, planError: null, saved: null, previous: null })
 assert.equal(wk2.days[3].blocks.find((b) => b.schoolId === 5).noLesson, true)
 
+// a sheet holiday is not stored, so it clears once the sheet gets a lesson that day
+const holidaySaved = { id: '2026-11-09', status: 'draft', changed_since_publish: false, data: L.toStored(wk2) }
+const lessonLater = [{ ...plan[0], students: [child('Secret Child A', '1600 - 1700', 'L1-2A', { upcoming: [{ week: 2, date: '2026-11-12', build: 'L1-2A', count: 1 }] })] }]
+const reopened = L.buildWeek({ id: '2026-11-09', coaches, schools: dbSchools, plan: L.matchSchools(dbSchools, lessonLater), planError: null, saved: holidaySaved, previous: null })
+assert.equal(reopened.days[3].blocks.find((b) => b.schoolId === 5).noLesson, undefined)
+
 // weekend with no earlier week = OTHERS only; availability defaults to available
 assert.deepEqual(wk.days[5].blocks.map((b) => b.kind), ['other'])
 assert.deepEqual(wk.availability[String(coaches[0].id)], Array(7).fill('available'))
@@ -47,7 +53,7 @@ const tp = merged.days[3].blocks.find((b) => b.schoolId === 5)
 assert.deepEqual(tp.coaches, [{ id: 1, role: 'lead' }])
 assert.equal(tp.slots.reduce((n, s) => n + s.students, 0), 3)
 assert.equal(merged.status, 'published')
-assert.ok(!JSON.stringify(saved.data).includes('students'), 'lesson counts are never stored')
+assert.ok(!JSON.stringify(saved.data.days.flatMap((d) => d.blocks).filter((b) => b.kind === 'lesson')).includes('students'), 'lesson counts are never stored')
 
 // sheet failure: slots empty, not a holiday
 const failed = L.buildWeek({ id: '2026-11-02', coaches, schools: dbSchools, plan: null, planError: 'boom', saved: null, previous: null })
@@ -67,6 +73,7 @@ for (const name of ['Secret Child A', 'Secret Child B', 'Secret Child C']) {
 }
 
 // validation
+assert.equal(typeof L.validateWeek({ ...merged, days: merged.days.map((d) => ({ key: d.key })) }, new Set([1, 2])), 'string')
 assert.equal(L.isMonday('2026-11-02'), true)
 assert.equal(L.isMonday('2026-11-03'), false)
 assert.equal(L.validateWeek(merged, new Set(coaches.map((c) => c.id))), null)
