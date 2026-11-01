@@ -4,7 +4,7 @@ import SaveStatus from './SaveStatus.jsx'
 import { blockStatus, coachDay, isValidSlotTime, quotaWarnings } from '../lib/roster.js'
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, saveDraft, publish, resetToMock, createWeek, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, saveDraft, publish, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
   const quota = quotaWarnings(week, coaches)
@@ -34,6 +34,12 @@ export default function HeaderControls() {
 
   return (
     <header className="space-y-3">
+      {planError && (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-1.5 text-sm text-red-800 print:hidden">Lesson plan unavailable: {planError}</p>
+      )}
+      {unmatchedSchools.length > 0 && (
+        <p className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900 print:hidden">Not found on the lesson plan: {unmatchedSchools.join(', ')}</p>
+      )}
       <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 print:border-0 print:p-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -96,16 +102,6 @@ export default function HeaderControls() {
             </button>
             <button type="button" onClick={() => window.print()} className={quiet}>
               Print / PDF
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                window.confirm('Reset deletes every saved roster, coach profile and venue in this browser and reloads the sample data. This cannot be undone. Continue?') &&
-                resetToMock()
-              }
-              className={`${btn} text-slate-400 hover:bg-red-50 hover:text-red-600`}
-            >
-              Reset
             </button>
           </div>
         </div>

@@ -10,11 +10,11 @@ const ROLE_BADGE = {
 // With dayKey it can be dragged to another venue on the same day.
 // "Find coach" rings the picked coach and fades the rest; Auto-Generate rings what it added in green.
 export default function CoachChip({ coach, role = 'coach', onClick, dayKey, blockId }) {
-  const { highlight, changes, setDragging } = useRoster()
+  const { highlight, changes, setDragging, coachById } = useRoster()
   const badge = ROLE_BADGE[role]
   const changed = changes?.keys.has(`${blockId}:${coach.id}`)
   const focus = highlight
-    ? highlight === coach.id
+    ? highlight === String(coach.id)
       ? 'ring-2 ring-amber-400 ring-offset-1'
       : 'opacity-25'
     : changed
@@ -23,7 +23,7 @@ export default function CoachChip({ coach, role = 'coach', onClick, dayKey, bloc
         ? 'opacity-80'
         : ''
   const base = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-    coach.type === 'intern' ? 'bg-slate-700 text-white' : 'border border-slate-400 bg-white text-slate-700'
+    coach.employment_type === 'intern' ? 'bg-slate-700 text-white' : 'border border-slate-400 bg-white text-slate-700'
   } ${role === 'shadow' ? 'italic' : ''} ${focus}`
   const drag = dayKey && {
     draggable: true,
@@ -43,6 +43,7 @@ export default function CoachChip({ coach, role = 'coach', onClick, dayKey, bloc
         </span>
       )}
       {coach.name}
+      {coachById[coach.id]?.active === false && ' (inactive)'}
     </>
   )
   if (!onClick) {

@@ -120,7 +120,7 @@ export default function CoachSwapModal() {
                     className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                   >
                     <span className="font-medium text-slate-800">
-                      {coach.name} <span className="text-xs font-normal text-slate-400">{coach.type}</span>
+                      {coach.name} <span className="text-xs font-normal text-slate-400">{coach.employment_type}</span>
                     </span>
                     <span className={`text-xs ${blocked ? 'text-slate-500' : s.where && s.where !== 'WCP' ? 'text-amber-700' : 'text-emerald-700'}`}>{note}</span>
                   </button>

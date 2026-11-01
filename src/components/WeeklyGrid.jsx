@@ -35,7 +35,7 @@ export default function WeeklyGrid() {
 
       <div className="border-t border-slate-200 bg-slate-50 print:hidden" />
       {week.days.map((d) => (
-        <AddVenue key={d.key} day={d} />
+        isWeekend(d.key) ? <AddVenue key={d.key} day={d} /> : <div key={d.key} className="border-t border-l border-slate-200 bg-slate-50 print:hidden" />
       ))}
 
       <BaseRow title="WCP" base="WCP" />

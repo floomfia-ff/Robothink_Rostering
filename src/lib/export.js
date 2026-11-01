@@ -103,7 +103,7 @@ export function buildRosterSheet(wb, week, coaches) {
   // Availability: name + 1 when working, OFF dark grey, X black.
   for (const c of coaches) {
     r++
-    const shade = c.type === 'intern' ? LIGHT : undefined
+    const shade = c.employment_type === 'intern' ? LIGHT : undefined
     put(r, 1, c.name, { bg: shade })
     week.days.forEach((d, i) => {
       const { status } = coachDay(week, d.key, c)

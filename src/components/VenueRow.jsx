@@ -1,5 +1,5 @@
 import { useRoster } from '../context/RosterContext.jsx'
-import { blockStatus, countedCoaches, isValidSlotTime, requiredCoaches } from '../lib/roster.js'
+import { blockStatus, countedCoaches, requiredCoaches } from '../lib/roster.js'
 import CoachChip, { useCoachDrop } from './CoachChip.jsx'
 
 // Header colour per day column, like the spreadsheet.
@@ -38,7 +38,7 @@ export default function VenueRow({ band }) {
 }
 
 function VenueCell({ day, block }) {
-  const { coachById, openSwap, updateSlot, addSlot, removeSlot, removeBlock, setNoLesson } = useRoster()
+  const { coachById, openSwap, updateSlot, removeBlock, setNoLesson } = useRoster()
   const status = blockStatus(block)
   const need = requiredCoaches(block)
   const isLesson = block.kind === 'lesson'
@@ -53,7 +53,7 @@ function VenueCell({ day, block }) {
       }`}
     >
       <div className={`group/head relative flex items-center gap-1 px-2 py-1 text-sm font-semibold text-slate-800 ${DAY_TONE[day.key]}`}>
-        <span className="flex-1 text-center leading-tight" title={block.name}>{block.name}</span>
+        <span className="flex-1 text-center leading-tight" title={block.name}>{block.name}{block.inactive && ' (inactive)'}</span>
         <span className="absolute right-1 top-1 flex gap-0.5 opacity-0 group-hover/head:opacity-100 focus-within:opacity-100 print:hidden">
           {isLesson && (
             <button
@@ -65,6 +65,7 @@ function VenueCell({ day, block }) {
               {block.noLesson ? 'Lesson on' : 'No lesson'}
             </button>
           )}
+          {!isLesson && (
           <button
             type="button"
             onClick={() => removeBlock(day.key, block.id)}
@@ -74,6 +75,7 @@ function VenueCell({ day, block }) {
           >
             ×
           </button>
+          )}
         </span>
       </div>
 
@@ -95,49 +97,18 @@ function VenueCell({ day, block }) {
       {isLesson && (
         <ul className="divide-y divide-slate-100 px-2 text-xs">
           {block.slots.map((slot, i) => {
-            const badTime = !isValidSlotTime(slot.time)
             return (
-              <li key={i} className="group flex items-center justify-between gap-1 py-1">
-                <input
-                  value={slot.time}
-                  placeholder="15:30 - 16:30"
-                  onChange={(e) => updateSlot(day.key, block.id, i, { time: e.target.value })}
-                  aria-label={`Time slot ${i + 1} for ${block.name}`}
-                  aria-invalid={badTime}
-                  title={badTime ? 'Use 24-hour HH:MM - HH:MM, start before end' : undefined}
-                  className={`w-[6.5rem] rounded border px-1 py-0.5 focus:outline-none ${
-                    badTime ? 'border-red-400 bg-red-50 text-red-700' : 'border-transparent hover:border-slate-200 focus:border-indigo-400'
-                  } ${block.noLesson ? 'text-slate-400 line-through' : 'text-slate-700'}`}
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={slot.students}
-                  onChange={(e) => updateSlot(day.key, block.id, i, { students: Math.max(0, Number(e.target.value) || 0) })}
-                  aria-label={`Students for ${block.name} ${slot.time}`}
-                  className="w-12 rounded border border-slate-200 px-1 py-0.5 text-right text-slate-800 focus:border-indigo-400 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeSlot(day.key, block.id, i)}
-                  aria-label={`Remove time slot ${slot.time || i + 1}`}
-                  title="Remove slot"
-                  className="px-0.5 text-slate-300 opacity-0 print:hidden group-hover:opacity-100 hover:text-red-600 focus-visible:opacity-100"
-                >
-                  ×
-                </button>
+              <li key={i} className="py-1">
+                <div className={`flex justify-between gap-1 ${block.noLesson ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
+                  <span>{slot.time}</span>
+                  <span>{slot.students}</span>
+                </div>
+                {slot.builds?.map((b) => (
+                  <div key={b.build} className="text-[11px] text-slate-400">{b.build} ×{b.students}</div>
+                ))}
               </li>
             )
           })}
-          <li>
-            <button
-              type="button"
-              onClick={() => addSlot(day.key, block.id)}
-              className="py-0.5 text-[11px] text-slate-400 hover:text-indigo-600 print:hidden"
-            >
-              + time slot
-            </button>
-          </li>
         </ul>
       )}
 
