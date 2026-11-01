@@ -76,6 +76,8 @@ for (const name of ['Secret Child A', 'Secret Child B', 'Secret Child C']) {
 assert.equal(typeof L.validateWeek({ ...merged, days: merged.days.map((d) => ({ key: d.key })) }, new Set([1, 2])), 'string')
 assert.equal(L.isMonday('2026-11-02'), true)
 assert.equal(L.isMonday('2026-11-03'), false)
+assert.equal(typeof L.validateWeek({ ...merged, days: merged.days.map((d) => ({ ...d, blocks: [null] })) }, new Set([1, 2])), 'string')
+assert.equal(typeof L.validateWeek({ ...merged, days: merged.days.map((d) => ({ ...d, blocks: [{ coaches: [null] }] })) }, new Set([1, 2])), 'string')
 assert.equal(L.validateWeek(merged, new Set(coaches.map((c) => c.id))), null)
 assert.match(L.validateWeek(merged, new Set([2])), /coach 1/i)
 assert.match(L.validateWeek({ ...merged, id: '2026-11-03' }, new Set([1])), /Monday/)

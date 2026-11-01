@@ -121,7 +121,7 @@ async function weekFor(id: string, coaches: unknown[], schools: Awaited<ReturnTy
   const saved = await getSaved(id)
   const previous = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data')
     .lt('id', id).order('id', { ascending: false }).limit(1).maybeSingle())
-  return { week: buildWeek({ id, coaches, schools, plan, planError, saved, previous }), plan, planError }
+  return buildWeek({ id, coaches, schools, plan, planError, saved, previous })
 }
 
 // ── Handler ─────────────────────────────────────────────────────────────────
@@ -134,19 +134,25 @@ Deno.serve(async (req) => {
 
     const path = new URL(req.url).pathname.replace(/^.*\/roster/, '') || '/'
     const m = req.method
-    const body = m === 'GET' ? {} : await req.json().catch(() => ({}))
+    const body = m === 'GET' ? {} : await req.json().catch(() => null)
+    if ((m === 'PUT' || m === 'PATCH') && (!body || typeof body !== 'object' || Array.isArray(body))) {
+      return fail('Body must be a JSON object.', 400)
+    }
 
     if (m === 'GET' && path === '/') {
       const [coaches, schools, bases] = await Promise.all([
         getCoaches(), getSchools(), db.from('roster_bases').select('id,code,name,address').order('id').then(ok),
       ])
       const { plan, planError } = await loadPlan(schools)
-      const saved = ok(await db.from('roster_weeks').select('id,status,changed_since_publish').order('id'))
+      const rows = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').order('id'))
+      const build = (id: string, saved: unknown, previous: unknown) =>
+        buildWeek({ id, coaches, schools, plan, planError, saved, previous })
+      const weeks = rows.map((row, i) => build(row.id, row, rows[i - 1] ?? null))
       const current = currentMonday(new Date())
-      const weeks = saved.map((w) => ({ id: w.id, status: w.status, changedSincePublish: w.changed_since_publish }))
-      if (!saved.some((w) => w.id === current)) {
-        weeks.push({ id: current, status: 'draft', changedSincePublish: false })
-        weeks.sort((a, b) => a.id.localeCompare(b.id))
+      if (!rows.some((w) => w.id === current)) {
+        const before = rows.filter((w) => w.id < current).pop() ?? null
+        weeks.push(build(current, null, before))
+        weeks.sort((x, y) => x.id.localeCompare(y.id))
       }
       return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [] })
     }
@@ -157,7 +163,7 @@ Deno.serve(async (req) => {
       if (!isMonday(id)) return fail('Week id must be a Monday (YYYY-MM-DD).', 400)
 
       if (m === 'GET') {
-        return json((await weekFor(id, await getCoaches(), await getSchools())).week)
+        return json(await weekFor(id, await getCoaches(), await getSchools()))
       }
       if (m === 'PUT') {
         if (body.id !== id) return fail('The week in the body does not match the address.', 400)
@@ -190,7 +196,7 @@ Deno.serve(async (req) => {
         ? validateCoachFields(fields)
         : isValidAddress(fields.address) ? null : 'Address must end with a 6-digit postcode.'
       if (problem) return fail(problem, 400)
-      const rows = ok(await db.from(table).update(fields).eq('id', Number(id)).select('id'))
+      const rows = ok(await db.from(table === 'bases' ? 'roster_bases' : table).update(fields).eq('id', Number(id)).select('id'))
       return rows.length ? noContent() : fail(`No such ${table.slice(0, -1)}.`, 404)
     }
 

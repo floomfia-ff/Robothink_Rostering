@@ -108,8 +108,8 @@ const STATES = ['available', 'off', 'unavailable']
 
 export function validateWeek(week, coachIds) {
   if (!isMonday(week.id)) return 'Week id must be a Monday (YYYY-MM-DD).'
-  if (week.days?.length !== 7 || week.days.some((d, i) => d.key !== DAY_KEYS[i])) return 'A week needs 7 days, Monday first.'
-  if (week.days.some((d) => !Array.isArray(d.blocks) || d.blocks.some((b) => !Array.isArray(b.coaches)))) return 'Every day needs blocks, and every block needs coaches.'
+  if (week.days?.length !== 7 || week.days.some((d, i) => d?.key !== DAY_KEYS[i])) return 'A week needs 7 days, Monday first.'
+  if (week.days.some((d) => !Array.isArray(d.blocks) || d.blocks.some((b) => !b || !Array.isArray(b.coaches) || b.coaches.some((c) => !c)))) return 'Every day needs blocks, and every block needs coaches.'
   for (const b of week.days.flatMap((d) => d.blocks)) {
     for (const c of b.coaches) {
       if (!coachIds.has(c.id)) return `Unknown coach ${c.id}.`
