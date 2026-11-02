@@ -40,7 +40,7 @@ async function rosterPicture(week, coaches, everyone) {
 // A button that shows its own result: `working` while the action runs, then green "✓ done" or red "failed"
 // for a moment. The action resolves false for a failure and null when the admin cancelled (no message).
 const BTN = 'rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-wait disabled:opacity-50'
-function ActionButton({ action, label, working, done, failed = 'Failed', className, disabled }) {
+export function ActionButton({ action, label, working, done, failed = 'Failed', className, disabled }) {
   const [state, setState] = useState('idle')
   const click = async () => {
     setState('working')
@@ -70,15 +70,8 @@ export default function HeaderControls() {
   const everyone = Object.values(coachById)
   // ClipboardItem takes the promise so the copy still counts as part of the click
   const copyPicture = () => navigator.clipboard.write([new ClipboardItem({ 'image/png': rosterPicture(week, coaches, everyone) })])
-  const downloadPicture = async () => {
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(await rosterPicture(week, coaches, everyone))
-    a.download = `Roster ${week.label}.png`
-    a.click()
-    URL.revokeObjectURL(a.href)
-  }
   const onClear = () =>
-    window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays, and Undo brings them back.`)
+    window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays, and nothing is saved until you press Save Draft.`)
       ? clearCoaches()
       : null
 
@@ -179,10 +172,8 @@ export default function HeaderControls() {
             </select>
           </label>
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <ActionButton action={copyPicture} label="Copy picture" working="Copying…" done="Copied" failed="Couldn't copy" className={quiet} />
-            <ActionButton action={downloadPicture} label="Download picture" working="Saving…" done="Downloaded" failed="Couldn't save" className={quiet} />
+            <ActionButton action={copyPicture} label="Copy Picture" working="Copying…" done="Copied" failed="Couldn't copy" className={quiet} />
             <ActionButton action={() => downloadXlsx(week, coaches, everyone)} label="Export to Excel" working="Exporting…" done="Exported" failed="Couldn't export" className={quiet} />
-            <ActionButton action={() => window.print()} label="Print / PDF" working="Opening…" done="Print opened" className={quiet} />
           </div>
         </div>
 

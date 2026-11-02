@@ -227,13 +227,30 @@ export function pickLead(pool, leadCount) {
 
 // Draft fill: keep valid assignments, drop unavailable/double-booked coaches,
 // top up weekday venues to 1 coach per 6 students from free coaches, spread weekend leftovers across running
-// programmes, keep interns to one weekend day, and share Leads out evenly.
+// programmes, split weekend coaches evenly over Sat / Sun (one day each), and share Leads out evenly.
 // shortcut: greedy and ignores home location; replace with the backend solver once postal codes are geocoded.
 export function autoFill(week, coaches) {
   const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
   const leadCount = {}
   for (const d of week.days) for (const b of d.blocks) for (const c of b.coaches) {
     if (c.role === 'lead') leadCount[c.id] = (leadCount[c.id] ?? 0) + 1
+  }
+
+  // Coaches free on both weekend days and not yet placed on either get one day each, filling the
+  // quieter day first, so Saturday and Sunday split evenly.
+  const weekendDay = {}
+  const sat = getDay(week, 'sat')
+  const sun = getDay(week, 'sun')
+  if (sat && sun) {
+    const placedOn = (day) => new Set(day.blocks.flatMap((b) => b.coaches.map((c) => c.id)))
+    const count = { sat: placedOn(sat).size, sun: placedOn(sun).size }
+    for (const c of coaches) {
+      const both = ['sat', 'sun'].every((k) => availability(week, c.id, k) === 'available')
+      if (!both || placementOf(sat, c.id) || placementOf(sun, c.id)) continue
+      const day = count.sat <= count.sun ? 'sat' : 'sun'
+      weekendDay[c.id] = day
+      count[day]++
+    }
   }
 
   for (const day of week.days) {
@@ -253,7 +270,7 @@ export function autoFill(week, coaches) {
     // Interns already on the other weekend day are kept back: one weekend day each.
     const otherWeekendDay = day.key === 'sat' ? 'sun' : 'sat'
     const isDouble = (id) => isWeekend(day.key) && byId[id].employment_type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
-    free = free.filter((id) => !isDouble(id))
+    free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
 
     for (const b of day.blocks.filter((x) => requiredCoaches(x) > 0)) {
       while (countedCoaches(b) < requiredCoaches(b) && free.length) b.coaches.push({ id: free.shift(), role: 'coach' })

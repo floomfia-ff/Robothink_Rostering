@@ -1,5 +1,6 @@
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
+import { ActionButton } from './HeaderControls.jsx'
 
 // Nearest MRT per coach. Stored now so the auto-generator can later
 // match coaches to the closest venue.
@@ -11,16 +12,10 @@ export default function CoachProfiles() {
 
   return (
     <section aria-labelledby="profiles-title" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 id="profiles-title" className="text-xl font-bold text-slate-900">Coach Profiles</h1>
-          <SaveStatus />
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={saveDraft} disabled={!!busy} className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50">
-            {busy === 'Saving' ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 id="profiles-title" className="text-xl font-bold text-slate-900">Coach Profiles</h1>
+        <ActionButton action={saveDraft} label="Save" working="Saving…" done="Saved" failed="Save failed" disabled={!!busy} className="bg-slate-700 text-white hover:bg-slate-800" />
+        <SaveStatus />
       </div>
 
       <p className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600">

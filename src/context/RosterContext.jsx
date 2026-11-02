@@ -1,9 +1,8 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import * as api from '../lib/api.js'
 import * as R from '../lib/roster.js'
 import { addDays, currentMonday } from '../../supabase/functions/roster/logic.js'
 
-const MAX_UNDO = 50
 const RosterContext = createContext(null)
 export const useRoster = () => useContext(RosterContext)
 
@@ -16,8 +15,6 @@ export function RosterProvider({ children }) {
   const [busy, setBusy] = useState('') // 'Saving' | 'Publishing' | 'Generating' | 'Creating' while a server call runs
   const [loadError, setLoadError] = useState('')
   const [swapTarget, setSwapTarget] = useState(null) // { dayKey, blockId, index? } — no index = add mode
-  const [history, setHistory] = useState([]) // [{ roster, weekId }] before each change, newest last
-  const lastEditKey = useRef(null)
   const [highlight, setHighlight] = useState('') // coach id picked in "Find coach"
   const [dragging, setDragging] = useState(null) // { dayKey, coachId } while a chip is dragged
   const [changes, setChanges] = useState(null) // last Auto-Generate: { weekId, added, removed, newLeads, keys }
@@ -59,16 +56,9 @@ export function RosterProvider({ children }) {
   const coachById = Object.fromEntries(roster.coaches.map((c) => [c.id, c]))
   const coaches = roster.coaches.filter((c) => c.active)
 
-  // Save the current roster for Undo. Repeated edits with the same key (typing in one field) share one step.
-  const remember = (key) => {
-    if (!key || key !== lastEditKey.current) setHistory((h) => [...h.slice(1 - MAX_UNDO), { roster, weekId }])
-    lastEditKey.current = key ?? null
-  }
-
   // Every week change goes through here: clone the week and mutate the clone.
   // A published week stays published but is flagged until it's published again.
-  const edit = (fn, key) => {
-    remember(key)
+  const edit = (fn) => {
     setRoster((r) => ({
       ...r,
       weeks: r.weeks.map((w) => {
@@ -83,8 +73,7 @@ export function RosterProvider({ children }) {
   }
 
   // Changes that aren't tied to one week (coach profiles, venues).
-  const editRoster = (fn, key) => {
-    remember(key)
+  const editRoster = (fn) => {
     setRoster((r) => {
       const copy = structuredClone(r)
       fn(copy)
@@ -129,7 +118,7 @@ export function RosterProvider({ children }) {
     clearCoaches: () => {
       edit((w) => R.clearCoaches(w))
       setChanges(null)
-      say('All coaches cleared — Undo brings them back')
+      say('All coaches cleared — not saved until you press Save Draft')
     },
     addBlock: (d, name, base) => edit((w) => R.addBlock(w, d, name, base)),
     removeBlock: (d, blockId) => edit((w) => R.removeBlock(w, d, blockId)),
@@ -140,9 +129,8 @@ export function RosterProvider({ children }) {
     clearChanges: () => setChanges(null),
     highlight, setHighlight,
     updateVenue: (kind, id, patch) =>
-      editRoster((r) => Object.assign(r[kind === 'school' ? 'schools' : 'bases'].find((v) => v.id === id), patch), `venue:${kind}:${id}:${Object.keys(patch)}`),
-    updateCoach: (id, patch) =>
-      editRoster((r) => Object.assign(r.coaches.find((c) => c.id === id), patch), `coach:${id}:${Object.keys(patch)}`),
+      editRoster((r) => Object.assign(r[kind === 'school' ? 'schools' : 'bases'].find((v) => v.id === id), patch)),
+    updateCoach: (id, patch) => editRoster((r) => Object.assign(r.coaches.find((c) => c.id === id), patch)),
     // Applies to the week that was open when clicked, even if the admin switches weeks meanwhile.
     autoGenerate: () =>
       run('Generating', async () => {
@@ -155,24 +143,11 @@ export function RosterProvider({ children }) {
     createWeek: () =>
       run('Creating', async () => {
         const next = await api.loadWeek(addDays(roster.weeks.at(-1).id, 7))
-        remember()
         setRoster((r) => ({ ...r, weeks: [...r.weeks, next] }))
         setWeekId(next.id)
         setDirty(true)
         say(`Created ${next.label}`)
       }),
-    canUndo: history.length > 0,
-    undo: () => {
-      const prev = history.at(-1)
-      if (!prev) return
-      setHistory((h) => h.slice(0, -1))
-      lastEditKey.current = null
-      setRoster(prev.roster)
-      setWeekId(prev.weekId) // back to the week the change was made on
-      setChanges(null)
-      setDirty(true)
-      say('Undone')
-    },
     // Actions the header buttons await resolve true / false so the button can show ✓ or the failure.
     saveDraft: async () => {
       const ok = await run('Saving', () => api.saveDraft(roster))

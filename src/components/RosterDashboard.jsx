@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RosterProvider, useRoster } from '../context/RosterContext.jsx'
+import { RosterProvider } from '../context/RosterContext.jsx'
 import AvailabilityPanel from './AvailabilityPanel.jsx'
 import CoachProfiles from './CoachProfiles.jsx'
 import CoachSwapModal from './CoachSwapModal.jsx'
@@ -13,21 +13,6 @@ const TABS = [
   ['venues', 'Venues'],
 ]
 
-// Lives in the top bar so it works on every tab.
-function UndoButton() {
-  const { canUndo, undo } = useRoster()
-  return (
-    <button
-      type="button"
-      onClick={undo}
-      disabled={!canUndo}
-      className="ml-auto rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-    >
-      ↶ Undo
-    </button>
-  )
-}
-
 export default function RosterDashboard() {
   const [tab, setTab] = useState('roster')
   return (
@@ -35,8 +20,8 @@ export default function RosterDashboard() {
       <div className="min-h-screen bg-slate-100">
         <div className="border-b border-slate-200 bg-white print:hidden">
           <div className="mx-auto flex max-w-[1700px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5">
-            <span className="flex items-center gap-2 font-bold text-slate-900">
-              <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-600 text-sm text-white">R</span>
+            <span className="flex items-center gap-3 font-bold text-slate-900">
+              <img src="/robothink-logo.png" alt="RoboThink" className="h-11 w-auto" />
               Roster Admin
             </span>
             <nav role="tablist" aria-label="Sections" className="flex gap-1">
@@ -55,7 +40,6 @@ export default function RosterDashboard() {
                 </button>
               ))}
             </nav>
-            <UndoButton />
           </div>
         </div>
 

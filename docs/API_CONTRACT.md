@@ -166,6 +166,8 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 | One place per day | A coach is in at most one block per day. |
 | Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. Breaking it is a warning, not a block. |
 | Availability | Never place a coach on a day marked `off` or `unavailable`. |
+| Part-timers | Shown as `unavailable` (X) on **every day they aren't placed**, on every week, saved or not. Admins make a part-timer available and place them by hand; days without a placement go back to X on the next load. Interns carry their availability over from the previous week. |
+| Weekend split | Auto-Generate gives each coach free on both weekend days exactly one of them, filling the quieter day first, so Saturday and Sunday split evenly. |
 
 Status badges: yellow **No lead** → green **OK**. Grey means no lesson, no class or no students.
 

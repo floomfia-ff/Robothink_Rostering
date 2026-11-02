@@ -55,8 +55,11 @@ const lastWeek = { id: '2026-10-26', status: 'draft', changed_since_publish: fal
 const nextWk = L.buildWeek({ id: '2026-11-02', coaches, schools: dbSchools, plan: null, planError: 'x', saved: null, previous: lastWeek })
 assert.deepEqual(nextWk.availability['1'], lastWeek.data.availability[1], "intern's days off carry over")
 assert.deepEqual(nextWk.availability['2'], Array(7).fill('unavailable'), 'part-timer back to X in a new week')
-const savedWk = L.buildWeek({ id: '2026-10-26', coaches, schools: dbSchools, plan: null, planError: 'x', saved: lastWeek, previous: null })
-assert.deepEqual(savedWk.availability['2'], Array(7).fill('available'), 'a saved week keeps what the admin picked')
+// ...and on any week, saved or not, a part-timer is X on every day they are not actually placed
+const placedMon = { ...lastWeek, data: { ...lastWeek.data, days: [{ key: 'thu', blocks: [{ kind: 'lesson', schoolId: 5, noLesson: false, coaches: [{ id: 2, role: 'coach' }] }] }] } }
+const savedWk = L.buildWeek({ id: '2026-10-26', coaches, schools: dbSchools, plan: null, planError: 'x', saved: placedMon, previous: null })
+assert.deepEqual(savedWk.availability['2'], ['unavailable', 'unavailable', 'unavailable', 'available', 'unavailable', 'unavailable', 'unavailable'], 'only the day they work stays available')
+assert.deepEqual(savedWk.availability['1'], lastWeek.data.availability[1], 'interns are left as saved')
 
 // saved decisions keep coaches, fresh counts replace stale ones
 const saved = { id: '2026-11-02', status: 'published', changed_since_publish: false,

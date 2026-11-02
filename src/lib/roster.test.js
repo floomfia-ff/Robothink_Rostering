@@ -153,6 +153,16 @@ w.availability[id('Suzanne')][5] = 'available'
 R.autoFill(w, coaches)
 assert.ok(w.days[5].blocks.some((b) => b.kind === 'program' && b.coaches.some((c) => c.id === id('Suzanne'))), 'a free coach is still spread onto a running programme')
 
+// auto-fill splits coaches free on both weekend days evenly between Saturday and Sunday
+w = structuredClone(weeks[0])
+for (const d of w.days.slice(5)) for (const b of d.blocks) b.coaches = []
+for (const c of coaches) w.availability[c.id].splice(5, 2, 'available', 'available')
+R.autoFill(w, coaches)
+const onDay = (k) => new Set(w.days.find((d) => d.key === k).blocks.flatMap((b) => b.coaches.map((c) => c.id)))
+const [satIds, sunIds] = [onDay('sat'), onDay('sun')]
+assert.ok(Math.abs(satIds.size - sunIds.size) <= 1, `weekend split ${satIds.size} / ${sunIds.size}`)
+assert.ok(satIds.size > 0 && [...satIds].every((id) => !sunIds.has(id)), 'each coach works one weekend day')
+
 // clear coaches empties every block of the week but keeps availability
 w = structuredClone(weeks[0])
 const before = structuredClone(w.availability)

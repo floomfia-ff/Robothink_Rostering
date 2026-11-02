@@ -1,5 +1,6 @@
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
+import { ActionButton } from './HeaderControls.jsx'
 import { isValidAddress } from '../lib/roster.js'
 
 // Where each venue is. With coach home postal codes, this lets the roster suggest the closest venue later.
@@ -10,14 +11,10 @@ export default function VenueProfiles() {
 
   return (
     <section aria-labelledby="venues-title" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 id="venues-title" className="text-xl font-bold text-slate-900">Venues</h1>
-          <SaveStatus />
-        </div>
-        <button type="button" onClick={saveDraft} disabled={!!busy} className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50">
-          {busy === 'Saving' ? 'Saving…' : 'Save'}
-        </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 id="venues-title" className="text-xl font-bold text-slate-900">Venues</h1>
+        <ActionButton action={saveDraft} label="Save" working="Saving…" done="Saved" failed="Save failed" disabled={!!busy} className="bg-slate-700 text-white hover:bg-slate-800" />
+        <SaveStatus />
       </div>
 
       <p className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600">
