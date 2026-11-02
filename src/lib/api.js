@@ -1,5 +1,5 @@
 // Every screen talks to the roster function only through these functions.
-import { autoFill } from './roster.js'
+import { autoFill, isValidAddress } from './roster.js'
 
 const URL = import.meta.env.VITE_ROSTER_API_URL
 const CODE = import.meta.env.VITE_ROSTER_CODE
@@ -40,7 +40,7 @@ export async function saveDraft(roster) {
     ...patches(roster.coaches, baseline.coaches, ['mrt_station', 'employment_type'], '/coaches'),
     ...patches(roster.schools, baseline.schools, ['address'], '/schools'),
     ...patches(roster.bases, baseline.bases, ['address'], '/bases'),
-  ]
+  ].filter((s) => !s.patch.address?.trim() || isValidAddress(s.patch.address)) // half-typed addresses wait (the field shows red)
   // weeks first: they are the valuable data, so a bad venue edit can't block them
   for (const w of roster.weeks) {
     const i = baseline.weeks.findIndex((b) => b.id === w.id)
@@ -53,14 +53,6 @@ export async function saveDraft(roster) {
     await request('PATCH', s.path, s.patch)
     Object.assign(s.was, s.patch)
   }
-}
-
-export async function publishRoster(roster, weekId) {
-  await saveDraft(roster)
-  await request('POST', `/weeks/${weekId}/publish`)
-  // Server sets changed_since_publish=false on publish; roster here already carries the published week.
-  const i = baseline.weeks.findIndex((b) => b.id === weekId)
-  baseline.weeks[i] = structuredClone(roster.weeks.find((w) => w.id === weekId))
 }
 
 // The real endpoint is not built yet, so this still fills the week in the browser.

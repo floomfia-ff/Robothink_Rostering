@@ -164,7 +164,7 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 | Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate alone still fills weekday lessons to `ceil(largest slot's students ÷ 6)` (shadows don't count), and spreads spare coaches over running weekend programmes. |
 | Leads | Exactly **one** Lead per weekday lesson. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
-| Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. Breaking it is a warning, not a block. |
+| Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. **Auto-Generate sets these days off** for any intern who has none (Tue/Wed and Sat/Sun each split evenly, keeping days they're already placed on). Manual edits that break it show a warning, not a block. |
 | Availability | Never place a coach on a day marked `off` or `unavailable`. |
 | Part-timers | Shown as `unavailable` (X) on **every day they aren't placed**, on every week, saved or not. Admins make a part-timer available and place them by hand; days without a placement go back to X on the next load. Interns carry their availability over from the previous week. |
 | Weekend split | Auto-Generate gives each coach free on both weekend days exactly one of them, filling the quieter day first, so Saturday and Sunday split evenly. |
@@ -189,11 +189,13 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 |---|---|---|---|
 | `loadRoster()` | `GET /` | — | Roster |
 | `loadWeek(id)` | `GET /weeks/:id` | — | One Week, built fresh (or the saved one merged with fresh slots). Used for "New week". |
-| `saveDraft(roster)` | `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one, then `PUT /weeks/:id` for each changed week | see below | `204` each |
-| `publishRoster(roster, weekId)` | `saveDraft`, then `POST /weeks/:id/publish` | — | `204`. Sets `status: "published"`, `changedSincePublish: false`. |
-| `generateRoster(week, coaches)` | none yet | — | Runs `autoFill()` in the browser. |
+| `saveDraft(roster)` | `PUT /weeks/:id` for each changed week, then `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one | see below | `204` each |
+| `generateRoster(week, coaches)` | none yet | — | Runs `autoFill()` in the browser (it also sets interns' days off). |
 
-`api.js` compares against what it last loaded or saved, and sends only what changed.
+**There is no Save or Publish button.** The site calls `saveDraft` by itself a second after the last edit, and
+retries every 10 seconds after a failure. `api.js` compares against what it last loaded or saved and sends only
+what changed; an address that is half-typed (not blank, no 6-digit postal code) waits until it is valid.
+`POST /weeks/:id/publish` still exists on the server but nothing calls it.
 
 | Request | Body | Notes |
 |---|---|---|
@@ -208,8 +210,7 @@ These edits go straight into the shared `coaches` and `schools` rows, so the fee
 ### Errors
 
 Non-2xx status with `{ "error": "Readable message for the admin" }`. `api.js` throws `new Error(body.error)`.
-The UI shows the message in red, keeps the admin's unsaved changes, and lets them try again.
-A failed publish does **not** mark the week published.
+The UI shows the message in red next to the page title, keeps the admin's unsaved changes, and retries.
 
 | Status | When |
 |---|---|

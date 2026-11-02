@@ -63,7 +63,7 @@ export function ActionButton({ action, label, working, done, failed = 'Failed', 
 }
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, saveDraft, publish, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
   const [showWarnings, setShowWarnings] = useState(false)
@@ -71,7 +71,7 @@ export default function HeaderControls() {
   // ClipboardItem takes the promise so the copy still counts as part of the click
   const copyPicture = () => navigator.clipboard.write([new ClipboardItem({ 'image/png': rosterPicture(week, coaches, everyone) })])
   const onClear = () =>
-    window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays, and nothing is saved until you press Save Draft.`)
+    window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays.`)
       ? clearCoaches()
       : null
 
@@ -81,20 +81,7 @@ export default function HeaderControls() {
   )
   const alerts = [...badTimes, ...quota]
 
-  const onPublish = () => {
-    const msg = alerts.length
-      ? `There are ${alerts.length} warning(s). Publish the ${week.label} roster anyway?`
-      : `Publish the ${week.label} roster to all coaches?`
-    return window.confirm(msg) ? publish() : null
-  }
-
   const quiet = 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
-  const status =
-    week.status !== 'published'
-      ? ['Draft', 'bg-slate-100 text-slate-600 ring-slate-200']
-      : week.changedSincePublish
-        ? ['Published · changes not published', 'bg-amber-50 text-amber-800 ring-amber-200']
-        : ['Published', 'bg-emerald-50 text-emerald-700 ring-emerald-200']
 
   return (
     <header className="space-y-3">
@@ -105,8 +92,7 @@ export default function HeaderControls() {
         <p className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900 print:hidden">Not found on the lesson plan: {unmatchedSchools.join(', ')}</p>
       )}
       <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 print:border-0 print:p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl font-bold text-slate-900">Weekly Roster</h1>
             <select
               value={weekId}
@@ -123,7 +109,6 @@ export default function HeaderControls() {
             <span className="print:hidden" title="Add the week after the last one, with fresh counts from the lesson plan.">
               <ActionButton action={createWeek} label="+ New week" working="Creating…" done="Week added" failed="Couldn't add" disabled={!!busy} className="text-indigo-700 hover:bg-indigo-50" />
             </span>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${status[1]}`}>{status[0]}</span>
             {alerts.length > 0 ? (
               <button
                 type="button"
@@ -138,19 +123,6 @@ export default function HeaderControls() {
               <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 print:hidden">✓ No warnings</span>
             )}
             <SaveStatus />
-          </div>
-          <div className="flex flex-wrap gap-2 print:hidden">
-            <ActionButton action={saveDraft} label="Save Draft" working="Saving…" done="Saved" failed="Save failed" disabled={!!busy} className={quiet} />
-            <ActionButton
-              action={onPublish}
-              label={week.changedSincePublish ? 'Republish Roster' : 'Publish Roster'}
-              working="Publishing…"
-              done="Published"
-              failed="Publish failed"
-              disabled={!!busy}
-              className="bg-indigo-600 text-white hover:bg-indigo-700"
-            />
-          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 print:hidden">

@@ -163,6 +163,18 @@ const [satIds, sunIds] = [onDay('sat'), onDay('sun')]
 assert.ok(Math.abs(satIds.size - sunIds.size) <= 1, `weekend split ${satIds.size} / ${sunIds.size}`)
 assert.ok(satIds.size > 0 && [...satIds].every((id) => !sunIds.has(id)), 'each coach works one weekend day')
 
+// auto-fill gives every intern without days off one Tue/Wed off and one weekend day off (4 + 1), split evenly
+w = structuredClone(weeks[0])
+const interns = coaches.filter((c) => c.employment_type === 'intern')
+for (const c of interns) w.availability[c.id] = Array(7).fill('available')
+for (const d of w.days.slice(5)) for (const b of d.blocks) b.coaches = [] // weekend placements already made are kept, so start clean
+R.autoFill(w, coaches)
+assert.deepEqual(R.quotaWarnings(w, coaches), [], 'every intern ends up on 4 weekdays + 1 weekend day')
+const offOn = (k) => interns.filter((c) => R.availability(w, c.id, k) === 'off').length
+assert.equal(offOn('tue') + offOn('wed'), interns.length, 'weekday off is always Tue or Wed')
+assert.ok(Math.abs(offOn('tue') - offOn('wed')) <= 1, `Tue/Wed split ${offOn('tue')} / ${offOn('wed')}`)
+assert.ok(Math.abs(offOn('sat') - offOn('sun')) <= 1, `Sat/Sun split ${offOn('sat')} / ${offOn('sun')}`)
+
 // clear coaches empties every block of the week but keeps availability
 w = structuredClone(weeks[0])
 const before = structuredClone(w.availability)

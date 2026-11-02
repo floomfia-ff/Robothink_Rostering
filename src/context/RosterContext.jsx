@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import * as api from '../lib/api.js'
 import * as R from '../lib/roster.js'
 import { addDays, currentMonday } from '../../supabase/functions/roster/logic.js'
@@ -12,7 +12,9 @@ export function RosterProvider({ children }) {
   const [dirty, setDirty] = useState(false)
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
-  const [busy, setBusy] = useState('') // 'Saving' | 'Publishing' | 'Generating' | 'Creating' while a server call runs
+  const [busy, setBusy] = useState('') // 'Generating' | 'Creating' while a server call runs
+  const [saving, setSaving] = useState('') // '' | 'saving' | 'saved' | an error message
+  const [retry, setRetry] = useState(0)
   const [loadError, setLoadError] = useState('')
   const [swapTarget, setSwapTarget] = useState(null) // { dayKey, blockId, index? } — no index = add mode
   const [highlight, setHighlight] = useState('') // coach id picked in "Find coach"
@@ -39,6 +41,27 @@ export function RosterProvider({ children }) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
+  // Changes save themselves a second after the last edit. Edits made while a save runs go out with the next
+  // one (only what differs from the server is sent); a failed save keeps the changes and retries in 10 seconds.
+  const latest = useRef(roster)
+  latest.current = roster
+  useEffect(() => {
+    if (!dirty || !roster) return
+    const timer = setTimeout(async () => {
+      const snapshot = roster
+      setSaving('saving')
+      try {
+        await api.saveDraft(snapshot)
+        if (latest.current === snapshot) setDirty(false)
+        setSaving('saved')
+      } catch (e) {
+        setSaving(`Couldn't save: ${e.message || 'unknown error'}. Your changes are kept and will be retried.`)
+        setTimeout(() => setRetry((n) => n + 1), 10000)
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [roster, dirty, retry])
+
   if (loadError) {
     return (
       <div role="alert" className="m-8 max-w-md rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -57,7 +80,6 @@ export function RosterProvider({ children }) {
   const coaches = roster.coaches.filter((c) => c.active)
 
   // Every week change goes through here: clone the week and mutate the clone.
-  // A published week stays published but is flagged until it's published again.
   const edit = (fn) => {
     setRoster((r) => ({
       ...r,
@@ -65,7 +87,6 @@ export function RosterProvider({ children }) {
         if (w.id !== weekId) return w
         const copy = structuredClone(w)
         fn(copy)
-        if (copy.status === 'published') copy.changedSincePublish = true
         return copy
       }),
     }))
@@ -100,13 +121,9 @@ export function RosterProvider({ children }) {
       setBusy('')
     }
   }
-  const savedAt = (label) => {
-    setDirty(false)
-    say(`${label} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
-  }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, dirty, notice, noticeError, busy,
+    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, dirty, notice, noticeError, busy, saving,
     setWeekId, swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
@@ -118,7 +135,7 @@ export function RosterProvider({ children }) {
     clearCoaches: () => {
       edit((w) => R.clearCoaches(w))
       setChanges(null)
-      say('All coaches cleared — not saved until you press Save Draft')
+      say('All coaches cleared')
     },
     addBlock: (d, name, base) => edit((w) => R.addBlock(w, d, name, base)),
     removeBlock: (d, blockId) => edit((w) => R.removeBlock(w, d, blockId)),
@@ -136,9 +153,9 @@ export function RosterProvider({ children }) {
       run('Generating', async () => {
         const filled = await api.generateRoster(week, coaches)
         const diff = R.diffAssignments(week, filled)
-        edit((w) => (w.days = filled.days))
+        edit((w) => Object.assign(w, { days: filled.days, availability: filled.availability })) // days off it set, too
         setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })
-        say('Draft auto-generated — review, then save')
+        say('Auto-generated — review it')
       }),
     createWeek: () =>
       run('Creating', async () => {
@@ -148,25 +165,6 @@ export function RosterProvider({ children }) {
         setDirty(true)
         say(`Created ${next.label}`)
       }),
-    // Actions the header buttons await resolve true / false so the button can show ✓ or the failure.
-    saveDraft: async () => {
-      const ok = await run('Saving', () => api.saveDraft(roster))
-      if (ok) savedAt('Draft saved')
-      return ok
-    },
-    // Marked published only once the server says so.
-    publish: async () => {
-      const next = {
-        ...roster,
-        weeks: roster.weeks.map((w) => (w.id === weekId ? { ...w, status: 'published', changedSincePublish: false } : w)),
-      }
-      const ok = await run('Publishing', () => api.publishRoster(next, weekId))
-      if (ok) {
-        setRoster(next)
-        savedAt('Published')
-      }
-      return ok
-    },
   }
 
   return <RosterContext.Provider value={value}>{children}</RosterContext.Provider>

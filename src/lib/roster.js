@@ -236,6 +236,18 @@ export function autoFill(week, coaches) {
     if (c.role === 'lead') leadCount[c.id] = (leadCount[c.id] ?? 0) + 1
   }
 
+  // Interns without days off get them, so they work 4 weekdays + 1 weekend day: the weekday off is Tue or Wed
+  // and each off goes to the day fewer interns already have off. A day they're already placed on is kept.
+  const interns = coaches.filter((c) => c.employment_type === 'intern')
+  const offCount = (k) => interns.filter((c) => availability(week, c.id, k) === 'off').length
+  for (const c of interns) {
+    const free = (k) => availability(week, c.id, k) === 'available'
+    const placed = (k) => (placementOf(getDay(week, k), c.id) ? 1 : 0)
+    const pickOff = (a, b) => [a, b].sort((x, y) => placed(x) - placed(y) || offCount(x) - offCount(y))[0]
+    if (WEEKDAYS.every(free)) setAvailability(week, pickOff(...INTERN_WEEKDAY_OFF), c.id, 'off')
+    if (getDay(week, 'sat') && free('sat') && free('sun')) setAvailability(week, pickOff('sat', 'sun'), c.id, 'off')
+  }
+
   // Coaches free on both weekend days and not yet placed on either get one day each, filling the
   // quieter day first, so Saturday and Sunday split evenly.
   const weekendDay = {}
