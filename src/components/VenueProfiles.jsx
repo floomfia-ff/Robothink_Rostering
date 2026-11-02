@@ -13,7 +13,7 @@ export default function VenueProfiles() {
   const shown = venues.filter((v) => `${v.name} ${v.address}`.toLowerCase().includes(search.trim().toLowerCase()))
 
   return (
-    <section aria-labelledby="venues-title" className="max-w-4xl space-y-3">
+    <section aria-labelledby="venues-title" className="mx-auto max-w-4xl space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <h1 id="venues-title" className="text-xl font-bold text-slate-900">Venues</h1>
         <SaveStatus />

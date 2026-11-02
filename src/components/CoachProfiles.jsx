@@ -14,7 +14,7 @@ export default function CoachProfiles() {
   const field = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm focus:border-indigo-400 focus:outline-none'
 
   return (
-    <section aria-labelledby="profiles-title" className="max-w-3xl space-y-3">
+    <section aria-labelledby="profiles-title" className="mx-auto max-w-3xl space-y-3">
       <div className="flex flex-wrap items-center gap-3">
         <h1 id="profiles-title" className="text-xl font-bold text-slate-900">Coach Profiles</h1>
         <SaveStatus />
