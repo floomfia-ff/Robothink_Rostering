@@ -19,6 +19,12 @@ export const Close = ({ className = 'h-5 w-5' }) => (
 export const Info = ({ className = 'h-5 w-5' }) => (
   <svg {...base} className={className}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></svg>
 )
+export const School = ({ className = 'h-7 w-7' }) => (
+  <svg {...base} className={className}><path d="M3 21h18" /><path d="M5 21V10l7-5 7 5v11" /><path d="M10 21v-5h4v5" /><path d="M9 11h.01M15 11h.01" /></svg>
+)
+export const MapPin = ({ className = 'h-5 w-5' }) => (
+  <svg {...base} className={className}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
+)
 // Filled head-and-shoulders avatar
 export const Person = ({ className = 'h-7 w-7' }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}><circle cx="12" cy="8" r="4.2" /><path d="M3.8 21c0-4.2 3.6-6.6 8.2-6.6s8.2 2.4 8.2 6.6Z" /></svg>
