@@ -132,6 +132,14 @@ const ameer = rowOf('Ameer')
 assert.deepEqual([v(ameer, 2), v(ameer, 3), v(ameer, 4), v(ameer, 14)], ['Ameer', 1, 'OFF', 'OFF'])
 assert.ok(ws.getColumn(2).values.some((x) => /^\*\w/.test(x ?? '')), 'leads marked with *')
 assert.ok(['WCP', 'DV', 'OTHERS'].every((b) => ws.getColumn(2).values.includes(b)))
+// builds go under the time rows, with their student counts
+const withBuilds = structuredClone(weeks[0])
+const tpb = withBuilds.days[0].blocks.find((b) => b.name === 'MBR Tanjong Pagar')
+tpb.slots[0].builds = [{ build: 'L2-9 New Gear Ratio', students: 3 }]
+const bs = buildRosterSheet(new ExcelJS.Workbook(), withBuilds, coaches)
+const buildRow = bs.getColumn(2).values.indexOf('L2-9 New Gear Ratio')
+assert.ok(buildRow > 4 + tpb.slots.length, 'build listed below the times')
+assert.equal(bs.getCell(buildRow, 3).value, 3)
 console.log('export: all checks passed')
 
 // the picture is drawn from the same sheet: merged headers span, fills and bold carry over

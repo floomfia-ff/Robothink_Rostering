@@ -39,6 +39,12 @@ export default function RosterDashboard() {
                   {label}
                 </button>
               ))}
+              <a
+                href="https://robothink-student-feedback.vercel.app/admin"
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              >
+                Admin
+              </a>
             </nav>
           </div>
         </div>

@@ -67,6 +67,16 @@ export function buildRosterSheet(wb, week, coaches, everyone = coaches) {
         } else if (b?.kind === 'program' && b.coaches[k]) put(r, text(i), name(b.coaches[k]))
       })
     }
+    // Builds under the times: what the students are making, slot by slot.
+    const builds = blocks.map((b) => (b?.kind === 'lesson' && !b.noLesson ? b.slots.flatMap((s) => s.builds ?? []) : []))
+    for (let k = 0; k < Math.max(0, ...builds.map((l) => l.length)); k++) {
+      r++
+      builds.forEach((l, i) => {
+        if (!l[k]) return
+        put(r, text(i), l[k].build)
+        put(r, count(i), Number(l[k].students) || 0)
+      })
+    }
     r++
     put(r, 1, 'Coaches', { bold: true })
     blocks.forEach((b, i) => {
