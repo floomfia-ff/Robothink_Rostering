@@ -112,6 +112,10 @@ export default function CoachProfiles() {
                           <option value="intern">Intern</option>
                           <option value="part-timer">Part-timer</option>
                         </select>
+                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 text-xs text-slate-600">
+                          <input type="checkbox" checked={!!c.can_lead} onChange={(e) => updateCoach(c.id, { can_lead: e.target.checked })} className="h-3.5 w-3.5 accent-indigo-600" />
+                          Can lead
+                        </label>
                       </div>
                     </li>
                   )

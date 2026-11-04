@@ -3,7 +3,7 @@ import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
-import { coachDay, isValidSlotTime, quotaWarnings } from '../lib/roster.js'
+import { coachDay, isValidSlotTime, leadWarnings, quotaWarnings } from '../lib/roster.js'
 
 // The week as a PNG drawn from the same sheet as the Excel export, so the two always match.
 async function rosterPicture(week, coaches, everyone) {
@@ -75,7 +75,7 @@ export default function HeaderControls() {
       ? clearCoaches()
       : null
 
-  const quota = quotaWarnings(week, coaches)
+  const quota = [...quotaWarnings(week, coaches), ...leadWarnings(week, Object.values(coachById))]
   const badTimes = week.days.flatMap((d) =>
     d.blocks.filter((b) => b.kind === 'lesson' && b.slots.some((s) => !isValidSlotTime(s.time))).map((b) => `${d.label} ${d.date}: ${b.name} has a time in an unexpected format on the lesson plan sheet.`),
   )

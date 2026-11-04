@@ -206,6 +206,27 @@ R.autoFill(tb, coaches, {})
 const placements = (x) => x.days.flatMap((d) => d.blocks.map((b) => b.coaches.map((c) => c.id).sort().join(',')))
 assert.deepEqual(placements(ta), placements(tb), 'no travel times: same placements as before')
 
+// experienced coaches: every weekday school gets one first and they lead; everyone free that day is placed
+w = structuredClone(weeks[0])
+for (const d of w.days.slice(0, 5)) for (const b of d.blocks) b.coaches = []
+const seasoned = new Set([id('Ameer'), id('Kathleen')])
+const ranked = coaches.map((c) => ({ ...c, can_lead: seasoned.has(c.id) }))
+R.autoFill(w, ranked)
+for (const d of w.days.slice(0, 5)) {
+  const lessons = d.blocks.filter((b) => b.kind === 'lesson' && R.requiredCoaches(b) > 0)
+  const seasonedFree = [...seasoned].filter((cid) => R.availability(w, cid, d.key) === 'available').length
+  const covered = lessons.filter((b) => b.coaches.some((c) => seasoned.has(c.id)))
+  assert.equal(covered.length, Math.min(lessons.length, seasonedFree), `${d.key}: an experienced coach at as many schools as possible`)
+  for (const b of covered) assert.ok(seasoned.has(b.coaches.find((c) => c.role === 'lead').id), `${d.key} ${b.name}: Lead is experienced`)
+  if (lessons.length) assert.deepEqual(R.baseCoaches(w, d.key, 'WCP', ranked), [], `${d.key}: nobody left at WCP`)
+}
+// a Lead who isn't marked "Can lead" is a warning
+const tp2 = w.days[0].blocks.find((b) => b.coaches.some((c) => c.role === 'lead'))
+const leadId = tp2.coaches.find((c) => c.role === 'lead').id
+const unmarked = ranked.map((c) => (c.id === leadId ? { ...c, can_lead: false } : c))
+assert.match(R.leadWarnings(w, unmarked).join(' '), /isn't marked "Can lead"/)
+assert.deepEqual(R.leadWarnings(w, ranked).filter((m) => m.includes(tp2.name)), [])
+
 // clear coaches empties every block of the week but keeps availability
 w = structuredClone(weeks[0])
 const before = structuredClone(w.availability)

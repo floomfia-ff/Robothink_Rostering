@@ -29,7 +29,7 @@ If you need a different shape, tell the UI owner and update this file in the sam
 ### Coach
 
 ```json
-{ "id": 12, "name": "Ameer", "active": true, "employment_type": "intern", "mrt_station": "Toa Payoh" }
+{ "id": 12, "name": "Ameer", "active": true, "employment_type": "intern", "mrt_station": "Toa Payoh", "can_lead": true }
 ```
 
 | Field | Type | Notes |
@@ -38,6 +38,7 @@ If you need a different shape, tell the UI owner and update this file in the sam
 | `name` | string | Read-only here (edited in the feedback site). |
 | `active` | boolean | Inactive coaches are still returned so past weeks show them. The UI stops them being placed on new days; the server only checks that the id exists. |
 | `employment_type` | `"intern"` \| `"part-timer"` | Editable. Interns get one weekday off (Tue or Wed) and one weekend day off. New coaches default to `part-timer`. |
+| `can_lead` | boolean | Editable ("Can lead" tick in Coach Profiles). Experienced coaches Auto-Generate makes Lead. Defaults to `false`. |
 | `mrt_station` | string \| null | Editable. Nearest MRT station (free text). |
 
 ### School (a weekday venue)
@@ -164,8 +165,8 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 
 | Rule | Value |
 |---|---|
-| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate alone still fills weekday lessons to `ceil(largest slot's students ÷ 6)` (shadows don't count), and spreads spare coaches over running weekend programmes. |
-| Leads | Exactly **one** Lead per weekday lesson. **No** Leads on weekend programmes. |
+| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate fills each weekday lesson in three steps: one `can_lead` coach at every school that has none, then up to `ceil(largest slot's students ÷ 6)` (shadows don't count), then **everyone still free that weekday** goes to the school with the most students per coach, so nobody is left at WCP unless dragged back. Spare weekend coaches are spread over running weekend programmes. |
+| Leads | Exactly **one** Lead per weekday lesson, picked from `can_lead` coaches when the school has one. A Lead without `can_lead` shows a warning, not a block. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
 | Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. **Auto-Generate sets these days off** for any intern who has none (Tue/Wed and Sat/Sun each split evenly, keeping days they're already placed on). Manual edits that break it show a warning, not a block. |
 | Availability | Never place a coach on a day marked `off` or `unavailable`. |
@@ -203,7 +204,7 @@ what changed; an address that is half-typed (not blank, no 6-digit postal code) 
 
 | Request | Body | Notes |
 |---|---|---|
-| `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern" }` (either or both) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`. |
+| `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern", "can_lead": true }` (any of them) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`; `can_lead` is `true` / `false`. |
 | `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. Blank or `null` clears it (stored as empty). |
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
 | `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
@@ -220,7 +221,7 @@ The UI shows the message in red next to the page title, keeps the admin's unsave
 | Status | When |
 |---|---|
 | `401` | Missing or wrong code: "Roster code not accepted." Nothing is read or saved. |
-| `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; non-blank address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; "Every day needs blocks, and every block needs coaches."; lesson `schoolId` not a whole number; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
+| `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; can lead not true / false; non-blank address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; "Every day needs blocks, and every block needs coaches."; lesson `schoolId` not a whole number; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
 | `404` | "No such coach." / "No such school." / "No such base."; publishing a week that was never saved ("Save the week before publishing it."); any other path. |
 | `500` | The function is missing a secret, or the database failed. The message says which. |
 | `502` | Travel times only: "OneMap didn't accept the login — check ONEMAP_EMAIL / ONEMAP_PASSWORD in Supabase." (nothing saved), or "OneMap is not responding: … Times worked out so far are kept." |

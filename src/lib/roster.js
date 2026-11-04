@@ -37,10 +37,10 @@ export const availability = (week, coachId, dayKey) =>
   week.availability[coachId]?.[dayIndex(week, dayKey)] ?? 'unavailable'
 
 // Only auto-fill uses the ratio, and only for weekday lessons; the screen shows no coach cap.
+const mostStudents = (block) => Math.max(0, ...block.slots.map((s) => Number(s.students) || 0))
 export function requiredCoaches(block) {
   if (block.kind !== 'lesson' || block.noLesson) return 0
-  const most = Math.max(0, ...block.slots.map((s) => Number(s.students) || 0))
-  return Math.ceil(most / MAX_STUDENTS_PER_COACH)
+  return Math.ceil(mostStudents(block) / MAX_STUDENTS_PER_COACH)
 }
 
 // Shadows don't count towards the ratio (matches the spreadsheet counts).
@@ -92,6 +92,18 @@ export function coachDay(week, dayKey, coach) {
   if (block) return { status: 'assigned', where: block.name }
   if (isWorking(week, dayKey, coach)) return { status: 'assigned', where: 'WCP' }
   return { status: 'free' }
+}
+
+// Weekday Leads should be coaches ticked "Can lead".
+export function leadWarnings(week, coaches) {
+  const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  return week.days.flatMap((d) =>
+    d.blocks.flatMap((b) => {
+      const lead = needsLead(b) && b.coaches.find((c) => c.role === 'lead')
+      const coach = lead && byId[lead.id]
+      return coach && !coach.can_lead ? [`${d.label} ${d.date}: ${b.name}'s Lead ${coach.name} isn't marked "Can lead".`] : []
+    }),
+  )
 }
 
 export function quotaWarnings(week, coaches) {
@@ -226,7 +238,8 @@ export function pickLead(pool, leadCount) {
 }
 
 // Draft fill: keep valid assignments, drop unavailable/double-booked coaches,
-// top up weekday venues to 1 coach per 6 students from free coaches, spread weekend leftovers across running
+// give each weekday school an experienced ("Can lead") coach first, top up to 1 coach per 6 students, then place
+// everyone still free at the school with the most students per coach; spread weekend leftovers across running
 // programmes, split weekend coaches evenly over Sat / Sun (one day each), and share Leads out evenly.
 // `travel` is { coachId: { schoolId: minutes } }: a weekday school takes the nearest free coach, unknown times last.
 // shortcut: greedy, one school at a time in day order; a matching over all schools would lower total travel.
@@ -285,14 +298,28 @@ export function autoFill(week, coaches, travel = {}) {
     const isDouble = (id) => isWeekend(day.key) && byId[id].employment_type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
     free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
 
-    for (const b of day.blocks.filter((x) => requiredCoaches(x) > 0)) {
-      // part-timers still go first; within a group, the nearest; ties keep the old order
+    const lessons = day.blocks.filter((x) => requiredCoaches(x) > 0)
+    // Takes the best of `from` for school b out of `free`: part-timers first, then the nearest; ties keep the old order.
+    const take = (b, from = free) => {
       const cost = (id) => [byId[id].employment_type === 'part-timer' ? 0 : 1, travel[id]?.[b.schoolId] ?? Infinity]
       const better = (x, y) => cost(x)[0] < cost(y)[0] || (cost(x)[0] === cost(y)[0] && cost(x)[1] < cost(y)[1])
-      while (countedCoaches(b) < requiredCoaches(b) && free.length) {
-        const nearest = free.reduce((best, id, i) => (better(id, free[best]) ? i : best), 0)
-        b.coaches.push({ id: free.splice(nearest, 1)[0], role: 'coach' })
-      }
+      const best = from.reduce((a, id) => (better(id, a) ? id : a))
+      return free.splice(free.indexOf(best), 1)[0]
+    }
+    // 1. an experienced coach at every school that has none yet, so each school can have a proper Lead
+    for (const b of lessons) {
+      const seasoned = free.filter((id) => byId[id].can_lead)
+      if (seasoned.length && !b.coaches.some((c) => byId[c.id]?.can_lead)) b.coaches.push({ id: take(b, seasoned), role: 'coach' })
+    }
+    // 2. up to 1 coach per 6 students
+    for (const b of lessons) {
+      while (countedCoaches(b) < requiredCoaches(b) && free.length) b.coaches.push({ id: take(b), role: 'coach' })
+    }
+    // 3. weekdays: everyone still free goes to the school with the most students per coach, so nobody idles at WCP
+    while (!isWeekend(day.key) && free.length && lessons.length) {
+      const load = (b) => mostStudents(b) / countedCoaches(b)
+      const busiest = lessons.reduce((a, b) => (load(b) > load(a) ? b : a))
+      busiest.coaches.push({ id: take(busiest), role: 'coach' })
     }
     if (isWeekend(day.key)) {
       // Leftovers go to programmes that are running; only open an empty one if none are.
@@ -307,7 +334,8 @@ export function autoFill(week, coaches, travel = {}) {
     for (const b of day.blocks) {
       const pool = b.coaches.filter((c) => c.role !== 'shadow')
       if (needsLead(b) && pool.length && !b.coaches.some((c) => c.role === 'lead')) {
-        const lead = pickLead(pool, leadCount)
+        const seasoned = pool.filter((c) => byId[c.id]?.can_lead) // experienced coaches lead when there is one
+        const lead = pickLead(seasoned.length ? seasoned : pool, leadCount)
         lead.role = 'lead'
         leadCount[lead.id] = (leadCount[lead.id] ?? 0) + 1
       }

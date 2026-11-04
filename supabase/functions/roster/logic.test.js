@@ -122,6 +122,8 @@ assert.equal(L.isValidAddress('90 Jurong East Street 13, Singapore 609648 '), tr
 assert.equal(L.isValidAddress('12 Hoy Fatt Road, #02-01'), false)
 assert.equal(L.isValidAddress(''), false)
 assert.equal(L.validateCoachFields({ employment_type: 'manager' }) !== null, true)
+assert.match(L.validateCoachFields({ can_lead: 'yes' }), /Can lead/)
+assert.equal(L.validateCoachFields({ can_lead: true }), null)
 assert.deepEqual(L.pickFields({ name: 'x', mrt_station: 'Yishun MRT' }, ['mrt_station', 'employment_type']), { mrt_station: 'Yishun MRT' })
 
 // weekShell labels
