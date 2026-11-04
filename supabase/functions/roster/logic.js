@@ -150,3 +150,44 @@ export function validateCoachFields(f) {
   if ('mrt_station' in f && f.mrt_station !== null && typeof f.mrt_station !== 'string') return 'MRT station must be text.'
   return null
 }
+
+// ---- travel times (OneMap) ----
+
+// The last standalone 6-digit group: a unit number after the postcode doesn't fool it.
+export const postcodeOf = (address) => [...String(address ?? '').matchAll(/(?:^|\D)(\d{6})(?!\d)/g)].at(-1)?.[1] ?? null
+
+// "Sengkang" and "Sengkang MRT" both search as "Sengkang MRT".
+export const stationQuery = (mrt) => (/mrt/i.test(mrt) ? mrt.trim() : `${mrt.trim()} MRT`)
+
+const fromOf = (c) => c.active && c.mrt_station?.trim()
+const currentRows = (rows, coaches, schools) => {
+  const from = new Map(coaches.map((c) => [c.id, fromOf(c)]))
+  const to = new Map(schools.filter((s) => s.active).map((s) => [s.id, postcodeOf(s.address)]))
+  return rows.filter((r) => from.get(r.coach_id) === r.from_station && to.get(r.school_id) === r.to_postcode)
+}
+
+// Coach x school pairs with no current stored time (coaches without an MRT and schools without a postcode are skipped).
+export function pendingPairs(coaches, schools, rows) {
+  const done = new Set(currentRows(rows, coaches, schools).map((r) => `${r.coach_id}:${r.school_id}`))
+  return coaches.filter(fromOf).flatMap((c) =>
+    schools
+      .filter((s) => s.active && postcodeOf(s.address) && !done.has(`${c.id}:${s.id}`))
+      .map((s) => ({ coach_id: c.id, school_id: s.id, from_station: fromOf(c), to_postcode: postcodeOf(s.address) })),
+  )
+}
+
+// Fastest itinerary in whole minutes, or null when OneMap found none.
+export function routeMinutes(reply) {
+  const durations = (reply?.plan?.itineraries ?? []).map((i) => i.duration).filter(Number.isFinite)
+  return durations.length ? Math.round(Math.min(...durations) / 60) : null
+}
+
+export function travelMap(rows, coaches, schools) {
+  const travelTimes = {}
+  const unrecognised = new Set()
+  for (const r of currentRows(rows, coaches, schools)) {
+    travelTimes[r.coach_id] = { ...travelTimes[r.coach_id], [r.school_id]: r.minutes }
+    if (r.status === 'station-not-found') unrecognised.add(r.coach_id)
+  }
+  return { travelTimes, unrecognisedStations: [...unrecognised] }
+}

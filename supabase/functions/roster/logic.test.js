@@ -133,4 +133,25 @@ assert.deepEqual(nowhere.slots, [])
 assert.equal(nowhere.noLesson, undefined)
 
 assert.equal(L.currentMonday(new Date('2026-11-08T17:00:00Z')), '2026-11-09') // already Monday in Singapore
+
+// travel times: postcode, station text, which pairs to ask OneMap about, reading its reply
+assert.equal(L.postcodeOf('90 Jurong East Street 13, Singapore 609648'), '609648')
+assert.equal(L.postcodeOf('12 Hoy Fatt Road, Singapore 159506 #02-01 '), '159506')
+assert.equal(L.postcodeOf(''), null)
+assert.equal(L.stationQuery(' Sengkang '), 'Sengkang MRT')
+assert.equal(L.stationQuery('Bukit Batok MRT'), 'Bukit Batok MRT')
+const tc = [{ id: 1, active: true, mrt_station: 'Sengkang MRT' }, { id: 2, active: true, mrt_station: null }, { id: 3, active: false, mrt_station: 'Yishun MRT' }]
+const ts = [{ id: 10, active: true, address: '5 Tanjong Pagar Plaza, Singapore 081005' }, { id: 11, active: true, address: null }]
+assert.deepEqual(L.pendingPairs(tc, ts, []), [{ coach_id: 1, school_id: 10, from_station: 'Sengkang MRT', to_postcode: '081005' }])
+const trow = { coach_id: 1, school_id: 10, from_station: 'Sengkang MRT', to_postcode: '081005', minutes: 38, status: 'ok' }
+assert.deepEqual(L.pendingPairs(tc, ts, [trow]), [])
+// stale rows are pending, not current
+const moved = [{ ...tc[0], mrt_station: 'Punggol MRT' }]
+assert.equal(L.pendingPairs(moved, ts, [trow]).length, 1)
+assert.deepEqual(L.travelMap([trow], moved, ts).travelTimes, {})
+assert.deepEqual(L.travelMap([trow], tc, ts), { travelTimes: { 1: { 10: 38 } }, unrecognisedStations: [] })
+assert.deepEqual(L.travelMap([{ ...trow, minutes: null, status: 'station-not-found' }], tc, ts).unrecognisedStations, [1])
+assert.equal(L.routeMinutes({ plan: { itineraries: [{ duration: 2400 }, { duration: 2280 }] } }), 38)
+assert.equal(L.routeMinutes({ plan: { itineraries: [] } }), null)
+assert.equal(L.routeMinutes({}), null)
 console.log('logic ok')
