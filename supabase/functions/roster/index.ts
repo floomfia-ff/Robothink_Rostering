@@ -118,7 +118,9 @@ async function loadPlan(schools: Awaited<ReturnType<typeof getSchools>>) {
 
 // ── OneMap (travel times) ───────────────────────────────────────────────────
 const ONEMAP = 'https://www.onemap.gov.sg'
-class OneMapError extends Error {}
+class OneMapError extends Error {
+  constructor(message = '', public status = 0) { super(message) }
+}
 class OneMapLoginError extends OneMapError {}
 let onemap: { token: string; until: number } | null = null
 
@@ -137,14 +139,15 @@ async function onemapToken() {
   return onemap.token
 }
 
-async function onemapGet(path: string) {
+async function onemapGet(path: string, retried = false): Promise<any> {
   const res = await fetch(ONEMAP + path, { headers: { Authorization: await onemapToken() } })
     .catch((e) => { throw new OneMapError(String(e)) })
   if (res.status === 401) {
-    onemap = null
+    onemap = null // an expired token gets one fresh try before we blame the login
+    if (!retried) return onemapGet(path, true)
     throw new OneMapLoginError()
   }
-  if (!res.ok) throw new OneMapError(`${res.status} ${res.statusText}`)
+  if (!res.ok) throw new OneMapError(`${res.status} ${res.statusText}`, res.status)
   return res.json()
 }
 
@@ -161,8 +164,19 @@ function nextTuesday() {
   d.setUTCDate(d.getUTCDate() + ((9 - d.getUTCDay()) % 7 || 7))
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}-${d.getUTCFullYear()}`
 }
-const onemapRoute = (from: string, to: string) =>
-  onemapGet(`/api/public/routingsvc/route?start=${from}&end=${to}&routeType=pt&date=${nextTuesday()}&time=14:00:00&mode=TRANSIT&maxWalkDistance=1000&numItineraries=3`)
+// Minutes for the fastest trip, null when OneMap says there is none. A 4xx for one trip only marks that pair;
+// a reply without a plan is an error, so a glitch is never saved as "no route".
+async function onemapMinutes(from: string, to: string) {
+  let reply
+  try {
+    reply = await onemapGet(`/api/public/routingsvc/route?start=${from}&end=${to}&routeType=pt&date=${nextTuesday()}&time=14:00:00&mode=TRANSIT&maxWalkDistance=1000&numItineraries=3`)
+  } catch (e) {
+    if (e instanceof OneMapError && !(e instanceof OneMapLoginError) && e.status >= 400 && e.status < 500 && e.status !== 429) return null
+    throw e
+  }
+  if (!reply?.plan) throw new OneMapError('unexpected routing reply')
+  return routeMinutes(reply)
+}
 
 async function weekFor(id: string, coaches: unknown[], schools: Awaited<ReturnType<typeof getSchools>>) {
   const { plan, planError } = await loadPlan(schools)
@@ -219,7 +233,7 @@ Deno.serve(async (req) => {
         for (let i = 0; i < batch.length; i += 4) {
           await Promise.all(batch.slice(i, i + 4).map(async (p) => {
             const [from, to] = await Promise.all([place(stationQuery(p.from_station)), place(p.to_postcode)])
-            const minutes = from && to ? routeMinutes(await onemapRoute(from, to)) : null
+            const minutes = from && to ? await onemapMinutes(from, to) : null
             const status = !from ? 'station-not-found' : minutes === null ? 'no-route' : 'ok'
             ok(await db.from('travel_times').upsert({ ...p, minutes, status, updated_at: new Date().toISOString() }))
             done++
@@ -230,7 +244,9 @@ Deno.serve(async (req) => {
         if (e instanceof OneMapError) return fail(`OneMap is not responding: ${e.message}. Times worked out so far are kept.`, 502)
         throw e
       }
-      return json({ done, remaining: pending.length - done, total: pendingPairs(coaches, schools, []).length })
+      // the fresh times come back with the counts, so the page never has to reload the whole roster
+      const saved = ok(await db.from('travel_times').select('*'))
+      return json({ done, remaining: pending.length - done, total: pendingPairs(coaches, schools, []).length, ...travelMap(saved, coaches, schools) })
     }
 
     let r

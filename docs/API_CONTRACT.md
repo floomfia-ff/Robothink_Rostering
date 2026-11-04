@@ -194,7 +194,7 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 | `loadWeek(id)` | `GET /weeks/:id` | — | One Week, built fresh (or the saved one merged with fresh slots). Used for "New week". |
 | `saveDraft(roster)` | `PUT /weeks/:id` for each changed week, then `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one | see below | `204` each |
 | `generateRoster(week, coaches, travel)` | none yet | — | Runs `autoFill()` in the browser (sets interns' days off; a weekday school takes the nearest free coach by `travelTimes`, unknown times last). |
-| `refreshTravelTimes(limit = 40)` | `POST /travel-times/refresh` | `{ "limit": 40 }` | `{ done, remaining, total }`. The "Work out travel times" button calls it until `remaining` is 0. |
+| `refreshTravelTimes(limit = 40)` | `POST /travel-times/refresh` | `{ "limit": 40 }` | `{ done, remaining, total, travelTimes, unrecognisedStations }`. The "Work out travel times" button calls it until `remaining` is 0 and takes the fresh times from each reply. |
 
 **There is no Save or Publish button.** The site calls `saveDraft` by itself a second after the last edit, and
 retries every 10 seconds after a failure. `api.js` compares against what it last loaded or saved and sends only

@@ -190,6 +190,14 @@ dover2.coaches = []
 const [farId, nearId] = R.baseCoaches(w, 'mon', 'WCP', coaches).map((c) => c.id) // two interns free on Monday
 R.autoFill(w, coaches, { [nearId]: { [dover2.schoolId]: 10 }, [farId]: { [dover2.schoolId]: 50 } })
 assert.equal(dover2.coaches[0].id, nearId, 'nearest coach placed first')
+// ...but a free part-timer still goes before interns, even when an intern is nearer
+w = structuredClone(weeks[0])
+const dover3 = w.days[0].blocks[1]
+dover3.coaches = []
+const suzanne = id('Suzanne')
+w.availability[suzanne][0] = 'available'
+R.autoFill(w, coaches, { [nearId]: { [dover3.schoolId]: 10 }, [suzanne]: { [dover3.schoolId]: 60 } })
+assert.equal(dover3.coaches[0].id, suzanne, 'part-timer first, nearest within the group')
 // no travel map keeps the old order
 const ta = structuredClone(weeks[0])
 const tb = structuredClone(weeks[0])

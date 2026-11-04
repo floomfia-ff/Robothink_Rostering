@@ -286,9 +286,11 @@ export function autoFill(week, coaches, travel = {}) {
     free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
 
     for (const b of day.blocks.filter((x) => requiredCoaches(x) > 0)) {
-      const minutes = (id) => travel[id]?.[b.schoolId] ?? Infinity
+      // part-timers still go first; within a group, the nearest; ties keep the old order
+      const cost = (id) => [byId[id].employment_type === 'part-timer' ? 0 : 1, travel[id]?.[b.schoolId] ?? Infinity]
+      const better = (x, y) => cost(x)[0] < cost(y)[0] || (cost(x)[0] === cost(y)[0] && cost(x)[1] < cost(y)[1])
       while (countedCoaches(b) < requiredCoaches(b) && free.length) {
-        const nearest = free.reduce((best, id, i) => (minutes(id) < minutes(free[best]) ? i : best), 0) // ties keep the old order
+        const nearest = free.reduce((best, id, i) => (better(id, free[best]) ? i : best), 0)
         b.coaches.push({ id: free.splice(nearest, 1)[0], role: 'coach' })
       }
     }

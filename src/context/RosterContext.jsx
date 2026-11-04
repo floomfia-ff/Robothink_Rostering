@@ -157,16 +157,16 @@ export function RosterProvider({ children }) {
         setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })
         say('Auto-generated — review it')
       }),
-    // Asks the server for batches until nothing is left, then picks up the new times (edits on screen are kept).
+    // Asks the server for batches until nothing is left; each reply carries the fresh times. Only those two
+    // fields change, so the save baseline and anything on screen are untouched.
     refreshTravelTimes: async (onProgress) => {
       try {
         for (;;) {
-          const { done, remaining, total } = await api.refreshTravelTimes()
+          const { done, remaining, total, travelTimes, unrecognisedStations } = await api.refreshTravelTimes()
           onProgress(total - remaining, total)
+          setRoster((r) => ({ ...r, travelTimes, unrecognisedStations }))
           if (!remaining || !done) break
         }
-        const fresh = await api.loadRoster()
-        setRoster((r) => ({ ...r, travelTimes: fresh.travelTimes, unrecognisedStations: fresh.unrecognisedStations }))
         say('Travel times up to date')
         return true
       } catch (e) {
