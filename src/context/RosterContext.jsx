@@ -151,7 +151,7 @@ export function RosterProvider({ children }) {
     // Applies to the week that was open when clicked, even if the admin switches weeks meanwhile.
     autoGenerate: () =>
       run('Generating', async () => {
-        const filled = await api.generateRoster(week, coaches)
+        const filled = await api.generateRoster(week, coaches, roster.travelTimes ?? {})
         const diff = R.diffAssignments(week, filled)
         edit((w) => Object.assign(w, { days: filled.days, availability: filled.availability })) // days off it set, too
         setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })

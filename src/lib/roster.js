@@ -228,8 +228,9 @@ export function pickLead(pool, leadCount) {
 // Draft fill: keep valid assignments, drop unavailable/double-booked coaches,
 // top up weekday venues to 1 coach per 6 students from free coaches, spread weekend leftovers across running
 // programmes, split weekend coaches evenly over Sat / Sun (one day each), and share Leads out evenly.
-// shortcut: greedy and ignores home location; replace with the backend solver once postal codes are geocoded.
-export function autoFill(week, coaches) {
+// `travel` is { coachId: { schoolId: minutes } }: a weekday school takes the nearest free coach, unknown times last.
+// shortcut: greedy, one school at a time in day order; a matching over all schools would lower total travel.
+export function autoFill(week, coaches, travel = {}) {
   const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
   const leadCount = {}
   for (const d of week.days) for (const b of d.blocks) for (const c of b.coaches) {
@@ -285,7 +286,11 @@ export function autoFill(week, coaches) {
     free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
 
     for (const b of day.blocks.filter((x) => requiredCoaches(x) > 0)) {
-      while (countedCoaches(b) < requiredCoaches(b) && free.length) b.coaches.push({ id: free.shift(), role: 'coach' })
+      const minutes = (id) => travel[id]?.[b.schoolId] ?? Infinity
+      while (countedCoaches(b) < requiredCoaches(b) && free.length) {
+        const nearest = free.reduce((best, id, i) => (minutes(id) < minutes(free[best]) ? i : best), 0) // ties keep the old order
+        b.coaches.push({ id: free.splice(nearest, 1)[0], role: 'coach' })
+      }
     }
     if (isWeekend(day.key)) {
       // Leftovers go to programmes that are running; only open an empty one if none are.

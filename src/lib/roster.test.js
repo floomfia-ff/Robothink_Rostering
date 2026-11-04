@@ -183,6 +183,21 @@ assert.equal(offOn('tue') + offOn('wed'), interns.length, 'weekday off is always
 assert.ok(Math.abs(offOn('tue') - offOn('wed')) <= 1, `Tue/Wed split ${offOn('tue')} / ${offOn('wed')}`)
 assert.ok(Math.abs(offOn('sat') - offOn('sun')) <= 1, `Sat/Sun split ${offOn('sat')} / ${offOn('sun')}`)
 
+// auto-fill takes the nearest free coach for a weekday school; unknown times go last
+w = structuredClone(weeks[0])
+const dover2 = w.days[0].blocks[1]
+dover2.coaches = []
+const [farId, nearId] = R.baseCoaches(w, 'mon', 'WCP', coaches).map((c) => c.id) // two interns free on Monday
+R.autoFill(w, coaches, { [nearId]: { [dover2.schoolId]: 10 }, [farId]: { [dover2.schoolId]: 50 } })
+assert.equal(dover2.coaches[0].id, nearId, 'nearest coach placed first')
+// no travel map keeps the old order
+const ta = structuredClone(weeks[0])
+const tb = structuredClone(weeks[0])
+R.autoFill(ta, coaches)
+R.autoFill(tb, coaches, {})
+const placements = (x) => x.days.flatMap((d) => d.blocks.map((b) => b.coaches.map((c) => c.id).sort().join(',')))
+assert.deepEqual(placements(ta), placements(tb), 'no travel times: same placements as before')
+
 // clear coaches empties every block of the week but keeps availability
 w = structuredClone(weeks[0])
 const before = structuredClone(w.availability)

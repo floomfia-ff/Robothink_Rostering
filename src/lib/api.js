@@ -56,8 +56,8 @@ export async function saveDraft(roster) {
 }
 
 // The real endpoint is not built yet, so this still fills the week in the browser.
-export async function generateRoster(week, coaches) {
+export async function generateRoster(week, coaches, travel) {
   const filled = structuredClone(week)
-  autoFill(filled, coaches)
+  autoFill(filled, coaches, travel)
   return filled
 }
