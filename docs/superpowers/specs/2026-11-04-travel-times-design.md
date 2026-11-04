@@ -47,7 +47,7 @@ build; if OneMap differs from the above, the fixtures and parser follow the real
 
 ## 4. Data
 
-**`sql/05_travel_times.sql`** (run once; RLS on, no policies, so only the function can use it):
+**`sql/04_travel_times.sql`** (run once; RLS on, no policies, so only the function can use it):
 
 ```sql
 create table if not exists travel_times (
@@ -106,7 +106,7 @@ Pure helpers go in `logic.js` with tests: `postcodeOf(address)`, `stationQuery(m
 
 ## 8. Delivery
 
-1. `sql/05_travel_times.sql`, applied after Matin's OK.
+1. `sql/04_travel_times.sql`, applied after Matin's OK.
 2. Matin adds `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` in Supabase → Edge Functions → Secrets.
 3. Function redeployed after Matin's OK.
 4. Code on `backend`, pushed and merged to `main` only when Matin says.
