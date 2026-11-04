@@ -168,7 +168,7 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 | Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate fills each weekday lesson in three steps: one `can_lead` coach at every school that has none, then up to `ceil(largest slot's students ÷ 6)` (shadows don't count), then up to 1 per 3, then **anyone still free that weekday** goes to the school with the most students per coach. Each step places the nearest coach/school pair by travel time, so nobody is left at WCP unless dragged back. Spare weekend coaches are spread over running weekend programmes. |
 | Leads | Exactly **one** Lead per weekday lesson, picked from `can_lead` coaches when the school has one. A Lead without `can_lead` shows a warning, not a block. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
-| Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. **Auto-Generate sets these days off** for any intern who has none (Tue/Wed and Sat/Sun each split evenly, keeping days they're already placed on). Manual edits that break it show a warning, not a block. |
+| Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. **Auto-Generate sets these days off** for any intern who has none (Tue/Wed and Sat/Sun each split evenly, keeping days they're already placed on). Manual edits that break it show a warning, not a block. Changing an intern's day by hand also changes it in every later week already created; new weeks copy the week before. Clear coaches keeps days off. |
 | Availability | Never place a coach on a day marked `off` or `unavailable`. |
 | Part-timers | Shown as `unavailable` (X) on **every day they aren't placed**, on every week, saved or not. Admins make a part-timer available and place them by hand; days without a placement go back to X on the next load. Interns carry their availability over from the previous week. |
 | Weekend split | Auto-Generate gives each coach free on both weekend days exactly one of them, filling the quieter day first, so Saturday and Sunday split evenly. |
@@ -193,7 +193,8 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 |---|---|---|---|
 | `loadRoster()` | `GET /` | — | Roster |
 | `loadWeek(id)` | `GET /weeks/:id` | — | One Week, built fresh (or the saved one merged with fresh slots). Used for "New week". |
-| `deleteWeek(id)` | `DELETE /weeks/:id` | — | `204`. Removes the saved week (fine if it was never saved). "Delete week" button, after a confirm. |
+| `deleteWeek(id)` | `DELETE /weeks/:id` | — | `204`. Hides the saved week (`deleted_at` set; fine if it was never saved). "Delete week" button, after a confirm. |
+| `restoreWeek(id)` | `POST /weeks/:id/restore`, then `GET /weeks/:id` | — | The week as saved. "Restore a deleted week" menu, shown when `deletedWeeks` is not empty. |
 | `saveDraft(roster)` | `PUT /weeks/:id` for each changed week, then `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one | see below | `204` each |
 | `generateRoster(week, coaches, travel)` | none yet | — | Runs `autoFill()` in the browser (sets interns' days off; a weekday school takes the nearest free coach by `travelTimes`, unknown times last). |
 | `refreshTravelTimes(limit = 40)` | `POST /travel-times/refresh` | `{ "limit": 40 }` | `{ done, remaining, total, travelTimes, unrecognisedStations }`. The "Work out travel times" button calls it until `remaining` is 0 and takes the fresh times from each reply. |
@@ -208,7 +209,8 @@ what changed; an address that is half-typed (not blank, no 6-digit postal code) 
 | `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern", "can_lead": true }` (any of them) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`; `can_lead` is `true` / `false`. |
 | `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. Blank or `null` clears it (stored as empty). |
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
-| `DELETE /weeks/:id` | — | Deletes the saved week; a week with no row still returns `204`. |
+| `DELETE /weeks/:id` | — | Hides the saved week (sets `deleted_at`); a week with no row still returns `204`. Deleted weeks are left out of `weeks`, of carry-over and of `GET /weeks/:id`, and listed in `GET /`'s `deletedWeeks: [{ id, label }]`. Saving a week with `PUT` un-deletes it. |
+| `POST /weeks/:id/restore` | — | Clears `deleted_at`. `404` if there is no row. |
 | `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
 | `POST /weeks/:id/publish` | — | The week must already be saved. |
 | `POST /travel-times/refresh` | `{ "limit": 1-100 }` (default 40) | Works out missing coach x school times with OneMap and saves each to `travel_times` as soon as it is known. Needs the `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` secrets. |

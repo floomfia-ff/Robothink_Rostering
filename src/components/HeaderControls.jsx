@@ -63,7 +63,7 @@ export function ActionButton({ action, label, working, done, failed = 'Failed', 
 }
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, deleteWeek, saving, planError, unmatchedSchools, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, deleteWeek, restoreWeek, deletedWeeks, saving, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
   const [showWarnings, setShowWarnings] = useState(false)
@@ -75,7 +75,7 @@ export default function HeaderControls() {
       ? clearCoaches()
       : null
   const onDelete = () =>
-    window.confirm(`Delete the whole week ${week.label}? This can't be undone.`) ? deleteWeek() : null
+    window.confirm(`Delete the whole week ${week.label}? You can bring it back from "Restore a deleted week".`) ? deleteWeek() : null
 
   const quota = [...quotaWarnings(week, coaches), ...leadWarnings(week, Object.values(coachById))]
   const badTimes = week.days.flatMap((d) =>
@@ -115,6 +115,22 @@ export default function HeaderControls() {
             <span className="print:hidden" title={weeks.length === 1 ? "The only week can't be deleted." : 'Delete this week and its coaches.'}>
               <ActionButton action={onDelete} label="Delete week" working="Deleting…" done="Deleted" failed="Couldn't delete" disabled={!!busy || weeks.length === 1 || saving === 'saving'} className="text-red-700 hover:bg-red-50" />
             </span>
+            {deletedWeeks.length > 0 && (
+              <select
+                value=""
+                onChange={(e) => e.target.value && restoreWeek(e.target.value)}
+                disabled={!!busy}
+                aria-label="Restore a deleted week"
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-600 print:hidden"
+              >
+                <option value="">Restore a deleted week…</option>
+                {deletedWeeks.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            )}
             {alerts.length > 0 ? (
               <button
                 type="button"

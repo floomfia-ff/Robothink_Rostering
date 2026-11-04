@@ -332,9 +332,9 @@ export function autoFill(week, coaches, travel = {}) {
         placeNearest([lessons.reduce((a, b) => (load(b) > load(a) ? b : a))])
       } else break
     }
-    // 5. two coaches of the same kind placed above trade schools when that shortens their trips together
-    // (one at a time can't see it: the first school may take someone who is nearer the second)
-    const same = (x, y) => !!byId[x].can_lead === !!byId[y].can_lead && byId[x].employment_type === byId[y].employment_type
+    // 5. two coaches placed above (same type, neither a Lead Coach) trade schools when that shortens their trips
+    // together: one at a time can't see it. Lead Coaches never trade, so each school keeps its closest one.
+    const same = (x, y) => !byId[x].can_lead && !byId[y].can_lead && byId[x].employment_type === byId[y].employment_type
     for (let swapped = true; swapped; ) {
       swapped = false
       for (const a of lessons) for (const b of lessons) for (const x of a.coaches) for (const y of b.coaches) {

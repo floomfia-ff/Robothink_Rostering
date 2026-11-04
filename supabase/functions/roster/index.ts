@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { DOUBLES_RANGE, DOUBLES_TAB, RANGE, TAB, parsePlan, readDoubles } from './plan.js'
 import {
   buildWeek, currentMonday, isMonday, isValidAddress, matchSchools, pendingPairs, pickFields, routeMinutes, stationQuery,
-  toStored, travelMap, validateCoachFields, validateWeek,
+  toStored, travelMap, validateCoachFields, validateWeek, weekShell,
 } from './logic.js'
 
 const CORS = {
@@ -106,7 +106,7 @@ const getCoaches = async () =>
 const getSchools = async () =>
   ok(await db.from('schools').select('id,name,brand,class_day,active,address').order('name'))
 const getSaved = async (id: string) =>
-  ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').eq('id', id).maybeSingle())
+  ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').eq('id', id).is('deleted_at', null).maybeSingle())
 
 async function loadPlan(schools: Awaited<ReturnType<typeof getSchools>>) {
   try {
@@ -182,7 +182,7 @@ async function weekFor(id: string, coaches: unknown[], schools: Awaited<ReturnTy
   const { plan, planError } = await loadPlan(schools)
   const saved = await getSaved(id)
   const previous = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data')
-    .lt('id', id).order('id', { ascending: false }).limit(1).maybeSingle())
+    .lt('id', id).is('deleted_at', null).order('id', { ascending: false }).limit(1).maybeSingle())
   return buildWeek({ id, coaches, schools, plan, planError, saved, previous })
 }
 
@@ -207,7 +207,9 @@ Deno.serve(async (req) => {
         db.from('travel_times').select('*').then(ok),
       ])
       const { plan, planError } = await loadPlan(schools)
-      const rows = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').order('id'))
+      const all = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at').order('id'))
+      const rows = all.filter((w) => !w.deleted_at)
+      const deletedWeeks = all.filter((w) => w.deleted_at).map((w) => ({ id: w.id, label: weekShell(w.id).label }))
       const build = (id: string, saved: unknown, previous: unknown) =>
         buildWeek({ id, coaches, schools, plan, planError, saved, previous })
       const weeks = rows.map((row, i) => build(row.id, row, rows[i - 1] ?? null))
@@ -217,7 +219,7 @@ Deno.serve(async (req) => {
         weeks.push(build(current, null, before))
         weeks.sort((x, y) => x.id.localeCompare(y.id))
       }
-      return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [], ...travelMap(travelRows, coaches, schools) })
+      return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [], deletedWeeks, ...travelMap(travelRows, coaches, schools) })
     }
 
     // Works out up to `limit` missing travel times and saves each one as soon as it's known.
@@ -267,15 +269,21 @@ Deno.serve(async (req) => {
         ok(await db.from('roster_weeks').upsert({
           id, status: saved?.status ?? 'draft', // only /publish changes status
           changed_since_publish: published || !!saved?.changed_since_publish,
-          data: toStored(body), updated_at: new Date().toISOString(),
+          data: toStored(body), updated_at: new Date().toISOString(), deleted_at: null,
         }))
         return noContent()
       }
-      // a week never saved has no row; deleting it is still fine
+      // hidden, not removed, so it can be restored; a week never saved has no row, which is still fine
       if (m === 'DELETE') {
-        ok(await db.from('roster_weeks').delete().eq('id', id))
+        ok(await db.from('roster_weeks').update({ deleted_at: new Date().toISOString() }).eq('id', id))
         return noContent()
       }
+    }
+
+    if (m === 'POST' && (r = path.match(/^\/weeks\/([^/]+)\/restore$/))) {
+      if (!isMonday(r[1])) return fail('Week id must be a Monday (YYYY-MM-DD).', 400)
+      const rows = ok(await db.from('roster_weeks').update({ deleted_at: null }).eq('id', r[1]).select('id'))
+      return rows.length ? noContent() : fail('No such week.', 404)
     }
 
     if (m === 'POST' && (r = path.match(/^\/weeks\/([^/]+)\/publish$/))) {

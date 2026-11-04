@@ -33,6 +33,14 @@ export async function deleteWeek(id) {
   baseline.weeks = baseline.weeks.filter((w) => w.id !== id)
 }
 
+// Brings a deleted week back and returns it as saved.
+export async function restoreWeek(id) {
+  await request('POST', `/weeks/${id}/restore`)
+  const week = await loadWeek(id)
+  baseline.weeks = [...baseline.weeks.filter((w) => w.id !== id), structuredClone(week)]
+  return week
+}
+
 // One batch of OneMap travel times: { done, remaining, total }.
 export const refreshTravelTimes = (limit = 40) => request('POST', '/travel-times/refresh', { limit })
 

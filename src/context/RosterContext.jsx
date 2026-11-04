@@ -123,7 +123,7 @@ export function RosterProvider({ children }) {
   }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
+    coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [],venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
     setWeekId, swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
@@ -131,7 +131,20 @@ export function RosterProvider({ children }) {
     addCoach: (d, b, id) => edit((w) => R.addCoach(w, d, b, id)),
     removeCoach: (d, b, i) => edit((w) => R.removeCoach(w, d, b, i)),
     setRole: (d, b, i, role) => edit((w) => R.setRole(w, d, b, i, role)),
-    setAvailability: (d, id, s) => edit((w) => R.setAvailability(w, d, id, s)),
+    // An intern's day off (or back on) carries into every later week too, so it only needs setting once.
+    setAvailability: (d, id, s) => {
+      const intern = coachById[id]?.employment_type === 'intern'
+      setRoster((r) => ({
+        ...r,
+        weeks: r.weeks.map((w) => {
+          if (w.id !== weekId && !(intern && w.id > weekId)) return w
+          const copy = structuredClone(w)
+          R.setAvailability(copy, d, id, s)
+          return copy
+        }),
+      }))
+      setDirty(true)
+    },
     clearCoaches: () => {
       edit((w) => R.clearCoaches(w))
       setChanges(null)
@@ -177,7 +190,8 @@ export function RosterProvider({ children }) {
     createWeek: () =>
       run('Creating', async () => {
         const next = await api.loadWeek(addDays(roster.weeks.at(-1).id, 7))
-        setRoster((r) => ({ ...r, weeks: [...r.weeks, next] }))
+        // a new week on a deleted week's date replaces that deleted copy when it saves
+        setRoster((r) => ({ ...r, weeks: [...r.weeks, next], deletedWeeks: (r.deletedWeeks ?? []).filter((w) => w.id !== next.id) }))
         setWeekId(next.id)
         setDirty(true)
         say(`Created ${next.label}`)
@@ -187,9 +201,24 @@ export function RosterProvider({ children }) {
       run('Deleting', async () => {
         await api.deleteWeek(week.id)
         const i = roster.weeks.findIndex((w) => w.id === week.id)
-        setRoster((r) => ({ ...r, weeks: r.weeks.filter((w) => w.id !== week.id) }))
+        setRoster((r) => ({
+          ...r,
+          weeks: r.weeks.filter((w) => w.id !== week.id),
+          deletedWeeks: [{ id: week.id, label: week.label }, ...(r.deletedWeeks ?? []).filter((w) => w.id !== week.id)],
+        }))
         setWeekId((roster.weeks[i + 1] ?? roster.weeks[i - 1]).id)
         say(`Deleted ${week.label}`)
+      }),
+    restoreWeek: (id) =>
+      run('Restoring', async () => {
+        const back = await api.restoreWeek(id)
+        setRoster((r) => ({
+          ...r,
+          weeks: [...r.weeks.filter((w) => w.id !== id), back].sort((a, b) => a.id.localeCompare(b.id)),
+          deletedWeeks: r.deletedWeeks.filter((w) => w.id !== id),
+        }))
+        setWeekId(id)
+        say(`Restored ${back.label}`)
       }),
   }
 
