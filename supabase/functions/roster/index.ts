@@ -2,8 +2,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { DOUBLES_RANGE, DOUBLES_TAB, RANGE, TAB, parsePlan, readDoubles } from './plan.js'
 import {
-  buildWeek, currentMonday, isMonday, isValidAddress, matchSchools, pickFields, toStored, validateCoachFields,
-  validateWeek,
+  buildWeek, currentMonday, isMonday, isValidAddress, matchSchools, pendingPairs, pickFields, routeMinutes, stationQuery,
+  toStored, travelMap, validateCoachFields, validateWeek,
 } from './logic.js'
 
 const CORS = {
@@ -116,6 +116,54 @@ async function loadPlan(schools: Awaited<ReturnType<typeof getSchools>>) {
   }
 }
 
+// ── OneMap (travel times) ───────────────────────────────────────────────────
+const ONEMAP = 'https://www.onemap.gov.sg'
+class OneMapError extends Error {}
+class OneMapLoginError extends OneMapError {}
+let onemap: { token: string; until: number } | null = null
+
+// Swaps Matin's OneMap login for a token, kept until 5 minutes before it expires.
+async function onemapToken() {
+  if (onemap && Date.now() < onemap.until) return onemap.token
+  const email = Deno.env.get('ONEMAP_EMAIL')
+  const password = Deno.env.get('ONEMAP_PASSWORD')
+  if (!email || !password) throw new OneMapLoginError()
+  const res = await fetch(`${ONEMAP}/api/auth/post/getToken`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
+  }).catch((e) => { throw new OneMapError(String(e)) })
+  const data = await res.json().catch(() => ({}))
+  if (!data.access_token) throw new OneMapLoginError()
+  onemap = { token: data.access_token, until: Number(data.expiry_timestamp) * 1000 - 300000 || Date.now() + 1800000 }
+  return onemap.token
+}
+
+async function onemapGet(path: string) {
+  const res = await fetch(ONEMAP + path, { headers: { Authorization: await onemapToken() } })
+    .catch((e) => { throw new OneMapError(String(e)) })
+  if (res.status === 401) {
+    onemap = null
+    throw new OneMapLoginError()
+  }
+  if (!res.ok) throw new OneMapError(`${res.status} ${res.statusText}`)
+  return res.json()
+}
+
+// "lat,lng" of the best match, or null when OneMap knows no such place.
+async function onemapPlace(query: string) {
+  const data = await onemapGet(`/api/common/elastic/search?searchVal=${encodeURIComponent(query)}&returnGeom=Y&getAddrDetails=N&pageNum=1`)
+  const hit = data.results?.[0]
+  return hit ? `${hit.LATITUDE},${hit.LONGITUDE}` : null
+}
+
+// Trips are timed for the next Tuesday at 2pm, a normal weekday OneMap has a timetable for.
+function nextTuesday() {
+  const d = new Date(Date.now() + 8 * 3600000) // Singapore date
+  d.setUTCDate(d.getUTCDate() + ((9 - d.getUTCDay()) % 7 || 7))
+  return `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}-${d.getUTCFullYear()}`
+}
+const onemapRoute = (from: string, to: string) =>
+  onemapGet(`/api/public/routingsvc/route?start=${from}&end=${to}&routeType=pt&date=${nextTuesday()}&time=14:00:00&mode=TRANSIT&maxWalkDistance=1000&numItineraries=3`)
+
 async function weekFor(id: string, coaches: unknown[], schools: Awaited<ReturnType<typeof getSchools>>) {
   const { plan, planError } = await loadPlan(schools)
   const saved = await getSaved(id)
@@ -140,8 +188,9 @@ Deno.serve(async (req) => {
     }
 
     if (m === 'GET' && path === '/') {
-      const [coaches, schools, bases] = await Promise.all([
+      const [coaches, schools, bases, travelRows] = await Promise.all([
         getCoaches(), getSchools(), db.from('roster_bases').select('id,code,name,address').order('id').then(ok),
+        db.from('travel_times').select('*').then(ok),
       ])
       const { plan, planError } = await loadPlan(schools)
       const rows = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').order('id'))
@@ -154,7 +203,34 @@ Deno.serve(async (req) => {
         weeks.push(build(current, null, before))
         weeks.sort((x, y) => x.id.localeCompare(y.id))
       }
-      return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [] })
+      return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [], ...travelMap(travelRows, coaches, schools) })
+    }
+
+    // Works out up to `limit` missing travel times and saves each one as soon as it's known.
+    if (m === 'POST' && path === '/travel-times/refresh') {
+      const limit = Math.min(100, Math.max(1, Number(body?.limit) || 40))
+      const [coaches, schools, rows] = await Promise.all([getCoaches(), getSchools(), db.from('travel_times').select('*').then(ok)])
+      const pending = pendingPairs(coaches, schools, rows)
+      const batch = pending.slice(0, limit)
+      const places = new Map<string, Promise<string | null>>() // each station / postcode looked up once per call
+      const place = (q: string) => places.get(q) ?? places.set(q, onemapPlace(q)).get(q)!
+      let done = 0
+      try {
+        for (let i = 0; i < batch.length; i += 4) {
+          await Promise.all(batch.slice(i, i + 4).map(async (p) => {
+            const [from, to] = await Promise.all([place(stationQuery(p.from_station)), place(p.to_postcode)])
+            const minutes = from && to ? routeMinutes(await onemapRoute(from, to)) : null
+            const status = !from ? 'station-not-found' : minutes === null ? 'no-route' : 'ok'
+            ok(await db.from('travel_times').upsert({ ...p, minutes, status, updated_at: new Date().toISOString() }))
+            done++
+          }))
+        }
+      } catch (e) {
+        if (e instanceof OneMapLoginError) return fail("OneMap didn't accept the login — check ONEMAP_EMAIL / ONEMAP_PASSWORD in Supabase.", 502)
+        if (e instanceof OneMapError) return fail(`OneMap is not responding: ${e.message}. Times worked out so far are kept.`, 502)
+        throw e
+      }
+      return json({ done, remaining: pending.length - done, total: pendingPairs(coaches, schools, []).length })
     }
 
     let r

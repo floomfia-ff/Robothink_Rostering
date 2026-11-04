@@ -7,6 +7,7 @@ Weekly rosters plus coach MRT/employment, school and base addresses. Every reque
 - `ROSTER_CODE`: the shared code the roster page sends.
 - `GOOGLE_SERVICE_ACCOUNT`: reused from the feedback project.
 - `GOOGLE_PLAN_SHEET_ID`: the lesson plan spreadsheet id.
+- `ONEMAP_EMAIL`, `ONEMAP_PASSWORD`: the OneMap account used for travel times (search and public transport routing).
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically.
 
@@ -24,4 +25,5 @@ curl -s -H "x-roster-code: $CODE" "$URL/"                                       
 curl -s -X PATCH -H "x-roster-code: $CODE" -H "content-type: application/json" \
   -d '{"address":"no postcode"}' "$URL/schools/1"                                  # 400 message
 curl -s -H "x-roster-code: $CODE" "$URL/weeks/2026-11-03"                          # 400 Monday message
+curl -s -X POST -H "x-roster-code: $CODE" -H "content-type: application/json" \n  -d '{"limit":5}' "$URL/travel-times/refresh"                                    # { done, remaining, total }
 ```
