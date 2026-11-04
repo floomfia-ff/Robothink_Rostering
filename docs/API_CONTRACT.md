@@ -14,7 +14,8 @@ If you need a different shape, tell the UI owner and update this file in the sam
 
 ```json
 { "coaches": [Coach], "schools": [School], "bases": [Base], "weeks": [Week],
-  "planError": null, "unmatchedSchools": [] }
+  "planError": null, "unmatchedSchools": [],
+  "travelTimes": { "7": { "3": 28 } }, "unrecognisedStations": [] }
 ```
 
 | Field | Notes |
@@ -22,6 +23,8 @@ If you need a different shape, tell the UI owner and update this file in the sam
 | `planError` | Text when the lesson plan sheet could not be read, otherwise `null`. Everything else still loads. |
 | `unmatchedSchools` | Names of active schools in the database that are not on the sheet (check the spelling). |
 | `weeks` | Every saved week, plus the current week (Singapore time) if it is not saved yet. |
+| `travelTimes` | `{ coachId: { schoolId: minutes } }` by public transport from the coach's MRT to the school, OneMap, a Tuesday at 2pm. Only times still matching the coach's MRT and the school's postcode; `null` = no route. |
+| `unrecognisedStations` | Coach ids whose MRT OneMap could not find (fix the spelling, then work the times out again). |
 
 ### Coach
 
@@ -190,7 +193,8 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 | `loadRoster()` | `GET /` | — | Roster |
 | `loadWeek(id)` | `GET /weeks/:id` | — | One Week, built fresh (or the saved one merged with fresh slots). Used for "New week". |
 | `saveDraft(roster)` | `PUT /weeks/:id` for each changed week, then `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one | see below | `204` each |
-| `generateRoster(week, coaches)` | none yet | — | Runs `autoFill()` in the browser (it also sets interns' days off). |
+| `generateRoster(week, coaches, travel)` | none yet | — | Runs `autoFill()` in the browser (sets interns' days off; a weekday school takes the nearest free coach by `travelTimes`, unknown times last). |
+| `refreshTravelTimes(limit = 40)` | `POST /travel-times/refresh` | `{ "limit": 40 }` | `{ done, remaining, total }`. The "Work out travel times" button calls it until `remaining` is 0. |
 
 **There is no Save or Publish button.** The site calls `saveDraft` by itself a second after the last edit, and
 retries every 10 seconds after a failure. `api.js` compares against what it last loaded or saved and sends only
@@ -204,6 +208,7 @@ what changed; an address that is half-typed (not blank, no 6-digit postal code) 
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
 | `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
 | `POST /weeks/:id/publish` | — | The week must already be saved. |
+| `POST /travel-times/refresh` | `{ "limit": 1-100 }` (default 40) | Works out missing coach x school times with OneMap and saves each to `travel_times` as soon as it is known. Needs the `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` secrets. |
 
 These edits go straight into the shared `coaches` and `schools` rows, so the feedback site shows them on its next load.
 
@@ -218,6 +223,7 @@ The UI shows the message in red next to the page title, keeps the admin's unsave
 | `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; non-blank address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; "Every day needs blocks, and every block needs coaches."; lesson `schoolId` not a whole number; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
 | `404` | "No such coach." / "No such school." / "No such base."; publishing a week that was never saved ("Save the week before publishing it."); any other path. |
 | `500` | The function is missing a secret, or the database failed. The message says which. |
+| `502` | Travel times only: "OneMap didn't accept the login — check ONEMAP_EMAIL / ONEMAP_PASSWORD in Supabase." (nothing saved), or "OneMap is not responding: … Times worked out so far are kept." |
 
 If the lesson plan sheet cannot be read, that is **not** an error: the response carries `planError`,
 lesson blocks have `slots: []`, and saving still works.
@@ -226,7 +232,8 @@ lesson blocks have `slots: []`, and saving still works.
 
 ## 4. Not done yet
 
-- **Google Maps travel time (spec #2):** will use the MRT stations and addresses now available.
+- **Travel times, later:** weekends and WCP / DV, measuring interns from WCP, schools by their nearest MRT, and
+  matching over all schools for the lowest total travel (Auto-Generate is greedy, one school at a time).
 - **Auto-generate engine (Dev 3):** `generateRoster()` still fills the week in the browser with `autoFill()`
   in `src/lib/roster.js`. The planned `POST /weeks/:id/generate` should keep valid assignments, fill only what
   is short, and return the whole week in the shape above. Its tests show the expected behaviour.
