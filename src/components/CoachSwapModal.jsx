@@ -10,7 +10,7 @@ const ROLES = [
 ]
 
 export default function CoachSwapModal() {
-  const { swapTarget, closeSwap, week, coaches, coachById, assignCoach, addCoach, removeCoach, setRole } = useRoster()
+  const { swapTarget, closeSwap, week, coaches, coachById, assignCoach, addCoach, removeCoach, setRole, travelTimes } = useRoster()
   const dialogRef = useRef(null)
 
   useEffect(() => {
@@ -31,10 +31,14 @@ export default function CoachSwapModal() {
   if (!block || (index !== undefined && !current)) return null // target vanished (e.g. week switched)
 
   const inBlock = new Set(block.coaches.map((c) => c.id))
+  // Weekday lessons: within each group, nearest first by travel time; unknown times last.
+  const lesson = block.kind === 'lesson'
+  const minutes = (id) => (lesson ? travelTimes[id]?.[block.schoolId] : undefined)
+  const far = (id) => minutes(id) ?? Infinity
   const candidates = coaches
     .filter((c) => !inBlock.has(c.id))
     .map((c) => ({ coach: c, day: coachDay(week, dayKey, c) }))
-    .sort((a, b) => rank(a.day) - rank(b.day))
+    .sort((a, b) => rank(a.day) - rank(b.day) || (far(a.coach.id) === far(b.coach.id) ? 0 : far(a.coach.id) - far(b.coach.id)))
 
   const pick = (id) => {
     if (current) assignCoach(dayKey, blockId, index, id)
@@ -121,6 +125,11 @@ export default function CoachSwapModal() {
                   >
                     <span className="font-medium text-slate-800">
                       {coach.name} <span className="text-xs font-normal text-slate-400">{coach.employment_type}</span>
+                      {lesson && (
+                        <span className="block text-xs font-normal text-slate-500">
+                          {coach.mrt_station || 'No MRT'} · {minutes(coach.id) == null ? '—' : `${minutes(coach.id)} min`}
+                        </span>
+                      )}
                     </span>
                     <span className={`text-xs ${blocked ? 'text-slate-500' : s.where && s.where !== 'WCP' ? 'text-amber-700' : 'text-emerald-700'}`}>{note}</span>
                   </button>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
+import { ActionButton } from './HeaderControls.jsx'
 import CoachProfileModal from './CoachProfileModal.jsx'
 import { Briefcase, GradCap, Info, Pencil, Person } from './coachIcons.jsx'
 
@@ -13,7 +14,8 @@ const GROUPS = [
 // Nearest MRT and intern / part-timer per coach, saved by the page into the shared coaches table.
 // Coaches are added, renamed and removed in the feedback site.
 export default function CoachProfiles() {
-  const { coaches, updateCoach } = useRoster()
+  const { coaches, updateCoach, refreshTravelTimes, unrecognisedStations } = useRoster()
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null) // coach id whose window is open
   const missing = coaches.filter((c) => !c.mrt_station?.trim()).length
@@ -24,6 +26,14 @@ export default function CoachProfiles() {
     <section aria-labelledby="profiles-title" className="mx-auto max-w-6xl space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <h1 id="profiles-title" className="text-xl font-bold text-slate-900">Coach Profiles</h1>
+        <ActionButton
+          action={() => refreshTravelTimes((done, total) => setProgress({ done, total }))}
+          label="Work out travel times"
+          working={`Working out travel times… ${progress.done} / ${progress.total || '…'}`}
+          done={`${progress.total} travel times up to date`}
+          failed="Couldn't work out travel times"
+          className="bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+        />
         <SaveStatus />
       </div>
 
@@ -78,7 +88,10 @@ export default function CoachProfiles() {
                         </span>
                         <span className="w-full truncate font-semibold text-slate-900" title={c.name}>{c.name}</span>
                         {station ? (
-                          <span className="w-full truncate text-xs text-slate-500" title={station}>{station}</span>
+                          <span className="w-full truncate text-xs text-slate-500" title={station}>
+                            {station}
+                            {unrecognisedStations.includes(c.id) && <span className="block font-medium text-orange-600">MRT not recognised</span>}
+                          </span>
                         ) : (
                           <span className="text-xs font-medium text-orange-600">Add nearest MRT</span>
                         )}

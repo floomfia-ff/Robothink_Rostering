@@ -123,7 +123,7 @@ export function RosterProvider({ children }) {
   }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, dirty, notice, noticeError, busy, saving,
+    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
     setWeekId, swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
@@ -157,6 +157,23 @@ export function RosterProvider({ children }) {
         setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })
         say('Auto-generated — review it')
       }),
+    // Asks the server for batches until nothing is left, then picks up the new times (edits on screen are kept).
+    refreshTravelTimes: async (onProgress) => {
+      try {
+        for (;;) {
+          const { done, remaining, total } = await api.refreshTravelTimes()
+          onProgress(total - remaining, total)
+          if (!remaining || !done) break
+        }
+        const fresh = await api.loadRoster()
+        setRoster((r) => ({ ...r, travelTimes: fresh.travelTimes, unrecognisedStations: fresh.unrecognisedStations }))
+        say('Travel times up to date')
+        return true
+      } catch (e) {
+        say(`Travel times: ${e.message || 'unknown error'}`, true)
+        return false
+      }
+    },
     createWeek: () =>
       run('Creating', async () => {
         const next = await api.loadWeek(addDays(roster.weeks.at(-1).id, 7))

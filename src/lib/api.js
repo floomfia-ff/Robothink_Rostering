@@ -28,6 +28,9 @@ export async function loadRoster() {
 
 export const loadWeek = (id) => request('GET', `/weeks/${id}`)
 
+// One batch of OneMap travel times: { done, remaining, total }.
+export const refreshTravelTimes = (limit = 40) => request('POST', '/travel-times/refresh', { limit })
+
 // Stops at the first error; baseline moves forward per request so a retry resends only what failed.
 export async function saveDraft(roster) {
   const patches = (list, old, fields, path) =>
