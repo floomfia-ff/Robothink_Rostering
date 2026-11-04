@@ -299,18 +299,22 @@ export function autoFill(week, coaches, travel = {}) {
     free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
 
     const lessons = day.blocks.filter((x) => requiredCoaches(x) > 0)
-    // Moves one coach from `from` out of `free` into one of `blocks`: part-timers first, then the shortest trip over
-    // every school/coach pair, so a coach isn't sent far just because that school came first. Ties keep the old order.
+    const hasSeasoned = (b) => b.coaches.some((c) => byId[c.id]?.can_lead)
+    const mins = (id, b) => travel[id]?.[b.schoolId] ?? Infinity
+    const placed = new Set() // coaches this run put on a weekday school; only these may be swapped below
+    // Moves one coach from `from` out of `free` into one of `blocks`: part-timers first, then anyone but a second
+    // Lead Coach for the school, then the shortest trip over every school/coach pair. Ties keep the old order.
     const placeNearest = (blocks, from = free) => {
       let best = null
       for (const b of blocks) for (const id of from) {
-        const cost = [byId[id].employment_type === 'part-timer' ? 0 : 1, travel[id]?.[b.schoolId] ?? Infinity]
-        if (!best || cost[0] < best.cost[0] || (cost[0] === best.cost[0] && cost[1] < best.cost[1])) best = { b, id, cost }
+        const cost = [byId[id].employment_type === 'part-timer' ? 0 : 1, byId[id].can_lead && hasSeasoned(b) ? 1 : 0, mins(id, b)]
+        const i = best ? cost.findIndex((v, k) => v !== best.cost[k]) : 0
+        if (!best || (i >= 0 && cost[i] < best.cost[i])) best = { b, id, cost }
       }
       free.splice(free.indexOf(best.id), 1)
       best.b.coaches.push({ id: best.id, role: 'coach' })
+      if (!isWeekend(day.key)) placed.add(best.id)
     }
-    const hasSeasoned = (b) => b.coaches.some((c) => byId[c.id]?.can_lead)
     for (;;) {
       const seasoned = free.filter((id) => byId[id].can_lead)
       const needs = lessons.filter((b) => !hasSeasoned(b))
@@ -327,6 +331,19 @@ export function autoFill(week, coaches, travel = {}) {
         const load = (b) => mostStudents(b) / countedCoaches(b)
         placeNearest([lessons.reduce((a, b) => (load(b) > load(a) ? b : a))])
       } else break
+    }
+    // 5. two coaches of the same kind placed above trade schools when that shortens their trips together
+    // (one at a time can't see it: the first school may take someone who is nearer the second)
+    const same = (x, y) => !!byId[x].can_lead === !!byId[y].can_lead && byId[x].employment_type === byId[y].employment_type
+    for (let swapped = true; swapped; ) {
+      swapped = false
+      for (const a of lessons) for (const b of lessons) for (const x of a.coaches) for (const y of b.coaches) {
+        if (a === b || !placed.has(x.id) || !placed.has(y.id) || !same(x.id, y.id)) continue
+        if (mins(x.id, b) + mins(y.id, a) < mins(x.id, a) + mins(y.id, b)) {
+          ;[x.id, y.id] = [y.id, x.id]
+          swapped = true
+        }
+      }
     }
     if (isWeekend(day.key)) {
       // Leftovers go to programmes that are running; only open an empty one if none are.

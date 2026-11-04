@@ -204,6 +204,14 @@ for (const b of w.days[0].blocks) b.coaches = []
 const [first, second] = w.days[0].blocks
 R.autoFill(w, coaches, { [nearId]: { [first.schoolId]: 50, [second.schoolId]: 10 } })
 assert.ok(second.coaches.some((c) => c.id === nearId), 'placed at the nearer school, not the first one')
+// two coaches trade schools when that shortens their trips together (one at a time would send q 100 min)
+w = structuredClone(weeks[0])
+for (const b of w.days[0].blocks) b.coaches = []
+const [a1, a2] = w.days[0].blocks
+for (const b of [a1, a2]) b.slots = b.slots.map((s) => ({ ...s, students: 3 })) // one coach each
+const pair = coaches.filter((c) => c.id === nearId || c.id === farId)
+R.autoFill(w, pair, { [nearId]: { [a1.schoolId]: 10, [a2.schoolId]: 11 }, [farId]: { [a1.schoolId]: 12, [a2.schoolId]: 100 } })
+assert.deepEqual([a1.coaches.map((c) => c.id), a2.coaches.map((c) => c.id)], [[farId], [nearId]], 'swapped to the shorter total')
 // no travel map keeps the old order
 const ta = structuredClone(weeks[0])
 const tb = structuredClone(weeks[0])
@@ -224,6 +232,7 @@ for (const d of w.days.slice(0, 5)) {
   const covered = lessons.filter((b) => b.coaches.some((c) => seasoned.has(c.id)))
   assert.equal(covered.length, Math.min(lessons.length, seasonedFree), `${d.key}: an experienced coach at as many schools as possible`)
   for (const b of covered) assert.ok(seasoned.has(b.coaches.find((c) => c.role === 'lead').id), `${d.key} ${b.name}: Lead is experienced`)
+  if (seasonedFree <= lessons.length) assert.ok(covered.every((b) => b.coaches.filter((c) => seasoned.has(c.id)).length === 1), `${d.key}: one Lead Coach per school`)
   if (lessons.length) assert.deepEqual(R.baseCoaches(w, d.key, 'WCP', ranked), [], `${d.key}: nobody left at WCP`)
 }
 // a Lead who isn't a Lead Coach is a warning
