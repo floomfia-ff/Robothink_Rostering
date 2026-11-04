@@ -28,6 +28,11 @@ export async function loadRoster() {
 
 export const loadWeek = (id) => request('GET', `/weeks/${id}`)
 
+export async function deleteWeek(id) {
+  await request('DELETE', `/weeks/${id}`)
+  baseline.weeks = baseline.weeks.filter((w) => w.id !== id)
+}
+
 // One batch of OneMap travel times: { done, remaining, total }.
 export const refreshTravelTimes = (limit = 40) => request('POST', '/travel-times/refresh', { limit })
 

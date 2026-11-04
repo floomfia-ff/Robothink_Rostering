@@ -9,7 +9,7 @@ import {
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'content-type, x-roster-code',
-  'Access-Control-Allow-Methods': 'GET, PUT, POST, PATCH, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, PUT, POST, PATCH, DELETE, OPTIONS',
 }
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'
 
@@ -269,6 +269,11 @@ Deno.serve(async (req) => {
           changed_since_publish: published || !!saved?.changed_since_publish,
           data: toStored(body), updated_at: new Date().toISOString(),
         }))
+        return noContent()
+      }
+      // a week never saved has no row; deleting it is still fine
+      if (m === 'DELETE') {
+        ok(await db.from('roster_weeks').delete().eq('id', id))
         return noContent()
       }
     }

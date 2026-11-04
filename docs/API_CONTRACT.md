@@ -193,6 +193,7 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 |---|---|---|---|
 | `loadRoster()` | `GET /` | — | Roster |
 | `loadWeek(id)` | `GET /weeks/:id` | — | One Week, built fresh (or the saved one merged with fresh slots). Used for "New week". |
+| `deleteWeek(id)` | `DELETE /weeks/:id` | — | `204`. Removes the saved week (fine if it was never saved). "Delete week" button, after a confirm. |
 | `saveDraft(roster)` | `PUT /weeks/:id` for each changed week, then `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one | see below | `204` each |
 | `generateRoster(week, coaches, travel)` | none yet | — | Runs `autoFill()` in the browser (sets interns' days off; a weekday school takes the nearest free coach by `travelTimes`, unknown times last). |
 | `refreshTravelTimes(limit = 40)` | `POST /travel-times/refresh` | `{ "limit": 40 }` | `{ done, remaining, total, travelTimes, unrecognisedStations }`. The "Work out travel times" button calls it until `remaining` is 0 and takes the fresh times from each reply. |
@@ -207,6 +208,7 @@ what changed; an address that is half-typed (not blank, no 6-digit postal code) 
 | `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern", "can_lead": true }` (any of them) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`; `can_lead` is `true` / `false`. |
 | `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. Blank or `null` clears it (stored as empty). |
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
+| `DELETE /weeks/:id` | — | Deletes the saved week; a week with no row still returns `204`. |
 | `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
 | `POST /weeks/:id/publish` | — | The week must already be saved. |
 | `POST /travel-times/refresh` | `{ "limit": 1-100 }` (default 40) | Works out missing coach x school times with OneMap and saves each to `travel_times` as soon as it is known. Needs the `ONEMAP_EMAIL` / `ONEMAP_PASSWORD` secrets. |

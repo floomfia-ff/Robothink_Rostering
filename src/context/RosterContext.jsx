@@ -182,6 +182,15 @@ export function RosterProvider({ children }) {
         setDirty(true)
         say(`Created ${next.label}`)
       }),
+    // Leaves the neighbouring week open. Opening the site again re-creates the current week empty if it was deleted.
+    deleteWeek: () =>
+      run('Deleting', async () => {
+        await api.deleteWeek(week.id)
+        const i = roster.weeks.findIndex((w) => w.id === week.id)
+        setRoster((r) => ({ ...r, weeks: r.weeks.filter((w) => w.id !== week.id) }))
+        setWeekId((roster.weeks[i + 1] ?? roster.weeks[i - 1]).id)
+        say(`Deleted ${week.label}`)
+      }),
   }
 
   return <RosterContext.Provider value={value}>{children}</RosterContext.Provider>

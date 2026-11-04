@@ -63,7 +63,7 @@ export function ActionButton({ action, label, working, done, failed = 'Failed', 
 }
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, planError, unmatchedSchools, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, deleteWeek, saving, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
   const [showWarnings, setShowWarnings] = useState(false)
@@ -74,6 +74,8 @@ export default function HeaderControls() {
     window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays.`)
       ? clearCoaches()
       : null
+  const onDelete = () =>
+    window.confirm(`Delete the whole week ${week.label}? This can't be undone.`) ? deleteWeek() : null
 
   const quota = [...quotaWarnings(week, coaches), ...leadWarnings(week, Object.values(coachById))]
   const badTimes = week.days.flatMap((d) =>
@@ -108,6 +110,10 @@ export default function HeaderControls() {
             </select>
             <span className="print:hidden" title="Add the week after the last one, with fresh counts from the lesson plan.">
               <ActionButton action={createWeek} label="+ New week" working="Creating…" done="Week added" failed="Couldn't add" disabled={!!busy} className="text-indigo-700 hover:bg-indigo-50" />
+            </span>
+            {/* not while a save runs: that save could put the week straight back */}
+            <span className="print:hidden" title={weeks.length === 1 ? "The only week can't be deleted." : 'Delete this week and its coaches.'}>
+              <ActionButton action={onDelete} label="Delete week" working="Deleting…" done="Deleted" failed="Couldn't delete" disabled={!!busy || weeks.length === 1 || saving === 'saving'} className="text-red-700 hover:bg-red-50" />
             </span>
             {alerts.length > 0 ? (
               <button
