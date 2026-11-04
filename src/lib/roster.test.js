@@ -198,6 +198,12 @@ const suzanne = id('Suzanne')
 w.availability[suzanne][0] = 'available'
 R.autoFill(w, coaches, { [nearId]: { [dover3.schoolId]: 10 }, [suzanne]: { [dover3.schoolId]: 60 } })
 assert.equal(dover3.coaches[0].id, suzanne, 'part-timer first, nearest within the group')
+// a coach near the second school isn't taken by the first one just because it comes first in the day
+w = structuredClone(weeks[0])
+for (const b of w.days[0].blocks) b.coaches = []
+const [first, second] = w.days[0].blocks
+R.autoFill(w, coaches, { [nearId]: { [first.schoolId]: 50, [second.schoolId]: 10 } })
+assert.ok(second.coaches.some((c) => c.id === nearId), 'placed at the nearer school, not the first one')
 // no travel map keeps the old order
 const ta = structuredClone(weeks[0])
 const tb = structuredClone(weeks[0])
@@ -220,11 +226,11 @@ for (const d of w.days.slice(0, 5)) {
   for (const b of covered) assert.ok(seasoned.has(b.coaches.find((c) => c.role === 'lead').id), `${d.key} ${b.name}: Lead is experienced`)
   if (lessons.length) assert.deepEqual(R.baseCoaches(w, d.key, 'WCP', ranked), [], `${d.key}: nobody left at WCP`)
 }
-// a Lead who isn't marked "Can lead" is a warning
+// a Lead who isn't a Lead Coach is a warning
 const tp2 = w.days[0].blocks.find((b) => b.coaches.some((c) => c.role === 'lead'))
 const leadId = tp2.coaches.find((c) => c.role === 'lead').id
 const unmarked = ranked.map((c) => (c.id === leadId ? { ...c, can_lead: false } : c))
-assert.match(R.leadWarnings(w, unmarked).join(' '), /isn't marked "Can lead"/)
+assert.match(R.leadWarnings(w, unmarked).join(' '), /isn't a Lead Coach/)
 assert.deepEqual(R.leadWarnings(w, ranked).filter((m) => m.includes(tp2.name)), [])
 
 // clear coaches empties every block of the week but keeps availability

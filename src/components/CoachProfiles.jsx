@@ -112,10 +112,17 @@ export default function CoachProfiles() {
                           <option value="intern">Intern</option>
                           <option value="part-timer">Part-timer</option>
                         </select>
-                        <label className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 text-xs text-slate-600">
-                          <input type="checkbox" checked={!!c.can_lead} onChange={(e) => updateCoach(c.id, { can_lead: e.target.checked })} className="h-3.5 w-3.5 accent-indigo-600" />
-                          Can lead
-                        </label>
+                        {/* same amber star as a Lead's chip on the roster */}
+                        <button
+                          type="button"
+                          aria-pressed={!!c.can_lead}
+                          aria-label={`Lead Coach: ${c.name}`}
+                          onClick={() => updateCoach(c.id, { can_lead: !c.can_lead })}
+                          className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold ring-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${c.can_lead ? 'bg-amber-50 text-amber-900 ring-amber-300 hover:bg-amber-100' : 'bg-white text-slate-500 ring-slate-200 hover:bg-slate-50'}`}
+                        >
+                          <span aria-hidden="true" className={`grid h-4 w-4 place-items-center rounded-full text-[10px] font-bold ${c.can_lead ? 'bg-amber-400 text-amber-950' : 'bg-slate-200 text-slate-500'}`}>*</span>
+                          Lead Coach
+                        </button>
                       </div>
                     </li>
                   )

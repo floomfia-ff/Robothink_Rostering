@@ -38,7 +38,7 @@ If you need a different shape, tell the UI owner and update this file in the sam
 | `name` | string | Read-only here (edited in the feedback site). |
 | `active` | boolean | Inactive coaches are still returned so past weeks show them. The UI stops them being placed on new days; the server only checks that the id exists. |
 | `employment_type` | `"intern"` \| `"part-timer"` | Editable. Interns get one weekday off (Tue or Wed) and one weekend day off. New coaches default to `part-timer`. |
-| `can_lead` | boolean | Editable ("Can lead" tick in Coach Profiles). Experienced coaches Auto-Generate makes Lead. Defaults to `false`. |
+| `can_lead` | boolean | Editable ("Lead Coach" toggle in Coach Profiles). Experienced coaches Auto-Generate makes Lead. Defaults to `false`. |
 | `mrt_station` | string \| null | Editable. Nearest MRT station (free text). |
 
 ### School (a weekday venue)
@@ -165,7 +165,7 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 
 | Rule | Value |
 |---|---|
-| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate fills each weekday lesson in three steps: one `can_lead` coach at every school that has none, then up to `ceil(largest slot's students ÷ 6)` (shadows don't count), then **everyone still free that weekday** goes to the school with the most students per coach, so nobody is left at WCP unless dragged back. Spare weekend coaches are spread over running weekend programmes. |
+| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate fills each weekday lesson in three steps: one `can_lead` coach at every school that has none, then up to `ceil(largest slot's students ÷ 6)` (shadows don't count), then up to 1 per 3, then **anyone still free that weekday** goes to the school with the most students per coach. Each step places the nearest coach/school pair by travel time, so nobody is left at WCP unless dragged back. Spare weekend coaches are spread over running weekend programmes. |
 | Leads | Exactly **one** Lead per weekday lesson, picked from `can_lead` coaches when the school has one. A Lead without `can_lead` shows a warning, not a block. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
 | Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. **Auto-Generate sets these days off** for any intern who has none (Tue/Wed and Sat/Sun each split evenly, keeping days they're already placed on). Manual edits that break it show a warning, not a block. |
