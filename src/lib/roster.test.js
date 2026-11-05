@@ -66,6 +66,9 @@ assert.ok(R.isValidSlotTime('15:30 - 16:30'))
 assert.ok(!R.isValidSlotTime('16:30 - 15:30'), 'end before start')
 assert.ok(!R.isValidSlotTime('3:30 - 4:30'), 'needs HH:MM')
 assert.ok(!R.isValidSlotTime(''))
+assert.equal(R.mondayOf('2026-11-25'), '2026-11-23') // Wednesday
+assert.equal(R.mondayOf('2026-11-23'), '2026-11-23') // Monday stays
+assert.equal(R.mondayOf('2026-11-29'), '2026-11-23') // Sunday belongs to the week before
 assert.ok(R.isValidAddress('1 Fusionopolis Way 138632'))
 assert.ok(!R.isValidAddress('1 Fusionopolis Way'))
 console.log('validation: all checks passed')

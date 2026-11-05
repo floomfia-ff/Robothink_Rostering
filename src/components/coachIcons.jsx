@@ -66,3 +66,9 @@ export const Alert = ({ className = 'h-4 w-4' }) => (
 export const Sparkle = ({ className = 'h-4 w-4' }) => (
   <svg {...base} className={className}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2" /></svg>
 )
+export const Search = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+)
+export const Eraser = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L13 21" /><path d="M22 21H7M5 11l9 9" /></svg>
+)

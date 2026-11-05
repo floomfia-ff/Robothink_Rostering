@@ -3,8 +3,9 @@ import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
-import { coachDay, isValidSlotTime, leadWarnings, quotaWarnings } from '../lib/roster.js'
-import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, ChevronDown, Download, Plus, Sparkle, Trash, Undo } from './coachIcons.jsx'
+import { coachDay, isValidSlotTime, leadWarnings, mondayOf, quotaWarnings } from '../lib/roster.js'
+import { addDays, weekShell } from '../../supabase/functions/roster/logic.js'
+import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, ChevronDown, Download, Eraser, Plus, Search, Sparkle, Trash, Undo } from './coachIcons.jsx'
 
 // Shared look for the header's pill controls
 const PILL = 'inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white disabled:hover:text-slate-700'
@@ -21,8 +22,9 @@ function PillSelect({ icon, className = '', ...props }) {
   )
 }
 
-// Export button with a small menu; closes on a click outside or Escape.
-function ExportMenu({ children }) {
+// A button that opens a small panel below it; closes on a click outside or Escape.
+// `children` may be a function that gets `close`, for panels that close themselves when done.
+function PopMenu({ trigger, className, align = 'right-0', width = 'w-48', children }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   useEffect(() => {
@@ -38,10 +40,14 @@ function ExportMenu({ children }) {
   }, [open])
   return (
     <div ref={ref} className="relative print:hidden">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={`${PILL} px-4`}>
-        <Download /> Export <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={className}>
+        {trigger} <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
-      {open && <div className="absolute right-0 z-20 mt-2 flex w-48 flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg">{children}</div>}
+      {open && (
+        <div className={`absolute ${align} z-20 mt-2 flex ${width} flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg`}>
+          {typeof children === 'function' ? children(() => setOpen(false)) : children}
+        </div>
+      )}
     </div>
   )
 }
@@ -76,6 +82,32 @@ async function rosterPicture(week, coaches, everyone) {
   } finally {
     holder.remove()
   }
+}
+
+// Pick any day; the week it falls in is added (or opened, if it's already there). Starts on the week after the last one.
+function NewWeekPanel({ weeks, createWeek, busy, close }) {
+  const [day, setDay] = useState(() => addDays(weeks.at(-1).id, 7))
+  const id = day ? mondayOf(day) : null
+  const exists = weeks.some((w) => w.id === id)
+  return (
+    <div className="space-y-2 p-2">
+      <label className="block text-xs font-semibold text-slate-600">
+        Any day in the week
+        <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none" />
+      </label>
+      <p className="text-xs text-slate-500">{id ? `Week of ${weekShell(id).label}${exists ? ' (already added)' : ''}` : 'Pick a date.'}</p>
+      <ActionButton
+        action={async () => (await createWeek(id)) && close()}
+        label={exists ? 'Open week' : 'Add week'}
+        working="Adding…"
+        done="Added"
+        failed="Couldn't add"
+        disabled={!id || !!busy}
+        size="w-full rounded-xl px-3 py-2 text-sm"
+        className="bg-indigo-600 text-white hover:bg-indigo-700"
+      />
+    </div>
+  )
 }
 
 // A button that shows its own result: `working` while the action runs, then green "✓ done" or red "failed"
@@ -134,9 +166,11 @@ export default function HeaderControls() {
       {unmatchedSchools.length > 0 && (
         <p className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900 print:hidden">Not found on the lesson plan: {unmatchedSchools.join(', ')}</p>
       )}
-      <div className="relative overflow-clip rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6 print:border-0 print:p-0 print:shadow-none">
-        {/* soft lavender wash in the top-right corner */}
-        <div aria-hidden="true" className="pointer-events-none absolute -right-32 -top-40 h-80 w-[40rem] max-w-full rounded-full bg-indigo-100/50 blur-3xl print:hidden" />
+      <div className="relative rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6 print:border-0 print:p-0 print:shadow-none">
+        {/* soft lavender wash in the top-right corner; clipped on its own so menus can open past the card */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-clip rounded-3xl print:hidden">
+          <div className="absolute -right-32 -top-40 h-80 w-[40rem] max-w-full rounded-full bg-indigo-100/50 blur-3xl" />
+        </div>
 
         <div className="relative flex flex-wrap items-center gap-4">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 print:hidden">
@@ -147,10 +181,10 @@ export default function HeaderControls() {
             <p className="text-sm text-slate-500">Manage and view your coach roster for the week</p>
           </div>
           <SaveStatus />
-          <ExportMenu>
+          <PopMenu trigger={<><Download /> Export</>} className={`${PILL} px-4`}>
             <ActionButton action={copyPicture} label="Copy Picture" working="Copying…" done="Copied" failed="Couldn't copy" size="rounded-xl px-3 py-2 text-left text-sm" className="text-slate-700 hover:bg-indigo-50 hover:text-indigo-700" />
             <ActionButton action={() => downloadXlsx(week, coaches, everyone)} label="Export to Excel" working="Exporting…" done="Exported" failed="Couldn't export" size="rounded-xl px-3 py-2 text-left text-sm" className="text-slate-700 hover:bg-indigo-50 hover:text-indigo-700" />
-          </ExportMenu>
+          </PopMenu>
         </div>
 
         <div className="relative mt-5 flex flex-wrap items-center gap-2">
@@ -169,9 +203,14 @@ export default function HeaderControls() {
           </button>
 
           <div className="flex items-center rounded-full border border-slate-200 bg-white p-0.5 shadow-sm print:hidden">
-            <span title="Add the week after the last one, with fresh counts from the lesson plan.">
-              <ActionButton action={createWeek} label={<span className="inline-flex items-center gap-1.5"><Plus /> New Week</span>} working="Creating…" done="Week added" failed="Couldn't add" disabled={!!busy} size="h-9 rounded-full px-4 text-sm" className="bg-indigo-600 text-white hover:bg-indigo-700" />
-            </span>
+            <PopMenu
+              trigger={<><Plus /> New Week</>}
+              align="left-0"
+              width="w-64"
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-indigo-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            >
+              {(close) => <NewWeekPanel weeks={weeks} createWeek={createWeek} busy={busy} close={close} />}
+            </PopMenu>
             {/* not while a save runs: that save could put the week straight back */}
             <span title={weeks.length === 1 ? "The only week can't be deleted." : 'Delete this week and its coaches.'}>
               <ActionButton action={onDelete} label={<span className="inline-flex items-center gap-1.5"><Trash /> Delete Week</span>} working="Deleting…" done="Deleted" failed="Couldn't delete" disabled={!!busy || weeks.length === 1 || saving === 'saving'} size="h-9 rounded-full px-4 text-sm" className="text-indigo-700 hover:bg-red-50 hover:text-red-700" />
@@ -211,18 +250,15 @@ export default function HeaderControls() {
 
         <div className="relative mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 print:hidden">
           <ActionButton action={autoGenerate} label={<span className="inline-flex items-center gap-1.5"><Sparkle /> Auto-Generate Draft</span>} working="Generating…" done="Generated" failed="Couldn't generate" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100" />
-          <ActionButton action={onClear} label="Clear coaches" working="Clearing…" done="Cleared" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700" />
-          <label className="ml-auto flex items-center gap-2 text-sm font-medium text-slate-600">
-            Find coach
-            <PillSelect icon={<span className="h-2 w-2 rounded-full bg-amber-400" />} value={highlight} onChange={(e) => setHighlight(e.target.value)}>
-              <option value="">Everyone</option>
-              {coaches.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name || 'Unnamed coach'}
-                </option>
-              ))}
-            </PillSelect>
-          </label>
+          <PillSelect icon={<Search />} value={highlight} onChange={(e) => setHighlight(e.target.value)} aria-label="Find coach">
+            <option value="">Find coach</option>
+            {coaches.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name || 'Unnamed coach'}
+              </option>
+            ))}
+          </PillSelect>
+          <ActionButton action={onClear} label={<span className="inline-flex items-center gap-1.5"><Eraser /> Clear coaches</span>} working="Clearing…" done="Cleared" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700" />
         </div>
 
         {highlight && coachById[highlight] && (

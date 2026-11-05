@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import * as api from '../lib/api.js'
 import * as R from '../lib/roster.js'
-import { addDays, currentMonday } from '../../supabase/functions/roster/logic.js'
+import { currentMonday } from '../../supabase/functions/roster/logic.js'
 
 const RosterContext = createContext(null)
 export const useRoster = () => useContext(RosterContext)
@@ -187,15 +187,25 @@ export function RosterProvider({ children }) {
         return false
       }
     },
-    createWeek: () =>
-      run('Creating', async () => {
-        const next = await api.loadWeek(addDays(roster.weeks.at(-1).id, 7))
+    // `id` is the week's Monday. A week that's already there is just opened.
+    createWeek: (id) => {
+      if (roster.weeks.some((w) => w.id === id)) {
+        setWeekId(id)
+        return Promise.resolve(true)
+      }
+      return run('Creating', async () => {
+        const next = await api.loadWeek(id)
         // a new week on a deleted week's date replaces that deleted copy when it saves
-        setRoster((r) => ({ ...r, weeks: [...r.weeks, next], deletedWeeks: (r.deletedWeeks ?? []).filter((w) => w.id !== next.id) }))
+        setRoster((r) => ({
+          ...r,
+          weeks: [...r.weeks, next].sort((a, b) => a.id.localeCompare(b.id)),
+          deletedWeeks: (r.deletedWeeks ?? []).filter((w) => w.id !== next.id),
+        }))
         setWeekId(next.id)
         setDirty(true)
         say(`Created ${next.label}`)
-      }),
+      })
+    },
     // Leaves the neighbouring week open. Opening the site again re-creates the current week empty if it was deleted.
     deleteWeek: () =>
       run('Deleting', async () => {

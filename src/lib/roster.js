@@ -19,6 +19,10 @@ export function isValidSlotTime(time) {
   return !!m && m[1] + m[2] < m[3] + m[4]
 }
 export { isValidAddress } from '../../supabase/functions/roster/logic.js'
+import { addDays } from '../../supabase/functions/roster/logic.js'
+
+// The Monday of the week a "YYYY-MM-DD" date falls in (weeks are stored by their Monday).
+export const mondayOf = (date) => addDays(date, -((new Date(Date.parse(date)).getUTCDay() + 6) % 7))
 
 // Every place coaches report to: active schools, then the WCP / DV bases.
 // days = the day labels where a lesson block uses that school / a programme uses that base.
