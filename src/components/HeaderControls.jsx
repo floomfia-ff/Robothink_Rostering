@@ -5,7 +5,7 @@ import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
 import { coachDay, isValidSlotTime, leadWarnings, mondayOf, quotaWarnings } from '../lib/roster.js'
 import { addDays, weekShell } from '../../supabase/functions/roster/logic.js'
-import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, ChevronDown, Download, Eraser, Plus, Search, Sparkle, Trash, Undo } from './coachIcons.jsx'
+import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, Close, ChevronDown, Download, Eraser, Plus, Search, Sparkle, Trash, Undo } from './coachIcons.jsx'
 
 // Shared look for the header's pill controls
 const PILL = 'inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white disabled:hover:text-slate-700'
@@ -82,6 +82,42 @@ async function rosterPicture(week, coaches, everyone) {
   } finally {
     holder.remove()
   }
+}
+
+// Coaches as name chips, interns then part-timers; the one being highlighted is amber.
+function CoachPicker({ coaches, highlight, pick }) {
+  const groups = [['Interns', 'intern'], ['Part-timers', 'part-timer']]
+  return (
+    <div className="max-h-96 space-y-3 overflow-y-auto p-2">
+      {groups.map(([title, type]) => {
+        const list = coaches.filter((c) => c.employment_type === type)
+        return list.length ? (
+          <div key={type}>
+            <p className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wide text-slate-400">{title}</p>
+            <div className="grid grid-cols-2 gap-1">
+              {list.map((c) => {
+                const on = String(c.id) === String(highlight)
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => pick(String(c.id))}
+                    className={`flex items-center gap-2 rounded-xl px-2 py-1.5 text-left text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-indigo-500 ${on ? 'bg-amber-50 text-amber-900 ring-1 ring-amber-300' : 'text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'}`}
+                  >
+                    <span aria-hidden="true" className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-bold ${on ? 'bg-amber-400 text-amber-950' : 'bg-indigo-100 text-indigo-700'}`}>
+                      {(c.name || '?').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="truncate">{c.name || 'Unnamed coach'}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ) : null
+      })}
+    </div>
+  )
 }
 
 // Pick any day; the week it falls in is added (or opened, if it's already there). Starts on the week after the last one.
@@ -250,14 +286,21 @@ export default function HeaderControls() {
 
         <div className="relative mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 print:hidden">
           <ActionButton action={autoGenerate} label={<span className="inline-flex items-center gap-1.5"><Sparkle /> Auto-Generate Draft</span>} working="Generating…" done="Generated" failed="Couldn't generate" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100" />
-          <PillSelect icon={<Search />} value={highlight} onChange={(e) => setHighlight(e.target.value)} aria-label="Find coach">
-            <option value="">All coaches</option>
-            {coaches.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name || 'Unnamed coach'}
-              </option>
-            ))}
-          </PillSelect>
+          <span className="inline-flex items-center gap-1">
+            <PopMenu
+              trigger={<><Search /> {coachById[highlight]?.name ?? 'Find coaches'}</>}
+              align="left-0"
+              width="w-80"
+              className={`${PILL} px-4 ${highlight ? 'ring-2 ring-amber-300' : ''}`}
+            >
+              {(close) => <CoachPicker coaches={coaches} highlight={highlight} pick={(id) => { setHighlight(id); close() }} />}
+            </PopMenu>
+            {highlight && (
+              <button type="button" onClick={() => setHighlight('')} aria-label="Show all coaches" title="Show all coaches" className={`${PILL} w-10 justify-center`}>
+                <Close className="h-4 w-4" />
+              </button>
+            )}
+          </span>
           <ActionButton action={onClear} label={<span className="inline-flex items-center gap-1.5"><Eraser /> Clear coaches</span>} working="Clearing…" done="Cleared" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700" />
         </div>
 
