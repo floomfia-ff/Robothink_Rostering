@@ -251,7 +251,7 @@ export default function HeaderControls() {
         <div className="relative mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 print:hidden">
           <ActionButton action={autoGenerate} label={<span className="inline-flex items-center gap-1.5"><Sparkle /> Auto-Generate Draft</span>} working="Generating…" done="Generated" failed="Couldn't generate" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100" />
           <PillSelect icon={<Search />} value={highlight} onChange={(e) => setHighlight(e.target.value)} aria-label="Find coach">
-            <option value="">Find coach</option>
+            <option value="">All coaches</option>
             {coaches.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name || 'Unnamed coach'}
