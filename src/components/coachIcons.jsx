@@ -1,4 +1,4 @@
-// Small inline icons for the Coach Profiles page (the project has no icon library).
+// Small inline icons (the project has no icon library).
 const base = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }
 
 export const Pencil = ({ className = 'h-4 w-4' }) => (
@@ -28,4 +28,41 @@ export const MapPin = ({ className = 'h-5 w-5' }) => (
 // Filled head-and-shoulders avatar
 export const Person = ({ className = 'h-7 w-7' }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}><circle cx="12" cy="8" r="4.2" /><path d="M3.8 21c0-4.2 3.6-6.6 8.2-6.6s8.2 2.4 8.2 6.6Z" /></svg>
+)
+// Roster header
+export const Calendar = ({ className = 'h-5 w-5' }) => (
+  <svg {...base} className={className}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
+)
+export const CalendarClock = ({ className = 'h-8 w-8' }) => (
+  <svg {...base} className={className}><path d="M21 10V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5" /><path d="M16 2v4M8 2v4M3 10h18" /><circle cx="17" cy="17" r="5" /><path d="M17 15v2l1.5 1" /></svg>
+)
+export const ArrowLeft = ({ className = 'h-5 w-5' }) => (
+  <svg {...base} className={className}><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+)
+export const ArrowRight = ({ className = 'h-5 w-5' }) => (
+  <svg {...base} className={className}><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+)
+export const ChevronDown = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="m6 9 6 6 6-6" /></svg>
+)
+export const Plus = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="M12 5v14M5 12h14" /></svg>
+)
+export const Trash = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" /></svg>
+)
+export const Undo = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-15-6.7L3 13" /></svg>
+)
+export const Download = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+)
+export const CheckCircle = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><circle cx="12" cy="12" r="10" /><path d="m8 12 3 3 5-6" /></svg>
+)
+export const Alert = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></svg>
+)
+export const Sparkle = ({ className = 'h-4 w-4' }) => (
+  <svg {...base} className={className}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2" /></svg>
 )

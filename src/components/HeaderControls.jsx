@@ -1,9 +1,50 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
 import { coachDay, isValidSlotTime, leadWarnings, quotaWarnings } from '../lib/roster.js'
+import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, ChevronDown, Download, Plus, Sparkle, Trash, Undo } from './coachIcons.jsx'
+
+// Shared look for the header's pill controls
+const PILL = 'inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white disabled:hover:text-slate-700'
+const SELECT = `${PILL} appearance-none pl-10 pr-9 cursor-pointer`
+
+// A pill select with an icon on the left and a chevron on the right.
+function PillSelect({ icon, className = '', ...props }) {
+  return (
+    <span className={`relative inline-flex ${className}`}>
+      <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-indigo-500">{icon}</span>
+      <select {...props} className={SELECT} />
+      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+    </span>
+  )
+}
+
+// Export button with a small menu; closes on a click outside or Escape.
+function ExportMenu({ children }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const outside = (e) => !ref.current?.contains(e.target) && setOpen(false)
+    const escape = (e) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [open])
+  return (
+    <div ref={ref} className="relative print:hidden">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={`${PILL} px-4`}>
+        <Download /> Export <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="absolute right-0 z-20 mt-2 flex w-48 flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg">{children}</div>}
+    </div>
+  )
+}
 
 // The week as a PNG drawn from the same sheet as the Excel export, so the two always match.
 async function rosterPicture(week, coaches, everyone) {
@@ -39,8 +80,8 @@ async function rosterPicture(week, coaches, everyone) {
 
 // A button that shows its own result: `working` while the action runs, then green "✓ done" or red "failed"
 // for a moment. The action resolves false for a failure and null when the admin cancelled (no message).
-const BTN = 'rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-wait disabled:opacity-50'
-export function ActionButton({ action, label, working, done, failed = 'Failed', className, disabled }) {
+const BTN = 'font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-wait disabled:opacity-50'
+export function ActionButton({ action, label, working, done, failed = 'Failed', className, disabled, size = 'rounded-lg px-3 py-1.5 text-sm' }) {
   const [state, setState] = useState('idle')
   const click = async () => {
     setState('working')
@@ -56,7 +97,7 @@ export function ActionButton({ action, label, working, done, failed = 'Failed', 
   }
   const tone = { done: 'bg-emerald-600 text-white ring-1 ring-emerald-600', failed: 'bg-red-600 text-white ring-1 ring-red-600' }[state]
   return (
-    <button type="button" onClick={click} disabled={disabled || state === 'working'} aria-live="polite" className={`${BTN} ${tone ?? className}`}>
+    <button type="button" onClick={click} disabled={disabled || state === 'working'} aria-live="polite" className={`${BTN} ${size} ${tone ?? className}`}>
       {{ idle: label, working, done: `✓ ${done}`, failed }[state]}
     </button>
   )
@@ -83,7 +124,7 @@ export default function HeaderControls() {
   )
   const alerts = [...badTimes, ...quota]
 
-  const quiet = 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
+  const at = weeks.findIndex((w) => w.id === weekId)
 
   return (
     <header className="space-y-3">
@@ -93,86 +134,99 @@ export default function HeaderControls() {
       {unmatchedSchools.length > 0 && (
         <p className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900 print:hidden">Not found on the lesson plan: {unmatchedSchools.join(', ')}</p>
       )}
-      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 print:border-0 print:p-0">
-        <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-bold text-slate-900">Weekly Roster</h1>
-            <select
-              value={weekId}
-              onChange={(e) => setWeekId(e.target.value)}
-              aria-label="Week"
-              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm font-medium text-slate-800 print:border-0 print:bg-white"
-            >
-              {weeks.map((w) => (
+      <div className="relative overflow-clip rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6 print:border-0 print:p-0 print:shadow-none">
+        {/* soft lavender wash in the top-right corner */}
+        <div aria-hidden="true" className="pointer-events-none absolute -right-32 -top-40 h-80 w-[40rem] max-w-full rounded-full bg-indigo-100/50 blur-3xl print:hidden" />
+
+        <div className="relative flex flex-wrap items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 print:hidden">
+            <CalendarClock />
+          </span>
+          <div className="mr-auto min-w-0 sm:border-l sm:border-slate-200 sm:pl-4">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Weekly Roster</h1>
+            <p className="text-sm text-slate-500">Manage and view your coach roster for the week</p>
+          </div>
+          <SaveStatus />
+          <ExportMenu>
+            <ActionButton action={copyPicture} label="Copy Picture" working="Copying…" done="Copied" failed="Couldn't copy" size="rounded-xl px-3 py-2 text-left text-sm" className="text-slate-700 hover:bg-indigo-50 hover:text-indigo-700" />
+            <ActionButton action={() => downloadXlsx(week, coaches, everyone)} label="Export to Excel" working="Exporting…" done="Exported" failed="Couldn't export" size="rounded-xl px-3 py-2 text-left text-sm" className="text-slate-700 hover:bg-indigo-50 hover:text-indigo-700" />
+          </ExportMenu>
+        </div>
+
+        <div className="relative mt-5 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={() => setWeekId(weeks[at - 1].id)} disabled={at <= 0} aria-label="Previous week" className={`${PILL} w-10 justify-center print:hidden`}>
+            <ArrowLeft />
+          </button>
+          <PillSelect icon={<Calendar />} value={weekId} onChange={(e) => setWeekId(e.target.value)} aria-label="Week">
+            {weeks.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.label}
+              </option>
+            ))}
+          </PillSelect>
+          <button type="button" onClick={() => setWeekId(weeks[at + 1].id)} disabled={at >= weeks.length - 1} aria-label="Next week" className={`${PILL} w-10 justify-center print:hidden`}>
+            <ArrowRight />
+          </button>
+
+          <div className="flex items-center rounded-full border border-slate-200 bg-white p-0.5 shadow-sm print:hidden">
+            <span title="Add the week after the last one, with fresh counts from the lesson plan.">
+              <ActionButton action={createWeek} label={<span className="inline-flex items-center gap-1.5"><Plus /> New Week</span>} working="Creating…" done="Week added" failed="Couldn't add" disabled={!!busy} size="h-9 rounded-full px-4 text-sm" className="bg-indigo-600 text-white hover:bg-indigo-700" />
+            </span>
+            {/* not while a save runs: that save could put the week straight back */}
+            <span title={weeks.length === 1 ? "The only week can't be deleted." : 'Delete this week and its coaches.'}>
+              <ActionButton action={onDelete} label={<span className="inline-flex items-center gap-1.5"><Trash /> Delete Week</span>} working="Deleting…" done="Deleted" failed="Couldn't delete" disabled={!!busy || weeks.length === 1 || saving === 'saving'} size="h-9 rounded-full px-4 text-sm" className="text-indigo-700 hover:bg-red-50 hover:text-red-700" />
+            </span>
+          </div>
+
+          {deletedWeeks.length > 0 && (
+            <PillSelect icon={<Undo />} value="" onChange={(e) => e.target.value && restoreWeek(e.target.value)} disabled={!!busy} aria-label="Restore a deleted week" className="print:hidden">
+              <option value="">Restore a deleted week…</option>
+              {deletedWeeks.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.label}
                 </option>
               ))}
-            </select>
-            <span className="print:hidden" title="Add the week after the last one, with fresh counts from the lesson plan.">
-              <ActionButton action={createWeek} label="+ New week" working="Creating…" done="Week added" failed="Couldn't add" disabled={!!busy} className="text-indigo-700 hover:bg-indigo-50" />
-            </span>
-            {/* not while a save runs: that save could put the week straight back */}
-            <span className="print:hidden" title={weeks.length === 1 ? "The only week can't be deleted." : 'Delete this week and its coaches.'}>
-              <ActionButton action={onDelete} label="Delete week" working="Deleting…" done="Deleted" failed="Couldn't delete" disabled={!!busy || weeks.length === 1 || saving === 'saving'} className="text-red-700 hover:bg-red-50" />
-            </span>
-            {deletedWeeks.length > 0 && (
-              <select
-                value=""
-                onChange={(e) => e.target.value && restoreWeek(e.target.value)}
-                disabled={!!busy}
-                aria-label="Restore a deleted week"
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-600 print:hidden"
-              >
-                <option value="">Restore a deleted week…</option>
-                {deletedWeeks.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.label}
-                  </option>
-                ))}
-              </select>
-            )}
+            </PillSelect>
+          )}
+
+          <span className="ml-auto print:hidden">
             {alerts.length > 0 ? (
               <button
                 type="button"
                 onClick={() => setShowWarnings((s) => !s)}
                 aria-expanded={showWarnings}
                 aria-controls="roster-warnings"
-                className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 ring-1 ring-amber-300 hover:bg-amber-200 print:hidden"
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100"
               >
-                ⚠ {alerts.length} warning{alerts.length === 1 ? '' : 's'} {showWarnings ? '▴' : '▾'}
+                <Alert className="h-4 w-4 text-amber-600" /> {alerts.length} warning{alerts.length === 1 ? '' : 's'}
+                <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${showWarnings ? 'rotate-180' : ''}`} />
               </button>
             ) : (
-              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 print:hidden">✓ No warnings</span>
+              <span className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
+                <CheckCircle className="h-5 w-5 text-emerald-600" /> No warnings
+              </span>
             )}
-            <SaveStatus />
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 print:hidden">
-          <ActionButton action={autoGenerate} label="✨ Auto-Generate Draft" working="Generating…" done="Generated" failed="Couldn't generate" disabled={!!busy} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100" />
-          <ActionButton action={onClear} label="Clear coaches" working="Clearing…" done="Cleared" disabled={!!busy} className={quiet} />
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+        <div className="relative mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 print:hidden">
+          <ActionButton action={autoGenerate} label={<span className="inline-flex items-center gap-1.5"><Sparkle /> Auto-Generate Draft</span>} working="Generating…" done="Generated" failed="Couldn't generate" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100" />
+          <ActionButton action={onClear} label="Clear coaches" working="Clearing…" done="Cleared" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700" />
+          <label className="ml-auto flex items-center gap-2 text-sm font-medium text-slate-600">
             Find coach
-            <select
-              value={highlight}
-              onChange={(e) => setHighlight(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800"
-            >
+            <PillSelect icon={<span className="h-2 w-2 rounded-full bg-amber-400" />} value={highlight} onChange={(e) => setHighlight(e.target.value)}>
               <option value="">Everyone</option>
               {coaches.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name || 'Unnamed coach'}
                 </option>
               ))}
-            </select>
+            </PillSelect>
           </label>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <ActionButton action={copyPicture} label="Copy Picture" working="Copying…" done="Copied" failed="Couldn't copy" className={quiet} />
-            <ActionButton action={() => downloadXlsx(week, coaches, everyone)} label="Export to Excel" working="Exporting…" done="Exported" failed="Couldn't export" className={quiet} />
-          </div>
         </div>
 
         {highlight && coachById[highlight] && (
-          <p className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900 print:hidden">
+          <p className="relative mt-4 rounded-2xl bg-amber-50 px-4 py-2 text-sm text-amber-900 print:hidden">
             <b>{coachById[highlight].name}:</b>{' '}
             {week.days
               .map((d) => {
