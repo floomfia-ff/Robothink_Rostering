@@ -28,8 +28,8 @@ export default function TopNav({ tab, setTab }) {
             <span className="truncate text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">Roster Admin</span>
           </div>
 
-          {/* phones: a 2 x 2 grid under the brand; wider screens: one row on the right */}
-          <nav role="tablist" aria-label="Sections" className="grid w-full grid-cols-2 gap-1.5 md:ml-auto md:flex md:w-auto md:items-center md:gap-1">
+          {/* phones: a 2 x 2 grid under the brand; wider screens: one row right after the title */}
+          <nav role="tablist" aria-label="Sections" className="grid w-full grid-cols-2 gap-1.5 md:flex md:w-auto md:items-center md:gap-1">
             {TABS.map(([key, label, Icon], i) => (
               <button
                 key={key}
@@ -59,7 +59,7 @@ export default function TopNav({ tab, setTab }) {
 function Decorations() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-clip rounded-[2rem]">
-      <svg viewBox="0 0 420 80" className="rt-drift absolute right-24 top-0 hidden h-full w-[420px] text-indigo-200 lg:block" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <svg viewBox="0 0 420 80" className="rt-drift absolute right-24 top-0 hidden h-full w-[360px] text-indigo-200 2xl:block" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
         <path d="M10 62h70l26-26h90l22-22h80" />
         <path d="M60 74h110l18-18h120" />
         <path d="M250 40h60l14 14h60" />
@@ -68,8 +68,8 @@ function Decorations() {
         <circle cx="308" cy="56" r="3" fill="currentColor" />
         <circle cx="384" cy="54" r="3" fill="currentColor" />
       </svg>
-      <span className="rt-bob absolute right-[34%] top-1.5 hidden h-4 w-4 rounded-full bg-gradient-to-br from-violet-300 to-violet-600 shadow-md shadow-violet-400/50 lg:block" />
-      <span className="rt-bob absolute right-[12%] top-3 hidden h-3.5 w-3.5 rounded-full bg-gradient-to-br from-amber-200 to-orange-500 shadow-md shadow-orange-400/50 lg:block" style={{ animationDelay: '-2s' }} />
+      <span className="rt-bob absolute right-[14%] top-2 hidden h-4 w-4 rounded-full bg-gradient-to-br from-violet-300 to-violet-600 shadow-md shadow-violet-400/50 xl:block" />
+      <span className="rt-bob absolute right-[9%] bottom-3 hidden h-3.5 w-3.5 rounded-full bg-gradient-to-br from-amber-200 to-orange-500 shadow-md shadow-orange-400/50 xl:block" style={{ animationDelay: '-2s' }} />
       <span className="rt-bob absolute bottom-1.5 left-[38%] hidden h-2.5 w-2.5 rounded-full bg-gradient-to-br from-sky-200 to-sky-500 lg:block" style={{ animationDelay: '-4s' }} />
       <Gear className="rt-spin absolute -right-5 -top-5 hidden h-20 w-20 text-indigo-300/70 xl:block" />
       <div className="absolute -left-10 -top-16 h-40 w-64 rounded-full bg-sky-100/70 blur-2xl" />
