@@ -201,17 +201,114 @@ const suzanne = id('Suzanne')
 w.availability[suzanne][0] = 'available'
 R.autoFill(w, coaches, { [nearId]: { [dover3.schoolId]: 10 }, [suzanne]: { [dover3.schoolId]: 60 } })
 assert.equal(dover3.coaches[0].id, suzanne, 'part-timer first, nearest within the group')
-// a coach near the second school isn't taken by the first one just because it comes first in the day
-w = structuredClone(weeks[0])
-for (const b of w.days[0].blocks) b.coaches = []
-const [first, second] = w.days[0].blocks
-R.autoFill(w, coaches, { [nearId]: { [first.schoolId]: 50, [second.schoolId]: 10 } })
-assert.ok(second.coaches.some((c) => c.id === nearId), 'placed at the nearer school, not the first one')
+// rules: students on a Monday school are set by hand so targets are known
+const kids = (b, n) => Object.assign(b, { noLesson: false, holiday: false, slots: [{ time: '15:00 - 16:00', students: n, builds: [] }] })
+const freeMon = (wk) => R.baseCoaches(wk, 'mon', 'WCP', coaches).map((c) => c.id) // interns at WCP on Monday
+const fresh = () => {
+  const wk = structuredClone(weeks[0])
+  for (const b of wk.days[0].blocks) b.coaches = []
+  for (const b of wk.days[0].blocks.slice(2)) b.noLesson = true // tests use the first two Monday schools only
+  return wk
+}
+assert.deepEqual(R.ruleSettings([]), { ratio: 3, max: 4, fixed: [] })
+assert.deepEqual(R.ruleSettings([{ kind: 'max_coaches', value: 2, active: false }, { kind: 'students_per_coach', value: 5, active: true }]), { ratio: 5, max: 4, fixed: [] })
+
+// the busier school takes the nearer coach
+w = fresh()
+let [first, second] = w.days[0].blocks
+kids(first, 3)
+kids(second, 12)
+R.autoFill(w, coaches.filter((c) => c.id === nearId || c.id === farId), { [nearId]: { [first.schoolId]: 10, [second.schoolId]: 10 }, [farId]: { [first.schoolId]: 50, [second.schoolId]: 50 } })
+assert.ok(second.coaches.some((c) => c.id === nearId), 'busier school picked first')
+// short on coaches: every school gets one before the busiest gets a second
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 3)
+kids(second, 12)
+const three = freeMon(w).slice(0, 3)
+R.autoFill(w, coaches.filter((c) => three.includes(c.id)))
+assert.deepEqual([R.countedCoaches(first), R.countedCoaches(second)], [1, 2], 'kids per coach decides who picks next')
+// 8 students -> 3 coaches; never more than the max; the rest stay at WCP
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 8)
+kids(second, 30)
+R.autoFill(w, coaches)
+assert.equal(R.countedCoaches(first), 3, '8 kids -> 3 coaches')
+assert.equal(R.countedCoaches(second), 4, '30 kids -> capped at 4')
+assert.ok(freeMon(w).length > 0, 'leftovers stay at WCP')
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 8)
+kids(second, 30)
+R.autoFill(w, coaches, {}, [{ kind: 'max_coaches', value: 2, active: true }])
+assert.equal(R.countedCoaches(second), 2, 'max from the rules')
+// a fixed coach goes to their school first, even when nearer to another
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 6)
+kids(second, 6)
+const fixedId = freeMon(w)[0]
+const fixedRule = { kind: 'fixed_coach', coach_id: fixedId, school_id: second.schoolId, active: true }
+R.autoFill(w, coaches, { [fixedId]: { [first.schoolId]: 5, [second.schoolId]: 90 } }, [fixedRule])
+assert.ok(second.coaches.some((c) => c.id === fixedId), 'fixed coach at their school')
+assert.deepEqual(R.ruleWarnings(w, coaches, [fixedRule]), [], 'no warnings when the rules are met')
+// a fixed coach is never swapped away
+const other = second.coaches.find((c) => c.id !== fixedId)
+if (other) {
+  const t = { [fixedId]: { [first.schoolId]: 1, [second.schoolId]: 99 }, [other.id]: { [first.schoolId]: 99, [second.schoolId]: 1 } }
+  w = fresh()
+  ;[first, second] = w.days[0].blocks
+  kids(first, 6)
+  kids(second, 6)
+  R.autoFill(w, coaches, t, [fixedRule])
+  assert.ok(second.coaches.some((c) => c.id === fixedId), 'fixed coach not swapped')
+}
+// a fixed coach whose school has no lesson that day is free for others, with no warning
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 6)
+second.noLesson = true
+R.autoFill(w, coaches, {}, [fixedRule])
+assert.equal(R.ruleWarnings(w, coaches, [fixedRule]).length, 0, 'no lesson: nothing to warn about')
+// warnings: fixed coach off / elsewhere, too many coaches
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(second, 6)
+R.setAvailability(w, 'mon', fixedId, 'off')
+assert.match(R.ruleWarnings(w, coaches, [fixedRule]).join(' '), new RegExp(`is fixed at ${second.name} but is off\\.`))
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 6)
+kids(second, 6)
+R.addCoach(w, 'mon', first.id, fixedId)
+assert.match(R.ruleWarnings(w, coaches, [fixedRule]).join(' '), new RegExp(`is fixed at ${second.name} but is at ${first.name}\\.`))
+for (const cid of freeMon(w).slice(0, 5)) R.addCoach(w, 'mon', second.id, cid)
+R.autoFill(w, coaches, {}, [])
+assert.ok(R.countedCoaches(second) >= 5, 'hand placements over the max are kept')
+assert.match(R.ruleWarnings(w, coaches, []).join(' '), new RegExp(`${second.name} has \\d+ coaches, more than the max of 4\\.`))
+// one coach fixed at two schools on one day: first school by name wins, the other warns
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 6)
+kids(second, 6)
+const both = [{ ...fixedRule, school_id: first.schoolId }, fixedRule]
+R.autoFill(w, coaches, {}, both)
+const [byName] = [first, second].sort((a, b) => a.name.localeCompare(b.name))
+assert.ok(byName.coaches.some((c) => c.id === fixedId), 'first school by name wins')
+assert.equal(R.ruleWarnings(w, coaches, both).filter((m) => m.includes('is fixed at')).length, 1)
+// rules for a coach who isn't in the list (inactive) are ignored, with no warning
+w = fresh()
+kids(w.days[0].blocks[0], 6)
+const ghost = [{ kind: 'fixed_coach', coach_id: 99999, school_id: w.days[0].blocks[0].schoolId, active: true }]
+R.autoFill(w, coaches, {}, ghost)
+assert.deepEqual(R.ruleWarnings(w, coaches, ghost), [])
 // two coaches trade schools when that shortens their trips together (one at a time would send q 100 min)
 w = structuredClone(weeks[0])
 for (const b of w.days[0].blocks) b.coaches = []
 const [a1, a2] = w.days[0].blocks
 for (const b of [a1, a2]) b.slots = b.slots.map((s) => ({ ...s, students: 3 })) // one coach each
+for (const b of w.days[0].blocks.slice(2)) b.noLesson = true // just the two schools
 const pair = coaches.filter((c) => c.id === nearId || c.id === farId)
 R.autoFill(w, pair, { [nearId]: { [a1.schoolId]: 10, [a2.schoolId]: 11 }, [farId]: { [a1.schoolId]: 12, [a2.schoolId]: 100 } })
 assert.deepEqual([a1.coaches.map((c) => c.id), a2.coaches.map((c) => c.id)], [[farId], [nearId]], 'swapped to the shorter total')
@@ -223,7 +320,7 @@ R.autoFill(tb, coaches, {})
 const placements = (x) => x.days.flatMap((d) => d.blocks.map((b) => b.coaches.map((c) => c.id).sort().join(',')))
 assert.deepEqual(placements(ta), placements(tb), 'no travel times: same placements as before')
 
-// experienced coaches: every weekday school gets one first and they lead; everyone free that day is placed
+// experienced coaches: every weekday school gets one first and they lead
 w = structuredClone(weeks[0])
 for (const d of w.days.slice(0, 5)) for (const b of d.blocks) b.coaches = []
 const seasoned = new Set([id('Ameer'), id('Kathleen')])
@@ -236,7 +333,7 @@ for (const d of w.days.slice(0, 5)) {
   assert.equal(covered.length, Math.min(lessons.length, seasonedFree), `${d.key}: an experienced coach at as many schools as possible`)
   for (const b of covered) assert.ok(seasoned.has(b.coaches.find((c) => c.role === 'lead').id), `${d.key} ${b.name}: Lead is experienced`)
   if (seasonedFree <= lessons.length) assert.ok(covered.every((b) => b.coaches.filter((c) => seasoned.has(c.id)).length === 1), `${d.key}: one Lead Coach per school`)
-  if (lessons.length) assert.deepEqual(R.baseCoaches(w, d.key, 'WCP', ranked), [], `${d.key}: nobody left at WCP`)
+  for (const b of lessons) assert.ok(R.countedCoaches(b) <= 4, `${d.key} ${b.name}: never more than 4`)
 }
 // a Lead who isn't a Lead Coach is a warning
 const tp2 = w.days[0].blocks.find((b) => b.coaches.some((c) => c.role === 'lead'))

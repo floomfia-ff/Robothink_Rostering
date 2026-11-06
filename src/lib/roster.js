@@ -110,6 +110,36 @@ export function leadWarnings(week, coaches) {
   )
 }
 
+// The Rules tab's rows as Auto-Generate uses them; rules that are off are ignored.
+export function ruleSettings(rules = []) {
+  const on = rules.filter((r) => r.active !== false)
+  const num = (kind, fallback) => on.find((r) => r.kind === kind)?.value ?? fallback
+  return {
+    ratio: num('students_per_coach', 3),
+    max: num('max_coaches', 4),
+    fixed: on.filter((r) => r.kind === 'fixed_coach').map(({ coach_id, school_id }) => ({ coach_id, school_id })),
+  }
+}
+
+// Weekday lessons that break a rule: a fixed coach not at their school, or more coaches than the max.
+export function ruleWarnings(week, coaches, rules = []) {
+  const { max, fixed } = ruleSettings(rules)
+  const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  return week.days.filter((d) => !isWeekend(d.key)).flatMap((d) => {
+    const lessons = d.blocks.filter((b) => requiredCoaches(b) > 0)
+    const over = lessons.filter((b) => countedCoaches(b) > max)
+      .map((b) => `${d.label} ${d.date}: ${b.name} has ${countedCoaches(b)} coaches, more than the max of ${max}.`)
+    const misplaced = fixed.flatMap(({ coach_id, school_id }) => {
+      const coach = byId[coach_id]
+      const b = lessons.find((x) => x.schoolId === school_id)
+      if (!coach || !b || b.coaches.some((c) => c.id === coach_id)) return []
+      const at = availability(week, coach_id, d.key) === 'available' ? `is at ${placementOf(d, coach_id)?.name ?? 'WCP'}` : 'is off'
+      return [`${d.label} ${d.date}: ${coach.name} is fixed at ${b.name} but ${at}.`]
+    })
+    return [...misplaced, ...over]
+  })
+}
+
 export function quotaWarnings(week, coaches) {
   return coaches
     .filter((c) => c.employment_type === 'intern')
@@ -241,13 +271,14 @@ export function pickLead(pool, leadCount) {
   return tied[Math.floor(Math.random() * tied.length)]
 }
 
-// Draft fill: keep valid assignments, drop unavailable/double-booked coaches,
-// give each weekday school a Lead Coach first, top up to 1 coach per 6 students, then 1 per 3, then place anyone
-// still free at the school with the most students per coach; spread weekend leftovers across running
-// programmes, split weekend coaches evenly over Sat / Sun (one day each), and share Leads out evenly.
-// `travel` is { coachId: { schoolId: minutes } }: each step places the nearest coach/school pair, unknown times last.
-// shortcut: greedy nearest pair; a full matching over all schools could lower total travel a little more.
-export function autoFill(week, coaches, travel = {}) {
+// Draft fill: keep valid assignments, drop unavailable/double-booked coaches. Weekdays follow the Rules tab:
+// fixed coaches first, then each school's target (students / ratio, rounded up, never past the max) is filled,
+// a Lead Coach first, by the school with the most students per coach taking its nearest free coach; anyone left
+// stays at WCP. Weekends spread leftovers across running programmes and split coaches over Sat / Sun.
+// Leads are shared out evenly. `travel` is { coachId: { schoolId: minutes } }, unknown times last.
+// shortcut: greedy, one school at a time; a full matching over all schools could lower total travel a little more.
+export function autoFill(week, coaches, travel = {}, rules = []) {
+  const { ratio, max, fixed } = ruleSettings(rules)
   const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
   const leadCount = {}
   for (const d of week.days) for (const b of d.blocks) for (const c of b.coaches) {
@@ -319,25 +350,30 @@ export function autoFill(week, coaches, travel = {}) {
       best.b.coaches.push({ id: best.id, role: 'coach' })
       if (!isWeekend(day.key)) placed.add(best.id)
     }
-    for (;;) {
-      const seasoned = free.filter((id) => byId[id].can_lead)
-      const needs = lessons.filter((b) => !hasSeasoned(b))
-      const short = lessons.filter((b) => countedCoaches(b) < requiredCoaches(b))
-      const under = isWeekend(day.key) ? [] : lessons.filter((b) => countedCoaches(b) < Math.ceil(mostStudents(b) / 3))
-      // 1. an experienced coach at every school that has none yet, so each school can have a proper Lead
-      if (seasoned.length && needs.length) placeNearest(needs, seasoned)
-      // 2. up to 1 coach per 6 students
-      else if (free.length && short.length) placeNearest(short)
-      // 3. weekdays: up to 1 per 3, still nearest first
-      else if (free.length && under.length) placeNearest(under)
-      // 4. weekdays: anyone left goes to the school with the most students per coach, so nobody idles at WCP
-      else if (free.length && lessons.length && !isWeekend(day.key)) {
-        const load = (b) => mostStudents(b) / countedCoaches(b)
-        placeNearest([lessons.reduce((a, b) => (load(b) > load(a) ? b : a))])
-      } else break
+    const target = (b) => Math.min(max, Math.ceil(mostStudents(b) / ratio))
+    // 1. fixed coaches go to their school (first by school name wins), unless it is already full
+    const named = (r) => lessons.find((b) => b.schoolId === r.school_id)?.name ?? ''
+    for (const r of [...fixed].sort((x, y) => named(x).localeCompare(named(y)))) {
+      const b = lessons.find((x) => x.schoolId === r.school_id)
+      if (!b || !free.includes(r.coach_id) || countedCoaches(b) >= max) continue
+      free.splice(free.indexOf(r.coach_id), 1)
+      b.coaches.push({ id: r.coach_id, role: 'coach' })
     }
-    // 5. two coaches placed above (same type, neither a Lead Coach) trade schools when that shortens their trips
-    // together: one at a time can't see it. Lead Coaches never trade, so each school keeps its closest one.
+    // The school with the most students per coach picks next; an empty school beats any staffed one, ties go to more students.
+    const load = (b) => mostStudents(b) / countedCoaches(b)
+    const busiest = (list) => list.reduce((a, b) => (load(b) > load(a) || (load(b) === load(a) && mostStudents(b) > mostStudents(a)) ? b : a))
+    for (;;) {
+      const under = lessons.filter((b) => countedCoaches(b) < target(b))
+      const needs = under.filter((b) => !hasSeasoned(b))
+      const seasoned = free.filter((id) => byId[id].can_lead)
+      // 2. a Lead Coach at every school that has none yet, busiest first
+      if (seasoned.length && needs.length) placeNearest([busiest(needs)], seasoned)
+      // 3. up to each school's target, busiest first; anyone left stays at WCP
+      else if (free.length && under.length) placeNearest([busiest(under)])
+      else break
+    }
+    // 4. two coaches placed above (same type, neither a Lead Coach) trade schools when that shortens their trips
+    // together: one at a time can't see it. Lead Coaches and fixed coaches never trade.
     const same = (x, y) => !byId[x].can_lead && !byId[y].can_lead && byId[x].employment_type === byId[y].employment_type
     for (let swapped = true; swapped; ) {
       swapped = false
