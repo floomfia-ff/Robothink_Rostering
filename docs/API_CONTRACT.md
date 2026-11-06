@@ -165,7 +165,7 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 
 | Rule | Value |
 |---|---|
-| Coach cap | **None shown.** Any number of coaches can be placed. Auto-Generate fills each weekday lesson in three steps: one `can_lead` coach at every school that has none, then up to `ceil(largest slot's students ÷ 6)` (shadows don't count), then up to 1 per 3, then **anyone still free that weekday** goes to the school with the most students per coach. Each step places the nearest coach/school pair by travel time, so nobody is left at WCP unless dragged back. Spare weekend coaches are spread over running weekend programmes. |
+| Coach count | Follows the **Rules tab** (`roster_rules`). Auto-Generate, on weekdays: 1) fixed coaches go to their school (first school by name wins; not past the max); 2) each school's target is `min(max_coaches, ceil(largest slot's students ÷ students_per_coach))` (defaults 4 and 3; shadows don't count); 3) a Lead Coach at every school without one, then up to each target, the school with the most students per coach picking next and taking its nearest free coach (part-timers first, a second Lead Coach last); 4) two non-Lead, non-fixed coaches it placed trade schools when that shortens their trips; 5) **anyone still free stays at WCP**. Hand placements are kept even past the max. Spare weekend coaches are spread over running weekend programmes. |
 | Leads | Exactly **one** Lead per weekday lesson, picked from `can_lead` coaches when the school has one. A Lead without `can_lead` shows a warning, not a block. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
 | Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. **Auto-Generate sets these days off** for any intern who has none (Tue/Wed and Sat/Sun each split evenly, keeping days they're already placed on). Manual edits that break it show a warning, not a block. Changing an intern's day by hand also changes it in every later week already created; new weeks copy the week before. Clear coaches keeps days off. |
@@ -196,7 +196,8 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 | `deleteWeek(id)` | `DELETE /weeks/:id` | — | `204`. Hides the saved week (`deleted_at` set; fine if it was never saved). "Delete week" button, after a confirm. |
 | `restoreWeek(id)` | `POST /weeks/:id/restore`, then `GET /weeks/:id` | — | The week as saved. "Restore a deleted week" menu, shown when `deletedWeeks` is not empty. |
 | `saveDraft(roster)` | `PUT /weeks/:id` for each changed week, then `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one | see below | `204` each |
-| `generateRoster(week, coaches, travel)` | none yet | — | Runs `autoFill()` in the browser (sets interns' days off; a weekday school takes the nearest free coach by `travelTimes`, unknown times last). |
+| `generateRoster(week, coaches, travel, rules)` | none yet | — | Runs `autoFill()` in the browser with `travelTimes` and `rules` (see Coach count). |
+| `createRule(rule)` / `updateRule(id, patch)` / `deleteRule(id)` | `POST /rules` / `PATCH /rules/:id` / `DELETE /rules/:id` | see below | Rules tab; sent straight away, not through `saveDraft`. |
 | `refreshTravelTimes(limit = 40)` | `POST /travel-times/refresh` | `{ "limit": 40 }` | `{ done, remaining, total, travelTimes, unrecognisedStations }`. The "Work out travel times" button calls it until `remaining` is 0 and takes the fresh times from each reply. |
 
 **There is no Save or Publish button.** The site calls `saveDraft` by itself a second after the last edit, and
@@ -206,10 +207,13 @@ what changed; an address that is half-typed (not blank, no 6-digit postal code) 
 
 | Request | Body | Notes |
 |---|---|---|
+| `POST /rules` | `{ "kind": "fixed_coach", "coach_id": 11, "school_id": 5 }` or `{ "kind": "max_coaches", "value": 4 }` | `kind` is `fixed_coach`, `max_coaches` or `students_per_coach`; a fixed coach needs a known coach and school and must not repeat an existing pair; `value` is a whole number 1–20. `201 { id }`. |
+| `PATCH /rules/:id` | any of `value`, `active`, `note`, `coach_id`, `school_id` | Checked as the whole rule it would leave; `active` is `true` / `false`. `404` if there is no such rule. |
+| `DELETE /rules/:id` | — | `204`. |
 | `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern", "can_lead": true }` (any of them) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`; `can_lead` is `true` / `false`. |
 | `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. Blank or `null` clears it (stored as empty). |
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
-| `DELETE /weeks/:id` | — | Hides the saved week (sets `deleted_at`); a week with no row still returns `204`. Deleted weeks are left out of `weeks`, of carry-over and of `GET /weeks/:id`, and listed in `GET /`'s `deletedWeeks: [{ id, label }]`. Saving a week with `PUT` un-deletes it. |
+| `DELETE /weeks/:id` | — | Hides the saved week (sets `deleted_at`); a week with no row still returns `204`. Deleted weeks are left out of `weeks`, of carry-over and of `GET /weeks/:id`, and listed in `GET /`'s `deletedWeeks: [{ id, label }]`. `GET /` also returns `rules: [{ id, kind, coach_id, school_id, value, active, note }]`. Saving a week with `PUT` un-deletes it. |
 | `POST /weeks/:id/restore` | — | Clears `deleted_at`. `404` if there is no row. |
 | `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
 | `POST /weeks/:id/publish` | — | The week must already be saved. |
@@ -225,7 +229,7 @@ The UI shows the message in red next to the page title, keeps the admin's unsave
 | Status | When |
 |---|---|
 | `401` | Missing or wrong code: "Roster code not accepted." Nothing is read or saved. |
-| `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; can lead not true / false; non-blank address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; "Every day needs blocks, and every block needs coaches."; lesson `schoolId` not a whole number; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
+| `400` | Body is not a JSON object; nothing to update; employment type not `intern` / `part-timer`; MRT station not text; can lead not true / false; rule kind unknown; rule value not a whole number 1–20; unknown coach or school in a rule; that coach already fixed at that school; rule active not true / false; non-blank address without a 6-digit postal code; week id not a Monday; body week id differs from the address; week not 7 days Monday first; "Every day needs blocks, and every block needs coaches."; lesson `schoolId` not a whole number; unknown coach id; role not `lead` / `coach` / `shadow`; availability not 7 values of `available` / `off` / `unavailable`. |
 | `404` | "No such coach." / "No such school." / "No such base."; publishing a week that was never saved ("Save the week before publishing it."); any other path. |
 | `500` | The function is missing a secret, or the database failed. The message says which. |
 | `502` | Travel times only: "OneMap didn't accept the login — check ONEMAP_EMAIL / ONEMAP_PASSWORD in Supabase." (nothing saved), or "OneMap is not responding: … Times worked out so far are kept." |
