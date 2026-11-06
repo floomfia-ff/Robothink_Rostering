@@ -1,4 +1,4 @@
-import { Calendar, Gear, MapPin, Users } from './coachIcons.jsx'
+import { Calendar, Gear, MapPin, Rules, Users } from './coachIcons.jsx'
 
 // The site's top bar: RoboThink branding, the section tabs and the Admin link (to the feedback site).
 // Animations live in index.css (rt-*) and switch off under prefers-reduced-motion.
@@ -6,6 +6,7 @@ const TABS = [
   ['roster', 'Weekly Roster', Calendar],
   ['profiles', 'Coach Profiles', Users],
   ['venues', 'Venues', MapPin],
+  ['rules', 'Rules', Rules],
 ]
 const ADMIN_URL = 'https://robothink-student-feedback.vercel.app/admin'
 
@@ -44,7 +45,7 @@ export default function TopNav({ tab, setTab }) {
                 {label}
               </button>
             ))}
-            <a href={ADMIN_URL} style={{ animationDelay: '330ms' }} className={`${ITEM} ${IDLE}`}>
+            <a href={ADMIN_URL} style={{ animationDelay: '400ms' }} className={`${ITEM} ${IDLE}`}>
               <Gear className={`${ICON} group-hover:rotate-45`} />
               Admin
             </a>

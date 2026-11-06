@@ -4,6 +4,7 @@ import AvailabilityPanel from './AvailabilityPanel.jsx'
 import CoachProfiles from './CoachProfiles.jsx'
 import CoachSwapModal from './CoachSwapModal.jsx'
 import HeaderControls from './HeaderControls.jsx'
+import RulesTab from './RulesTab.jsx'
 import TopNav from './TopNav.jsx'
 import VenueProfiles from './VenueProfiles.jsx'
 import WeeklyGrid from './WeeklyGrid.jsx'
@@ -28,6 +29,8 @@ export default function RosterDashboard() {
             </>
           ) : tab === 'profiles' ? (
             <CoachProfiles />
+          ) : tab === 'rules' ? (
+            <RulesTab />
           ) : (
             <VenueProfiles />
           )}
