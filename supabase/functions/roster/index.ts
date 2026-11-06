@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { DOUBLES_RANGE, DOUBLES_TAB, RANGE, TAB, parsePlan, readDoubles } from './plan.js'
 import {
   buildWeek, currentMonday, isMonday, isValidAddress, matchSchools, pendingPairs, pickFields, routeMinutes, stationQuery,
-  toStored, travelMap, validateCoachFields, validateWeek, weekShell,
+  toStored, travelMap, validateCoachFields, validateRule, validateWeek, weekShell,
 } from './logic.js'
 
 const CORS = {
@@ -105,6 +105,8 @@ const getCoaches = async () =>
   ok(await db.from('coaches').select('id,name,active,mrt_station,employment_type,can_lead').order('name'))
 const getSchools = async () =>
   ok(await db.from('schools').select('id,name,brand,class_day,active,address').order('name'))
+const getRules = async () =>
+  ok(await db.from('roster_rules').select('id,kind,coach_id,school_id,value,active,note').order('id'))
 const getSaved = async (id: string) =>
   ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').eq('id', id).is('deleted_at', null).maybeSingle())
 
@@ -202,9 +204,9 @@ Deno.serve(async (req) => {
     }
 
     if (m === 'GET' && path === '/') {
-      const [coaches, schools, bases, travelRows] = await Promise.all([
+      const [coaches, schools, bases, travelRows, rules] = await Promise.all([
         getCoaches(), getSchools(), db.from('roster_bases').select('id,code,name,address').order('id').then(ok),
-        db.from('travel_times').select('*').then(ok),
+        db.from('travel_times').select('*').then(ok), getRules(),
       ])
       const { plan, planError } = await loadPlan(schools)
       const all = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at').order('id'))
@@ -219,7 +221,7 @@ Deno.serve(async (req) => {
         weeks.push(build(current, null, before))
         weeks.sort((x, y) => x.id.localeCompare(y.id))
       }
-      return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [], deletedWeeks, ...travelMap(travelRows, coaches, schools) })
+      return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [], deletedWeeks, rules, ...travelMap(travelRows, coaches, schools) })
     }
 
     // Works out up to `limit` missing travel times and saves each one as soon as it's known.
@@ -291,6 +293,34 @@ Deno.serve(async (req) => {
       const rows = ok(await db.from('roster_weeks').update({ status: 'published', changed_since_publish: false })
         .eq('id', r[1]).select('id'))
       return rows.length ? noContent() : fail('Save the week before publishing it.', 404)
+    }
+
+    // Rules (Rules tab). A PATCH is checked as the whole rule it would leave behind.
+    if ((m === 'POST' && path === '/rules') || (r = path.match(/^\/rules\/(\d+)$/))) {
+      const id = r ? Number(r[1]) : null
+      const [rules, coaches, schools] = await Promise.all([getRules(), getCoaches(), getSchools()])
+      const known = { coachIds: new Set(coaches.map((c) => c.id)), schoolIds: new Set(schools.map((s) => s.id)), rules }
+      if (m === 'DELETE' && id) {
+        ok(await db.from('roster_rules').delete().eq('id', id))
+        return noContent()
+      }
+      if (m === 'POST' && !id) {
+        const rule = pickFields(body ?? {}, ['kind', 'coach_id', 'school_id', 'value', 'note'])
+        const problem = validateRule(rule, known)
+        if (problem) return fail(problem, 400)
+        return json({ id: ok(await db.from('roster_rules').insert(rule).select('id').single()).id }, 201)
+      }
+      if (m === 'PATCH' && id) {
+        const old = rules.find((x) => x.id === id)
+        if (!old) return fail('No such rule.', 404)
+        const patch = pickFields(body, ['value', 'active', 'note', 'coach_id', 'school_id'])
+        if (!Object.keys(patch).length) return fail('Nothing to update.', 400)
+        if ('active' in patch && typeof patch.active !== 'boolean') return fail('Active must be true or false.', 400)
+        const problem = validateRule({ ...old, ...patch }, known)
+        if (problem) return fail(problem, 400)
+        ok(await db.from('roster_rules').update(patch).eq('id', id))
+        return noContent()
+      }
     }
 
     if (m === 'PATCH' && (r = path.match(/^\/(coaches|schools|bases)\/(\d+)$/))) {
