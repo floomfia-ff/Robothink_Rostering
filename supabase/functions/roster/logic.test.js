@@ -156,4 +156,17 @@ assert.deepEqual(L.travelMap([{ ...trow, minutes: null, status: 'station-not-fou
 assert.equal(L.routeMinutes({ plan: { itineraries: [{ duration: 2400 }, { duration: 2280 }] } }), 38)
 assert.equal(L.routeMinutes({ plan: { itineraries: [] } }), null)
 assert.equal(L.routeMinutes({}), null)
+
+// roster rules
+const ids = { coachIds: new Set([11]), schoolIds: new Set([5]), rules: [{ id: 1, kind: 'fixed_coach', coach_id: 11, school_id: 5 }] }
+assert.equal(L.validateRule({ kind: 'students_per_coach', value: 3 }, ids), null)
+assert.equal(L.validateRule({ kind: 'max_coaches', value: 4 }, ids), null)
+assert.match(L.validateRule({ kind: 'nope' }, ids), /kind/i)
+assert.match(L.validateRule({ kind: 'max_coaches', value: 0 }, ids), /1.*20/)
+assert.match(L.validateRule({ kind: 'max_coaches', value: '3' }, ids), /1.*20/)
+assert.match(L.validateRule({ kind: 'max_coaches', value: 2.5 }, ids), /1.*20/)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 99, school_id: 5 }, ids), /coach/i)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, school_id: 99 }, ids), /school/i)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, school_id: 5 }, ids), /already/i)
+assert.equal(L.validateRule({ id: 1, kind: 'fixed_coach', coach_id: 11, school_id: 5 }, ids), null) // editing itself
 console.log('logic ok')
