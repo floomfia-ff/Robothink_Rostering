@@ -71,9 +71,14 @@ export async function saveDraft(roster) {
   }
 }
 
+// Rules tab: each change goes straight to the server (not through saveDraft).
+export const createRule = (rule) => request('POST', '/rules', rule)
+export const updateRule = (id, patch) => request('PATCH', `/rules/${id}`, patch)
+export const deleteRule = (id) => request('DELETE', `/rules/${id}`)
+
 // The real endpoint is not built yet, so this still fills the week in the browser.
-export async function generateRoster(week, coaches, travel) {
+export async function generateRoster(week, coaches, travel, rules) {
   const filled = structuredClone(week)
-  autoFill(filled, coaches, travel)
+  autoFill(filled, coaches, travel, rules)
   return filled
 }

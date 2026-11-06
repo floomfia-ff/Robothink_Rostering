@@ -3,7 +3,7 @@ import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
-import { coachDay, isValidSlotTime, leadWarnings, mondayOf, quotaWarnings } from '../lib/roster.js'
+import { coachDay, isValidSlotTime, leadWarnings, mondayOf, quotaWarnings, ruleWarnings } from '../lib/roster.js'
 import { addDays, weekShell } from '../../supabase/functions/roster/logic.js'
 import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, Close, ChevronDown, Download, Eraser, Plus, Search, Sparkle, Trash, Undo } from './coachIcons.jsx'
 
@@ -172,7 +172,7 @@ export function ActionButton({ action, label, working, done, failed = 'Failed', 
 }
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, deleteWeek, restoreWeek, deletedWeeks, saving, planError, unmatchedSchools, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, deleteWeek, restoreWeek, deletedWeeks, rules, saving, planError, unmatchedSchools, highlight, setHighlight } =
     useRoster()
 
   const [showWarnings, setShowWarnings] = useState(false)
@@ -186,7 +186,7 @@ export default function HeaderControls() {
   const onDelete = () =>
     window.confirm(`Delete the whole week ${week.label}? You can bring it back from "Restore a deleted week".`) ? deleteWeek() : null
 
-  const quota = [...quotaWarnings(week, coaches), ...leadWarnings(week, Object.values(coachById))]
+  const quota = [...quotaWarnings(week, coaches), ...leadWarnings(week, Object.values(coachById)), ...ruleWarnings(week, coaches, rules)]
   const badTimes = week.days.flatMap((d) =>
     d.blocks.filter((b) => b.kind === 'lesson' && b.slots.some((s) => !isValidSlotTime(s.time))).map((b) => `${d.label} ${d.date}: ${b.name} has a time in an unexpected format on the lesson plan sheet.`),
   )

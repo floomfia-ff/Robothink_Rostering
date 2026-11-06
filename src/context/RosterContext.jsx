@@ -123,7 +123,7 @@ export function RosterProvider({ children }) {
   }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [],venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
+    coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [], rules: roster.rules ?? [], schools: roster.schools, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
     setWeekId, swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
@@ -164,7 +164,7 @@ export function RosterProvider({ children }) {
     // Applies to the week that was open when clicked, even if the admin switches weeks meanwhile.
     autoGenerate: () =>
       run('Generating', async () => {
-        const filled = await api.generateRoster(week, coaches, roster.travelTimes ?? {})
+        const filled = await api.generateRoster(week, coaches, roster.travelTimes ?? {}, roster.rules ?? [])
         const diff = R.diffAssignments(week, filled)
         edit((w) => Object.assign(w, { days: filled.days, availability: filled.availability })) // days off it set, too
         setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })
@@ -186,6 +186,39 @@ export function RosterProvider({ children }) {
         say(`Travel times: ${e.message || 'unknown error'}`, true)
         return false
       }
+    },
+    // Rules tab. Each change shows at once; if the server refuses it, the old rules come back with the error.
+    addRule: (rule) =>
+      run('Saving rule', async () => {
+        const { id } = await api.createRule(rule)
+        setRoster((r) => ({ ...r, rules: [...(r.rules ?? []), { active: true, note: null, coach_id: null, school_id: null, value: null, ...rule, id }] }))
+        say('Rule added')
+      }),
+    updateRule: (id, patch) => {
+      const before = roster.rules
+      setRoster((r) => ({ ...r, rules: r.rules.map((x) => (x.id === id ? { ...x, ...patch } : x)) }))
+      return run('Saving rule', async () => {
+        try {
+          await api.updateRule(id, patch)
+        } catch (e) {
+          setRoster((r) => ({ ...r, rules: before }))
+          throw e
+        }
+        say('Rule saved')
+      })
+    },
+    removeRule: (id) => {
+      const before = roster.rules
+      setRoster((r) => ({ ...r, rules: r.rules.filter((x) => x.id !== id) }))
+      return run('Removing rule', async () => {
+        try {
+          await api.deleteRule(id)
+        } catch (e) {
+          setRoster((r) => ({ ...r, rules: before }))
+          throw e
+        }
+        say('Rule removed')
+      })
     },
     // `id` is the week's Monday. A week that's already there is just opened.
     createWeek: (id) => {
