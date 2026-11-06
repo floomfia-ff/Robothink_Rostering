@@ -33,7 +33,8 @@ export default function RulesTab() {
       <Card title="Numbers" Icon={Rules}>
         <div className="grid gap-3 sm:grid-cols-2">
           {NUMBERS.map(([kind, label, help, fallback]) => (
-            <NumberRule key={kind} rule={rules.find((r) => r.kind === kind)} kind={kind} label={label} help={help} fallback={fallback} addRule={addRule} updateRule={updateRule} />
+            // keyed by the saved value, so the box resets when a save is undone or the rule changes
+            <NumberRule key={`${kind}:${rules.find((r) => r.kind === kind)?.value ?? fallback}`} rule={rules.find((r) => r.kind === kind)} kind={kind} label={label} help={help} fallback={fallback} addRule={addRule} updateRule={updateRule} busy={busy} />
           ))}
         </div>
       </Card>
@@ -91,15 +92,15 @@ function Card({ title, Icon, count, children }) {
 }
 
 // Sends when the box loses focus or Enter is pressed, and only if the number changed.
-function NumberRule({ rule, kind, label, help, fallback, addRule, updateRule }) {
+// A send that doesn't go through puts the saved number back in the box.
+function NumberRule({ rule, kind, label, help, fallback, addRule, updateRule, busy }) {
   const saved = rule?.value ?? fallback
   const [text, setText] = useState(String(saved))
-  const send = () => {
+  const send = async () => {
     const value = Number(text)
     if (!Number.isInteger(value) || value < 1 || value > 20) return setText(String(saved))
-    if (value === saved && rule) return
-    if (rule) updateRule(rule.id, { value })
-    else addRule({ kind, value })
+    if (value === saved) return
+    if (!(await (rule ? updateRule(rule.id, { value }) : addRule({ kind, value })))) setText(String(saved))
   }
   return (
     <label className="block rounded-xl border border-slate-200 bg-white p-4">
@@ -113,7 +114,8 @@ function NumberRule({ rule, kind, label, help, fallback, addRule, updateRule }) 
         onChange={(e) => setText(e.target.value)}
         onBlur={send}
         onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        className={`${FIELD} w-24`}
+        disabled={!!busy}
+        className={`${FIELD} w-24 disabled:opacity-50`}
       />
     </label>
   )

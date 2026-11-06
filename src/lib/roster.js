@@ -291,7 +291,9 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
   const offCount = (k) => interns.filter((c) => availability(week, c.id, k) === 'off').length
   for (const c of interns) {
     const free = (k) => availability(week, c.id, k) === 'available'
-    const placed = (k) => (placementOf(getDay(week, k), c.id) ? 1 : 0)
+    // a day at their fixed school counts as placed, so it never becomes their day off
+    const fixedOn = (k) => fixed.some((r) => r.coach_id === c.id && getDay(week, k)?.blocks.some((b) => b.schoolId === r.school_id && requiredCoaches(b) > 0))
+    const placed = (k) => (placementOf(getDay(week, k), c.id) || fixedOn(k) ? 1 : 0)
     const pickOff = (a, b) => [a, b].sort((x, y) => placed(x) - placed(y) || offCount(x) - offCount(y))[0]
     if (WEEKDAYS.every(free)) setAvailability(week, pickOff(...INTERN_WEEKDAY_OFF), c.id, 'off')
     if (getDay(week, 'sat') && free('sat') && free('sun')) setAvailability(week, pickOff('sat', 'sun'), c.id, 'off')

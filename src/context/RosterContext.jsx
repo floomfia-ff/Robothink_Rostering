@@ -108,14 +108,15 @@ export function RosterProvider({ children }) {
     setNoticeError(error)
   }
   // One server call at a time. On failure nothing is marked saved, so the admin can just retry.
-  const run = async (doing, fn) => {
+  // `undone`: the caller put the screen back, so the message says it wasn't saved.
+  const run = async (doing, fn, undone = false) => {
     if (busy) return false
     setBusy(doing)
     try {
       await fn()
       return true
     } catch (e) {
-      say(`${doing} failed: ${e.message || 'unknown error'}. Your changes are still here — try again.`, true)
+      say(`${doing} failed: ${e.message || 'unknown error'}. ${undone ? "It wasn't saved." : 'Your changes are still here — try again.'}`, true)
       return false
     } finally {
       setBusy('')
@@ -194,7 +195,9 @@ export function RosterProvider({ children }) {
         setRoster((r) => ({ ...r, rules: [...(r.rules ?? []), { active: true, note: null, coach_id: null, school_id: null, value: null, ...rule, id }] }))
         say('Rule added')
       }),
+    // Busy means another server call is running and this one would be dropped, so nothing changes on screen.
     updateRule: (id, patch) => {
+      if (busy) return Promise.resolve(false)
       const before = roster.rules
       setRoster((r) => ({ ...r, rules: r.rules.map((x) => (x.id === id ? { ...x, ...patch } : x)) }))
       return run('Saving rule', async () => {
@@ -205,9 +208,10 @@ export function RosterProvider({ children }) {
           throw e
         }
         say('Rule saved')
-      })
+      }, true)
     },
     removeRule: (id) => {
+      if (busy) return Promise.resolve(false)
       const before = roster.rules
       setRoster((r) => ({ ...r, rules: r.rules.filter((x) => x.id !== id) }))
       return run('Removing rule', async () => {
@@ -218,7 +222,7 @@ export function RosterProvider({ children }) {
           throw e
         }
         say('Rule removed')
-      })
+      }, true)
     },
     // `id` is the week's Monday. A week that's already there is just opened.
     createWeek: (id) => {

@@ -297,6 +297,16 @@ R.autoFill(w, coaches, {}, both)
 const [byName] = [first, second].sort((a, b) => a.name.localeCompare(b.name))
 assert.ok(byName.coaches.some((c) => c.id === fixedId), 'first school by name wins')
 assert.equal(R.ruleWarnings(w, coaches, both).filter((m) => m.includes('is fixed at')).length, 1)
+// an intern fixed at a Tuesday school never gets Tuesday as their weekday off
+w = structuredClone(weeks[0])
+R.clearCoaches(w) // only the rule decides, not earlier hand placements
+const tueSchool = kids(w.days[1].blocks[0], 6)
+const fixedIntern = coaches.find((c) => c.employment_type === 'intern')
+for (const c of coaches.filter((x) => x.employment_type === 'intern')) w.availability[c.id] = Array(7).fill('available')
+for (const c of coaches.filter((x) => x.employment_type === 'intern' && x.id !== fixedIntern.id)) w.availability[c.id][2] = 'off' // Wed already busier, so Tue would be picked
+R.autoFill(w, coaches, {}, [{ kind: 'fixed_coach', coach_id: fixedIntern.id, school_id: tueSchool.schoolId, active: true }])
+assert.equal(R.availability(w, fixedIntern.id, 'tue'), 'available', 'fixed day is not their day off')
+assert.equal(R.availability(w, fixedIntern.id, 'wed'), 'off')
 // rules for a coach who isn't in the list (inactive) are ignored, with no warning
 w = fresh()
 kids(w.days[0].blocks[0], 6)
