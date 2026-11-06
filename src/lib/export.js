@@ -11,12 +11,13 @@ const YELLOW = 'FFFFFF00'
 const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } })
 const thin = { style: 'thin' }
 
-export function buildRosterSheet(wb, week, coaches) {
+// `coaches` = active coaches (availability rows); `everyone` also has inactive ones still placed in blocks.
+export function buildRosterSheet(wb, week, coaches, everyone = coaches) {
   const ws = wb.addWorksheet(week.label.replace(/[\\/?*[\]:]/g, '-'))
   ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
   ws.columns = [{ width: 16 }, ...week.days.flatMap(() => [{ width: 24 }, { width: 4 }])]
 
-  const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  const byId = Object.fromEntries(everyone.map((c) => [c.id, c]))
   const name = (c) => (c.role === 'lead' ? '*' : c.role === 'shadow' ? '#' : '') + (byId[c.id]?.name ?? c.id)
   const names = (list) => list.map(name).join('/')
   const text = (i) => 2 + 2 * i
@@ -66,6 +67,16 @@ export function buildRosterSheet(wb, week, coaches) {
         } else if (b?.kind === 'program' && b.coaches[k]) put(r, text(i), name(b.coaches[k]))
       })
     }
+    // Builds under the times: what the students are making, slot by slot.
+    const builds = blocks.map((b) => (b?.kind === 'lesson' && !b.noLesson ? b.slots.flatMap((s) => s.builds ?? []) : []))
+    for (let k = 0; k < Math.max(0, ...builds.map((l) => l.length)); k++) {
+      r++
+      builds.forEach((l, i) => {
+        if (!l[k]) return
+        put(r, text(i), l[k].build)
+        put(r, count(i), Number(l[k].students) || 0)
+      })
+    }
     r++
     put(r, 1, 'Coaches', { bold: true })
     blocks.forEach((b, i) => {
@@ -103,7 +114,7 @@ export function buildRosterSheet(wb, week, coaches) {
   // Availability: name + 1 when working, OFF dark grey, X black.
   for (const c of coaches) {
     r++
-    const shade = c.type === 'intern' ? LIGHT : undefined
+    const shade = c.employment_type === 'intern' ? LIGHT : undefined
     put(r, 1, c.name, { bg: shade })
     week.days.forEach((d, i) => {
       const { status } = coachDay(week, d.key, c)
@@ -125,11 +136,37 @@ export function buildRosterSheet(wb, week, coaches) {
   return ws
 }
 
-export async function downloadXlsx(week, coaches) {
-  const { default: ExcelJS } = await import('exceljs') // loaded only on export
-  const wb = new ExcelJS.Workbook()
-  buildRosterSheet(wb, week, coaches)
-  const blob = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+// The sheet as rows of cells for drawing the picture, so it matches the Excel file exactly.
+// A merged range becomes one cell with `span`; colours come back as '#RRGGBB'.
+export function sheetCells(ws) {
+  const hex = (argb) => argb && `#${argb.slice(2)}`
+  const rows = []
+  for (let r = 1; r <= ws.rowCount; r++) {
+    const row = []
+    for (let c = 1; c <= ws.columnCount; c++) {
+      const cell = ws.getCell(r, c)
+      if (cell.isMerged && cell.master.address !== cell.address) {
+        row.at(-1).span++
+        continue
+      }
+      row.push({
+        value: cell.value ?? '', span: 1, bg: hex(cell.fill?.fgColor?.argb), bold: !!cell.font?.bold,
+        color: hex(cell.font?.color?.argb), center: cell.alignment?.horizontal === 'center', border: !!cell.border?.top,
+      })
+    }
+    rows.push(row)
+  }
+  return rows
+}
+
+export async function sheetFor(week, coaches, everyone) {
+  const { default: ExcelJS } = await import('exceljs') // loaded only on export / picture
+  return buildRosterSheet(new ExcelJS.Workbook(), week, coaches, everyone)
+}
+
+export async function downloadXlsx(week, coaches, everyone) {
+  const { workbook } = await sheetFor(week, coaches, everyone)
+  const blob = new Blob([await workbook.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
   Object.assign(document.createElement('a'), { href: url, download: `roster-${week.id}.xlsx` }).click()
   URL.revokeObjectURL(url)

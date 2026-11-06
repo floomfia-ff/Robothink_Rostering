@@ -1,102 +1,139 @@
+import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
+import { ActionButton } from './HeaderControls.jsx'
+import CoachProfileModal from './CoachProfileModal.jsx'
+import { Briefcase, GradCap, Info, Pencil, Person } from './coachIcons.jsx'
 
-// Nearest MRT per coach. Stored now so the auto-generator can later
-// match coaches to the closest venue.
+// Interns first, then part-timers. `title` is the section heading.
+const GROUPS = [
+  { type: 'intern', title: 'Interns', Icon: GradCap, empty: 'No interns. Change a coach to Intern with its dropdown.' },
+  { type: 'part-timer', title: 'Part-Timers', Icon: Briefcase, empty: 'No part-timers. Change a coach to Part-timer with its dropdown.' },
+]
+
+// Nearest MRT and intern / part-timer per coach, saved by the page into the shared coaches table.
+// Coaches are added, renamed and removed in the feedback site.
 export default function CoachProfiles() {
-  const { coaches, updateCoach, createCoach, deleteCoach, saveDraft, busy } = useRoster()
-  const missing = coaches.filter((c) => !c.mrt?.trim()).length
-  const stations = [...new Set(coaches.map((c) => c.mrt?.trim()).filter(Boolean))].sort()
-  const field = 'w-full rounded border px-2 py-1.5 text-sm focus:border-indigo-400 focus:outline-none'
+  const { coaches, updateCoach, refreshTravelTimes, unrecognisedStations } = useRoster()
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
+  const [search, setSearch] = useState('')
+  const [editing, setEditing] = useState(null) // coach id whose window is open
+  const missing = coaches.filter((c) => !c.mrt_station?.trim()).length
+  const shown = coaches.filter((c) => `${c.name} ${c.mrt_station ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
+  const editingCoach = coaches.find((c) => c.id === editing)
 
   return (
-    <section aria-labelledby="profiles-title" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 id="profiles-title" className="text-xl font-bold text-slate-900">Coach Profiles</h1>
-          <SaveStatus />
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={createCoach} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-300 hover:bg-indigo-50">
-            + Add coach
-          </button>
-          <button type="button" onClick={saveDraft} disabled={!!busy} className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-wait disabled:opacity-50">
-            {busy === 'Saving' ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+    <section aria-labelledby="profiles-title" className="mx-auto max-w-6xl space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 id="profiles-title" className="text-xl font-bold text-slate-900">Coach Profiles</h1>
+        <ActionButton
+          action={() => refreshTravelTimes((done, total) => setProgress({ done, total }))}
+          label="Work out travel times"
+          working={`Working out travel times… ${progress.done} / ${progress.total || '…'}`}
+          done={`${progress.total} travel times up to date`}
+          failed="Couldn't work out travel times"
+          className="bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+        />
+        <SaveStatus />
       </div>
 
-      <p className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600">
-        Each coach's nearest MRT station, so the roster can suggest the closest venue later.
-        {missing > 0 && <span className="font-medium text-amber-700"> {missing} coach{missing === 1 ? '' : 'es'} still need a nearest MRT.</span>}
+      <p className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <Info className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" />
+        <span>
+          Each coach's nearest MRT station, so the roster can suggest the closest venue later. Click a coach to edit.
+          {missing > 0 && <span className="font-semibold text-orange-600"> {missing} coach{missing === 1 ? '' : 'es'} still need a nearest MRT.</span>}
+        </span>
       </p>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="w-full min-w-[600px] text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-3 py-2 font-semibold">Name</th>
-              <th className="px-3 py-2 font-semibold">Type</th>
-              <th className="px-3 py-2 font-semibold">Nearest MRT</th>
-              <th className="px-3 py-2"><span className="sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {coaches.map((c) => {
-              return (
-                <tr key={c.id} className="align-top">
-                  <td className="w-44 px-3 py-2">
-                    <input
-                      value={c.name}
-                      placeholder="Name"
-                      autoFocus={!c.name}
-                      onChange={(e) => updateCoach(c.id, { name: e.target.value })}
-                      aria-label="Name"
-                      aria-invalid={!c.name.trim()}
-                      className={`${field} ${c.name.trim() ? 'border-slate-200' : 'border-red-400 bg-red-50'}`}
-                    />
-                  </td>
-                  <td className="w-36 px-3 py-2">
-                    <select
-                      value={c.type}
-                      onChange={(e) => updateCoach(c.id, { type: e.target.value })}
-                      aria-label={`Type for ${c.name || 'new coach'}`}
-                      className={`${field} border-slate-200 bg-white`}
-                    >
-                      <option value="intern">Intern</option>
-                      <option value="part-timer">Part-timer</option>
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      value={c.mrt ?? ''}
-                      list="mrt-stations"
-                      placeholder="e.g. Toa Payoh"
-                      onChange={(e) => updateCoach(c.id, { mrt: e.target.value })}
-                      aria-label={`Nearest MRT for ${c.name || 'new coach'}`}
-                      className={`${field} border-slate-200`}
-                    />
-                  </td>
-                  <td className="w-20 px-3 py-2 text-right">
-                    <button
-                      type="button"
-                      onClick={() => window.confirm(`Remove ${c.name || 'this coach'}? They'll be taken off every roster.`) && deleteCoach(c.id)}
-                      className="py-1.5 text-xs font-medium text-red-600 hover:underline"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        <datalist id="mrt-stations">
-          {stations.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-      </div>
+      <input
+        type="search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search coaches…"
+        aria-label="Search coaches"
+        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
+      />
+
+      {GROUPS.map(({ type, title, Icon, empty }) => {
+        const members = shown.filter((c) => c.employment_type === type).sort((a, b) => a.name.localeCompare(b.name))
+        return (
+          <section key={type} aria-labelledby={`group-${type}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center gap-3">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-indigo-50 text-indigo-700">
+                <Icon />
+              </span>
+              <h2 id={`group-${type}`} className="flex-1 text-lg font-bold text-slate-900">{title}</h2>
+              <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                {members.length} coach{members.length === 1 ? '' : 'es'}
+              </span>
+            </div>
+
+            {members.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">{search ? 'No matches.' : empty}</p>
+            ) : (
+              <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                {members.map((c) => {
+                  const selected = editing === c.id
+                  const station = c.mrt_station?.trim()
+                  return (
+                    <li key={c.id} className={`group relative rounded-2xl border bg-white transition-shadow ${selected ? 'border-indigo-400 shadow-md ring-2 ring-indigo-100' : 'border-slate-200 hover:shadow-sm'}`}>
+                      <button
+                        type="button"
+                        onClick={() => setEditing(c.id)}
+                        aria-label={`Edit ${c.name}`}
+                        className="flex w-full flex-col items-center gap-1 rounded-t-2xl px-3 pb-2 pt-5 text-center focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-500"
+                      >
+                        <span className="mb-1 grid h-14 w-14 place-items-center rounded-full bg-indigo-100 text-indigo-500">
+                          <Person />
+                        </span>
+                        <span className="w-full truncate font-semibold text-slate-900" title={c.name}>{c.name}</span>
+                        {station ? (
+                          <span className="w-full truncate text-xs text-slate-500" title={station}>
+                            {station}
+                            {unrecognisedStations.includes(c.id) && <span className="block font-medium text-orange-600">MRT not recognised</span>}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-orange-600">Add nearest MRT</span>
+                        )}
+                        <span
+                          aria-hidden="true"
+                          className={`absolute right-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full bg-indigo-50 text-indigo-600 transition-opacity motion-reduce:transition-none ${selected ? 'opacity-100' : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
+                      <div className="px-3 pb-3">
+                        <select
+                          value={c.employment_type}
+                          onChange={(e) => updateCoach(c.id, { employment_type: e.target.value })}
+                          aria-label={`Employment type for ${c.name}`}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
+                        >
+                          <option value="intern">Intern</option>
+                          <option value="part-timer">Part-timer</option>
+                        </select>
+                        {/* same amber star as a Lead's chip on the roster */}
+                        <button
+                          type="button"
+                          aria-pressed={!!c.can_lead}
+                          aria-label={`Lead Coach: ${c.name}`}
+                          onClick={() => updateCoach(c.id, { can_lead: !c.can_lead })}
+                          className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold ring-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${c.can_lead ? 'bg-amber-50 text-amber-900 ring-amber-300 hover:bg-amber-100' : 'bg-white text-slate-500 ring-slate-200 hover:bg-slate-50'}`}
+                        >
+                          <span aria-hidden="true" className={`grid h-4 w-4 place-items-center rounded-full text-[10px] font-bold ${c.can_lead ? 'bg-amber-400 text-amber-950' : 'bg-slate-200 text-slate-500'}`}>*</span>
+                          Lead Coach
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+        )
+      })}
+
+      {editingCoach && <CoachProfileModal key={editingCoach.id} coach={editingCoach} onClose={() => setEditing(null)} />}
     </section>
   )
 }

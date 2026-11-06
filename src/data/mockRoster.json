@@ -1,166 +1,221 @@
 {
   "coaches": [
     {
-      "id": "ameer",
+      "id": 1,
       "name": "Ameer",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "kathleen",
+      "id": 2,
       "name": "Kathleen",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "reyes",
+      "id": 3,
       "name": "Reyes",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "matin",
+      "id": 4,
       "name": "Matin",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "yonghao",
+      "id": 5,
       "name": "Yong Hao",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "kaezel",
+      "id": 6,
       "name": "Kaezel",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "linette",
+      "id": 7,
       "name": "Linette",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "zeline",
+      "id": 8,
       "name": "Zeline",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "peiqi",
+      "id": 9,
       "name": "Pei Qi",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "nicole",
+      "id": 10,
       "name": "Nicole",
-      "type": "intern",
-      "mrt": ""
+      "active": true,
+      "employment_type": "intern",
+      "mrt_station": ""
     },
     {
-      "id": "suzanne",
+      "id": 11,
       "name": "Suzanne",
-      "type": "part-timer",
-      "mrt": ""
+      "active": true,
+      "employment_type": "part-timer",
+      "mrt_station": ""
     },
     {
-      "id": "kaihui",
+      "id": 12,
       "name": "Kai Hui",
-      "type": "part-timer",
-      "mrt": ""
+      "active": true,
+      "employment_type": "part-timer",
+      "mrt_station": ""
     },
     {
-      "id": "junlong",
+      "id": 13,
       "name": "Jun Long",
-      "type": "part-timer",
-      "mrt": ""
+      "active": true,
+      "employment_type": "part-timer",
+      "mrt_station": ""
     },
     {
-      "id": "hazel",
+      "id": 14,
       "name": "Hazel",
-      "type": "part-timer",
-      "mrt": ""
+      "active": true,
+      "employment_type": "part-timer",
+      "mrt_station": ""
     },
     {
-      "id": "celest",
+      "id": 15,
       "name": "Celest",
-      "type": "part-timer",
-      "mrt": ""
+      "active": true,
+      "employment_type": "part-timer",
+      "mrt_station": ""
     }
   ],
-  "venues": [
+  "schools": [
     {
+      "id": 1,
       "name": "MBR Tanjong Pagar",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "MON",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 2,
       "name": "MBR Dover",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "MON",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 3,
       "name": "SPL Woodlands",
-      "address": "",
-      "postalCode": ""
+      "brand": "SPL",
+      "class_day": "MON",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 4,
       "name": "MBR Fusionopolis",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "TUE",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 5,
       "name": "MBR OUE",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "TUE",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 6,
       "name": "Adventist SH",
-      "address": "",
-      "postalCode": ""
+      "brand": "Adventist",
+      "class_day": "WED",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 7,
       "name": "MBR Toa Payoh",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "THU",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 8,
       "name": "MBR Creative",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "THU",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 9,
       "name": "MBR East Coast",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "THU",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 10,
       "name": "MBR Cairnhill",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "FRI",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 11,
       "name": "MBR Punggol",
-      "address": "",
-      "postalCode": ""
+      "brand": "MBR",
+      "class_day": "FRI",
+      "active": true,
+      "address": ""
     },
     {
+      "id": 12,
       "name": "SPL Bukit Timah",
-      "address": "",
-      "postalCode": ""
-    },
+      "brand": "SPL",
+      "class_day": "FRI",
+      "active": true,
+      "address": ""
+    }
+  ],
+  "bases": [
     {
+      "id": 1,
+      "code": "WCP",
       "name": "WCP",
-      "address": "",
-      "postalCode": ""
+      "address": ""
     },
     {
+      "id": 2,
+      "code": "DV",
       "name": "DV",
-      "address": "",
-      "postalCode": ""
+      "address": ""
     }
   ],
   "weeks": [
@@ -190,18 +245,19 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "lead"
                 },
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 1
             },
             {
               "id": "2026-10-19-mon-mbr-dover",
@@ -215,18 +271,19 @@
               ],
               "coaches": [
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "coach"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 2
             },
             {
               "id": "2026-10-19-mon-spl-woodlands",
@@ -244,14 +301,15 @@
               ],
               "coaches": [
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "lead"
                 },
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 3
             }
           ]
         },
@@ -276,18 +334,19 @@
               ],
               "coaches": [
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "lead"
                 },
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "coach"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 4
             },
             {
               "id": "2026-10-19-tue-mbr-oue",
@@ -301,14 +360,15 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 5
             }
           ]
         },
@@ -329,22 +389,23 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "coach"
                 },
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "coach"
                 },
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "lead"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 6
             }
           ]
         },
@@ -369,22 +430,23 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "lead"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 7
             },
             {
               "id": "2026-10-19-thu-mbr-creative",
@@ -402,18 +464,19 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "coach"
                 },
                 {
-                  "id": "reyes",
+                  "id": 3,
                   "role": "coach"
                 },
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 8
             },
             {
               "id": "2026-10-19-thu-mbr-east-coast",
@@ -431,18 +494,19 @@
               ],
               "coaches": [
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "coach"
                 },
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 9
             }
           ]
         },
@@ -463,18 +527,19 @@
               ],
               "coaches": [
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "coach"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "lead"
                 },
                 {
-                  "id": "hazel",
+                  "id": 14,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 7
             },
             {
               "id": "2026-10-19-fri-mbr-cairnhill",
@@ -488,14 +553,15 @@
               ],
               "coaches": [
                 {
-                  "id": "reyes",
+                  "id": 3,
                   "role": "coach"
                 },
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 10
             },
             {
               "id": "2026-10-19-fri-mbr-punggol",
@@ -509,18 +575,19 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "lead"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 11
             },
             {
               "id": "2026-10-19-fri-spl-bukit-timah",
@@ -534,18 +601,19 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "coach"
                 },
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 },
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 12
             }
           ]
         },
@@ -566,7 +634,7 @@
               ],
               "coaches": [
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "coach"
                 }
               ]
@@ -595,11 +663,11 @@
               ],
               "coaches": [
                 {
-                  "id": "kaihui",
+                  "id": 12,
                   "role": "coach"
                 },
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "coach"
                 }
               ]
@@ -616,11 +684,11 @@
               ],
               "coaches": [
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "coach"
                 },
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "coach"
                 }
               ]
@@ -637,7 +705,7 @@
               ],
               "coaches": [
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "coach"
                 }
               ]
@@ -649,7 +717,7 @@
               "slots": [],
               "coaches": [
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "coach"
                 }
               ]
@@ -673,7 +741,7 @@
               ],
               "coaches": [
                 {
-                  "id": "suzanne",
+                  "id": 11,
                   "role": "coach"
                 }
               ]
@@ -690,11 +758,11 @@
               ],
               "coaches": [
                 {
-                  "id": "reyes",
+                  "id": 3,
                   "role": "coach"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 }
               ]
@@ -711,7 +779,7 @@
               ],
               "coaches": [
                 {
-                  "id": "celest",
+                  "id": 15,
                   "role": "coach"
                 }
               ]
@@ -728,11 +796,11 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 }
               ]
@@ -756,7 +824,7 @@
               "slots": [],
               "coaches": [
                 {
-                  "id": "junlong",
+                  "id": 13,
                   "role": "coach"
                 }
               ]
@@ -765,7 +833,7 @@
         }
       ],
       "availability": {
-        "ameer": [
+        "1": [
           "available",
           "off",
           "available",
@@ -774,7 +842,7 @@
           "available",
           "off"
         ],
-        "kathleen": [
+        "2": [
           "available",
           "available",
           "off",
@@ -783,7 +851,7 @@
           "off",
           "available"
         ],
-        "reyes": [
+        "3": [
           "available",
           "off",
           "available",
@@ -792,7 +860,7 @@
           "off",
           "available"
         ],
-        "matin": [
+        "4": [
           "available",
           "available",
           "off",
@@ -801,7 +869,7 @@
           "off",
           "available"
         ],
-        "yonghao": [
+        "5": [
           "available",
           "available",
           "off",
@@ -810,7 +878,7 @@
           "available",
           "off"
         ],
-        "kaezel": [
+        "6": [
           "available",
           "off",
           "available",
@@ -819,7 +887,7 @@
           "available",
           "off"
         ],
-        "linette": [
+        "7": [
           "available",
           "off",
           "available",
@@ -828,7 +896,7 @@
           "available",
           "off"
         ],
-        "zeline": [
+        "8": [
           "available",
           "off",
           "available",
@@ -837,7 +905,7 @@
           "available",
           "off"
         ],
-        "peiqi": [
+        "9": [
           "available",
           "available",
           "off",
@@ -846,7 +914,7 @@
           "off",
           "available"
         ],
-        "nicole": [
+        "10": [
           "available",
           "available",
           "off",
@@ -855,7 +923,7 @@
           "available",
           "off"
         ],
-        "suzanne": [
+        "11": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -864,7 +932,7 @@
           "unavailable",
           "available"
         ],
-        "kaihui": [
+        "12": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -873,7 +941,7 @@
           "available",
           "unavailable"
         ],
-        "junlong": [
+        "13": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -882,7 +950,7 @@
           "unavailable",
           "available"
         ],
-        "hazel": [
+        "14": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -891,7 +959,7 @@
           "unavailable",
           "unavailable"
         ],
-        "celest": [
+        "15": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -928,18 +996,19 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "lead"
                 },
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 1
             },
             {
               "id": "2026-10-26-mon-mbr-dover",
@@ -953,18 +1022,19 @@
               ],
               "coaches": [
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "lead"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 2
             },
             {
               "id": "2026-10-26-mon-spl-woodlands",
@@ -982,14 +1052,15 @@
               ],
               "coaches": [
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "coach"
                 },
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 3
             }
           ]
         },
@@ -1014,18 +1085,19 @@
               ],
               "coaches": [
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 },
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "coach"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 4
             },
             {
               "id": "2026-10-26-tue-mbr-oue",
@@ -1039,14 +1111,15 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "lead"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 5
             }
           ]
         },
@@ -1067,22 +1140,23 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "coach"
                 },
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "coach"
                 },
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "lead"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 6
             }
           ]
         },
@@ -1107,22 +1181,23 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "lead"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 7
             },
             {
               "id": "2026-10-26-thu-mbr-creative",
@@ -1139,7 +1214,8 @@
                 }
               ],
               "coaches": [],
-              "noLesson": true
+              "noLesson": true,
+              "schoolId": 8
             },
             {
               "id": "2026-10-26-thu-mbr-east-coast",
@@ -1157,18 +1233,19 @@
               ],
               "coaches": [
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "coach"
                 },
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 9
             }
           ]
         },
@@ -1189,18 +1266,19 @@
               ],
               "coaches": [
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "coach"
                 },
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "coach"
                 },
                 {
-                  "id": "hazel",
+                  "id": 14,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 7
             },
             {
               "id": "2026-10-26-fri-mbr-cairnhill",
@@ -1214,14 +1292,15 @@
               ],
               "coaches": [
                 {
-                  "id": "reyes",
+                  "id": 3,
                   "role": "lead"
                 },
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 10
             },
             {
               "id": "2026-10-26-fri-mbr-punggol",
@@ -1235,18 +1314,19 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "lead"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 }
-              ]
+              ],
+              "schoolId": 11
             },
             {
               "id": "2026-10-26-fri-spl-bukit-timah",
@@ -1260,18 +1340,19 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "coach"
                 },
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 },
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "lead"
                 }
-              ]
+              ],
+              "schoolId": 12
             }
           ]
         },
@@ -1292,7 +1373,7 @@
               ],
               "coaches": [
                 {
-                  "id": "kaezel",
+                  "id": 6,
                   "role": "coach"
                 }
               ]
@@ -1309,11 +1390,11 @@
               ],
               "coaches": [
                 {
-                  "id": "linette",
+                  "id": 7,
                   "role": "coach"
                 },
                 {
-                  "id": "peiqi",
+                  "id": 9,
                   "role": "coach"
                 }
               ]
@@ -1330,7 +1411,7 @@
               ],
               "coaches": [
                 {
-                  "id": "ameer",
+                  "id": 1,
                   "role": "coach"
                 }
               ]
@@ -1347,7 +1428,7 @@
               ],
               "coaches": [
                 {
-                  "id": "nicole",
+                  "id": 10,
                   "role": "coach"
                 }
               ]
@@ -1364,7 +1445,7 @@
               ],
               "coaches": [
                 {
-                  "id": "kathleen",
+                  "id": 2,
                   "role": "coach"
                 }
               ]
@@ -1376,7 +1457,7 @@
               "slots": [],
               "coaches": [
                 {
-                  "id": "yonghao",
+                  "id": 5,
                   "role": "coach"
                 }
               ]
@@ -1400,7 +1481,7 @@
               ],
               "coaches": [
                 {
-                  "id": "suzanne",
+                  "id": 11,
                   "role": "coach"
                 }
               ]
@@ -1417,11 +1498,11 @@
               ],
               "coaches": [
                 {
-                  "id": "reyes",
+                  "id": 3,
                   "role": "coach"
                 },
                 {
-                  "id": "zeline",
+                  "id": 8,
                   "role": "coach"
                 }
               ]
@@ -1438,7 +1519,7 @@
               ],
               "coaches": [
                 {
-                  "id": "celest",
+                  "id": 15,
                   "role": "coach"
                 }
               ]
@@ -1455,7 +1536,7 @@
               ],
               "coaches": [
                 {
-                  "id": "matin",
+                  "id": 4,
                   "role": "coach"
                 }
               ]
@@ -1479,7 +1560,7 @@
               "slots": [],
               "coaches": [
                 {
-                  "id": "junlong",
+                  "id": 13,
                   "role": "coach"
                 }
               ]
@@ -1488,7 +1569,7 @@
         }
       ],
       "availability": {
-        "ameer": [
+        "1": [
           "available",
           "off",
           "available",
@@ -1497,7 +1578,7 @@
           "available",
           "off"
         ],
-        "kathleen": [
+        "2": [
           "available",
           "available",
           "off",
@@ -1506,7 +1587,7 @@
           "available",
           "off"
         ],
-        "reyes": [
+        "3": [
           "available",
           "off",
           "available",
@@ -1515,7 +1596,7 @@
           "off",
           "available"
         ],
-        "matin": [
+        "4": [
           "available",
           "available",
           "off",
@@ -1524,7 +1605,7 @@
           "off",
           "available"
         ],
-        "yonghao": [
+        "5": [
           "available",
           "available",
           "off",
@@ -1533,7 +1614,7 @@
           "available",
           "off"
         ],
-        "kaezel": [
+        "6": [
           "available",
           "off",
           "available",
@@ -1542,7 +1623,7 @@
           "available",
           "off"
         ],
-        "linette": [
+        "7": [
           "available",
           "off",
           "available",
@@ -1551,7 +1632,7 @@
           "available",
           "off"
         ],
-        "zeline": [
+        "8": [
           "available",
           "off",
           "available",
@@ -1560,7 +1641,7 @@
           "off",
           "available"
         ],
-        "peiqi": [
+        "9": [
           "available",
           "available",
           "off",
@@ -1569,7 +1650,7 @@
           "available",
           "off"
         ],
-        "nicole": [
+        "10": [
           "available",
           "available",
           "off",
@@ -1578,7 +1659,7 @@
           "available",
           "off"
         ],
-        "suzanne": [
+        "11": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -1587,7 +1668,7 @@
           "unavailable",
           "available"
         ],
-        "kaihui": [
+        "12": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -1596,7 +1677,7 @@
           "unavailable",
           "unavailable"
         ],
-        "junlong": [
+        "13": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -1605,7 +1686,7 @@
           "unavailable",
           "available"
         ],
-        "hazel": [
+        "14": [
           "unavailable",
           "unavailable",
           "unavailable",
@@ -1614,7 +1695,7 @@
           "unavailable",
           "unavailable"
         ],
-        "celest": [
+        "15": [
           "unavailable",
           "unavailable",
           "unavailable",

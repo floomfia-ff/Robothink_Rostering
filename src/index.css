@@ -5,3 +5,27 @@
   @page { size: A3 landscape; margin: 8mm; }
   body { background: white; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+
+/* Top bar (TopNav.jsx): gentle, GPU-friendly loops; all off for prefers-reduced-motion */
+@keyframes rt-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes rt-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes rt-bob { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, -5px); } }
+@keyframes rt-drift { 0%, 100% { opacity: .55; transform: translateX(0); } 50% { opacity: .9; transform: translateX(-6px); } }
+@keyframes rt-spin { to { transform: rotate(360deg); } }
+@keyframes rt-blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+@keyframes rt-wave { 0%, 70%, 100% { transform: rotate(0); } 80% { transform: rotate(-14deg); } 90% { transform: rotate(8deg); } }
+@keyframes rt-glow { 0%, 100% { box-shadow: 0 8px 20px -6px rgb(99 102 241 / .45); } 50% { box-shadow: 0 10px 28px -4px rgb(124 58 237 / .6); } }
+
+.rt-rise { animation: rt-rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+.rt-float { animation: rt-float 4s ease-in-out infinite; }
+.rt-bob { animation: rt-bob 7s ease-in-out infinite; }
+.rt-drift { animation: rt-drift 10s ease-in-out infinite; }
+.rt-spin { animation: rt-spin 40s linear infinite; }
+.rt-blink { animation: rt-blink 5s ease-in-out infinite; }
+.rt-wave { animation: rt-wave 6s ease-in-out infinite; }
+/* the active tab rises in, then keeps a soft breathing glow */
+.rt-glow { animation: rt-rise .5s cubic-bezier(.2, .8, .2, 1) both, rt-glow 3.5s ease-in-out .6s infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-rise, .rt-float, .rt-bob, .rt-drift, .rt-spin, .rt-blink, .rt-wave, .rt-glow { animation: none; }
+}
