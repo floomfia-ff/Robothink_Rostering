@@ -4,6 +4,14 @@ import SaveStatus from './SaveStatus.jsx'
 import { ActionButton } from './HeaderControls.jsx'
 import CoachProfileModal from './CoachProfileModal.jsx'
 import { Briefcase, GradCap, Info, Pencil, Person } from './coachIcons.jsx'
+import { coachLevel } from '../lib/roster.js'
+
+// Advanced keeps the old Lead Coach amber.
+const LEVEL_STYLE = {
+  beginner: 'border-slate-200 bg-white text-slate-500',
+  intermediate: 'border-sky-300 bg-sky-50 text-sky-900',
+  advanced: 'border-amber-300 bg-amber-50 text-amber-900',
+}
 
 // Interns first, then part-timers. `title` is the section heading.
 const GROUPS = [
@@ -112,17 +120,17 @@ export default function CoachProfiles() {
                           <option value="intern">Intern</option>
                           <option value="part-timer">Part-timer</option>
                         </select>
-                        {/* same amber star as a Lead's chip on the roster */}
-                        <button
-                          type="button"
-                          aria-pressed={!!c.can_lead}
-                          aria-label={`Lead Coach: ${c.name}`}
-                          onClick={() => updateCoach(c.id, { can_lead: !c.can_lead })}
-                          className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold ring-1 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${c.can_lead ? 'bg-amber-50 text-amber-900 ring-amber-300 hover:bg-amber-100' : 'bg-white text-slate-500 ring-slate-200 hover:bg-slate-50'}`}
+                        {/* can_lead kept in step (Advanced = old Lead Coach) for anything still reading it */}
+                        <select
+                          value={coachLevel(c)}
+                          onChange={(e) => updateCoach(c.id, { coach_level: e.target.value, can_lead: e.target.value === 'advanced' })}
+                          aria-label={`Coach level for ${c.name}`}
+                          className={`mt-2 w-full rounded-lg border px-2 py-1 text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200 ${LEVEL_STYLE[coachLevel(c)]}`}
                         >
-                          <span aria-hidden="true" className={`grid h-4 w-4 place-items-center rounded-full text-[10px] font-bold ${c.can_lead ? 'bg-amber-400 text-amber-950' : 'bg-slate-200 text-slate-500'}`}>*</span>
-                          Lead Coach
-                        </button>
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="advanced">Advanced</option>
+                        </select>
                       </div>
                     </li>
                   )

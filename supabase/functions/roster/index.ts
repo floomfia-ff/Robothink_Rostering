@@ -102,7 +102,7 @@ async function readSheet(schools: { id: number; name: string; active: boolean }[
 
 // ── Data ────────────────────────────────────────────────────────────────────
 const getCoaches = async () =>
-  ok(await db.from('coaches').select('id,name,active,mrt_station,employment_type,can_lead').order('name'))
+  ok(await db.from('coaches').select('id,name,active,mrt_station,employment_type,can_lead,coach_level').order('name'))
 const getSchools = async () =>
   ok(await db.from('schools').select('id,name,brand,class_day,active,address').order('name'))
 const getRules = async () =>
@@ -325,7 +325,7 @@ Deno.serve(async (req) => {
 
     if (m === 'PATCH' && (r = path.match(/^\/(coaches|schools|bases)\/(\d+)$/))) {
       const [, table, id] = r
-      const fields = table === 'coaches' ? pickFields(body, ['mrt_station', 'employment_type', 'can_lead']) : pickFields(body, ['address'])
+      const fields = table === 'coaches' ? pickFields(body, ['mrt_station', 'employment_type', 'can_lead', 'coach_level']) : pickFields(body, ['address'])
       if (!Object.keys(fields).length) return fail('Nothing to update.', 400)
       // clearing an address is allowed: blank is stored as null
       if ('address' in fields && (fields.address === null || (typeof fields.address === 'string' && !fields.address.trim()))) fields.address = null

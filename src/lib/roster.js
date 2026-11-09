@@ -98,14 +98,19 @@ export function coachDay(week, dayKey, coach) {
   return { status: 'free' }
 }
 
-// Weekday Leads should be marked Lead Coach in Coach Profiles.
+// Coach Profiles level, weakest first. Coaches saved before levels existed fall back to the old Lead Coach toggle.
+export const LEVELS = ['beginner', 'intermediate', 'advanced']
+export const coachLevel = (c) => (LEVELS.includes(c?.coach_level) ? c.coach_level : c?.can_lead ? 'advanced' : 'beginner')
+const rank = (c) => LEVELS.indexOf(coachLevel(c))
+
+// Weekday Leads should be Intermediate or Advanced in Coach Profiles.
 export function leadWarnings(week, coaches) {
   const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
   return week.days.flatMap((d) =>
     d.blocks.flatMap((b) => {
       const lead = needsLead(b) && b.coaches.find((c) => c.role === 'lead')
       const coach = lead && byId[lead.id]
-      return coach && !coach.can_lead ? [`${d.label} ${d.date}: ${b.name}'s Lead ${coach.name} isn't a Lead Coach.`] : []
+      return coach && !rank(coach) ? [`${d.label} ${d.date}: ${b.name}'s Lead ${coach.name} is a Beginner.`] : []
     }),
   )
 }
@@ -336,7 +341,8 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
 
     const lessons = day.blocks.filter((x) => requiredCoaches(x) > 0)
-    const hasSeasoned = (b) => b.coaches.some((c) => byId[c.id]?.can_lead)
+    const level = (id) => rank(byId[id])
+    const hasLevel = (b, lv) => b.coaches.some((c) => byId[c.id] && level(c.id) >= lv)
     const mins = (id, b) => travel[id]?.[b.schoolId] ?? Infinity
     const placed = new Set() // coaches this run put on a weekday school; only these may be swapped below
     // Moves one coach from `from` out of `free` into one of `blocks`: part-timers first, then anyone but a second
@@ -344,7 +350,7 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     const placeNearest = (blocks, from = free) => {
       let best = null
       for (const b of blocks) for (const id of from) {
-        const cost = [byId[id].employment_type === 'part-timer' ? 0 : 1, byId[id].can_lead && hasSeasoned(b) ? 1 : 0, mins(id, b)]
+        const cost = [byId[id].employment_type === 'part-timer' ? 0 : 1, level(id) && hasLevel(b, level(id)) ? 1 : 0, mins(id, b)]
         const i = best ? cost.findIndex((v, k) => v !== best.cost[k]) : 0
         if (!best || (i >= 0 && cost[i] < best.cost[i])) best = { b, id, cost }
       }
@@ -366,17 +372,21 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     const busiest = (list) => list.reduce((a, b) => (load(b) > load(a) || (load(b) === load(a) && mostStudents(b) > mostStudents(a)) ? b : a))
     for (;;) {
       const under = lessons.filter((b) => countedCoaches(b) < target(b))
-      const needs = under.filter((b) => !hasSeasoned(b))
-      const seasoned = free.filter((id) => byId[id].can_lead)
-      // 2. a Lead Coach at every school that has none yet, busiest first
-      if (seasoned.length && needs.length) placeNearest([busiest(needs)], seasoned)
+      const needs = under.filter((b) => !hasLevel(b, 2))
+      const advanced = free.filter((id) => level(id) === 2)
+      const backup = under.filter((b) => !hasLevel(b, 1))
+      const intermediate = free.filter((id) => level(id) === 1)
+      // 2. an Advanced coach at every school that has none yet, busiest first
+      if (advanced.length && needs.length) placeNearest([busiest(needs)], advanced)
+      // 2b. out of Advanced coaches: an Intermediate at every school still without either
+      else if (intermediate.length && backup.length) placeNearest([busiest(backup)], intermediate)
       // 3. up to each school's target, busiest first; anyone left stays at WCP
       else if (free.length && under.length) placeNearest([busiest(under)])
       else break
     }
     // 4. two coaches placed above (same type, neither a Lead Coach) trade schools when that shortens their trips
     // together: one at a time can't see it. Lead Coaches and fixed coaches never trade.
-    const same = (x, y) => !byId[x].can_lead && !byId[y].can_lead && byId[x].employment_type === byId[y].employment_type
+    const same = (x, y) => !level(x) && !level(y) && byId[x].employment_type === byId[y].employment_type
     for (let swapped = true; swapped; ) {
       swapped = false
       for (const a of lessons) for (const b of lessons) for (const x of a.coaches) for (const y of b.coaches) {
@@ -400,8 +410,8 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     for (const b of day.blocks) {
       const pool = b.coaches.filter((c) => c.role !== 'shadow')
       if (needsLead(b) && pool.length && !b.coaches.some((c) => c.role === 'lead')) {
-        const seasoned = pool.filter((c) => byId[c.id]?.can_lead) // experienced coaches lead when there is one
-        const lead = pickLead(seasoned.length ? seasoned : pool, leadCount)
+        const top = Math.max(...pool.map((c) => rank(byId[c.id]))) // the highest level there leads
+        const lead = pickLead(pool.filter((c) => rank(byId[c.id]) === top), leadCount)
         lead.role = 'lead'
         leadCount[lead.id] = (leadCount[lead.id] ?? 0) + 1
       }

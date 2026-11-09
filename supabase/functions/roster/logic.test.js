@@ -124,6 +124,8 @@ assert.equal(L.isValidAddress(''), false)
 assert.equal(L.validateCoachFields({ employment_type: 'manager' }) !== null, true)
 assert.match(L.validateCoachFields({ can_lead: 'yes' }), /Can lead/)
 assert.equal(L.validateCoachFields({ can_lead: true }), null)
+assert.match(L.validateCoachFields({ coach_level: 'expert' }), /Coach level/)
+assert.equal(L.validateCoachFields({ coach_level: 'intermediate' }), null)
 assert.deepEqual(L.pickFields({ name: 'x', mrt_station: 'Yishun MRT' }, ['mrt_station', 'employment_type']), { mrt_station: 'Yishun MRT' })
 
 // weekShell labels

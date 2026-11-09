@@ -149,6 +149,7 @@ export function validateCoachFields(f) {
   if ('employment_type' in f && !['intern', 'part-timer'].includes(f.employment_type)) return 'Employment type must be intern or part-timer.'
   if ('mrt_station' in f && f.mrt_station !== null && typeof f.mrt_station !== 'string') return 'MRT station must be text.'
   if ('can_lead' in f && typeof f.can_lead !== 'boolean') return 'Can lead must be true or false.'
+  if ('coach_level' in f && !['beginner', 'intermediate', 'advanced'].includes(f.coach_level)) return 'Coach level must be beginner, intermediate or advanced.'
   return null
 }
 

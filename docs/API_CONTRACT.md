@@ -29,7 +29,7 @@ If you need a different shape, tell the UI owner and update this file in the sam
 ### Coach
 
 ```json
-{ "id": 12, "name": "Ameer", "active": true, "employment_type": "intern", "mrt_station": "Toa Payoh", "can_lead": true }
+{ "id": 12, "name": "Ameer", "active": true, "employment_type": "intern", "mrt_station": "Toa Payoh", "can_lead": true, "coach_level": "advanced" }
 ```
 
 | Field | Type | Notes |
@@ -38,7 +38,8 @@ If you need a different shape, tell the UI owner and update this file in the sam
 | `name` | string | Read-only here (edited in the feedback site). |
 | `active` | boolean | Inactive coaches are still returned so past weeks show them. The UI stops them being placed on new days; the server only checks that the id exists. |
 | `employment_type` | `"intern"` \| `"part-timer"` | Editable. Interns get one weekday off (Tue or Wed) and one weekend day off. New coaches default to `part-timer`. |
-| `can_lead` | boolean | Editable ("Lead Coach" toggle in Coach Profiles). Experienced coaches Auto-Generate makes Lead. Defaults to `false`. |
+| `can_lead` | boolean | Old Lead Coach toggle. The UI keeps it equal to `coach_level === "advanced"`; used only when `coach_level` is missing. |
+| `coach_level` | `"beginner"` \| `"intermediate"` \| `"advanced"` | Editable (level picker in Coach Profiles, `sql/08_coach_level.sql`). Advanced = old Lead Coach; Intermediate leads a school with no Advanced. Defaults to `"beginner"`. |
 | `mrt_station` | string \| null | Editable. Nearest MRT station (free text). |
 
 ### School (a weekday venue)
@@ -166,7 +167,7 @@ These live in `src/lib/roster.js`, with tests in `src/lib/roster.test.js` (`npm 
 | Rule | Value |
 |---|---|
 | Coach count | Follows the **Rules tab** (`roster_rules`). Auto-Generate, on weekdays: 1) fixed coaches go to their school (first school by name wins; not past the max); 2) each school's target is `min(max_coaches, ceil(largest slot's students ÷ students_per_coach))` (defaults 4 and 3; shadows don't count); 3) a Lead Coach at every school without one, then up to each target, the school with the most students per coach picking next and taking its nearest free coach (part-timers first, a second Lead Coach last); 4) two non-Lead, non-fixed coaches it placed trade schools when that shortens their trips; 5) **anyone still free stays at WCP**. Hand placements are kept even past the max. Spare weekend coaches are spread over running weekend programmes. |
-| Leads | Exactly **one** Lead per weekday lesson, picked from `can_lead` coaches when the school has one. A Lead without `can_lead` shows a warning, not a block. **No** Leads on weekend programmes. |
+| Leads | Exactly **one** Lead per weekday lesson, picked from the highest `coach_level` at the school (Advanced first, then Intermediate). A Beginner Lead shows a warning, not a block. **No** Leads on weekend programmes. |
 | One place per day | A coach is in at most one block per day. |
 | Intern days off | Exactly 2 days off: **one weekday, which must be Tuesday or Wednesday**, and **one weekend day**. Weekday interns not at a venue count as working at WCP. **Auto-Generate sets these days off** for any intern who has none (Tue/Wed and Sat/Sun each split evenly, keeping days they're already placed on). Manual edits that break it show a warning, not a block. Changing an intern's day by hand also changes it in every later week already created; new weeks copy the week before. Clear coaches keeps days off. |
 | Availability | Never place a coach on a day marked `off` or `unavailable`. |
@@ -210,7 +211,7 @@ what changed; an address that is half-typed (not blank, no 6-digit postal code) 
 | `POST /rules` | `{ "kind": "fixed_coach", "coach_id": 11, "school_id": 5 }` or `{ "kind": "max_coaches", "value": 4 }` | `kind` is `fixed_coach`, `max_coaches` or `students_per_coach`; a fixed coach needs a known coach and school and must not repeat an existing pair; `value` is a whole number 1–20. `201 { id }`. |
 | `PATCH /rules/:id` | any of `value`, `active`, `note`, `coach_id`, `school_id` | Checked as the whole rule it would leave; `active` is `true` / `false`. `404` if there is no such rule. |
 | `DELETE /rules/:id` | — | `204`. |
-| `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern", "can_lead": true }` (any of them) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`; `can_lead` is `true` / `false`. |
+| `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern", "can_lead": true, "coach_level": "advanced" }` (any of them) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`; `can_lead` is `true` / `false`; `coach_level` is `beginner`, `intermediate` or `advanced`. |
 | `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. Blank or `null` clears it (stored as empty). |
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
 | `DELETE /weeks/:id` | — | Hides the saved week (sets `deleted_at`); a week with no row still returns `204`. Deleted weeks are left out of `weeks`, of carry-over and of `GET /weeks/:id`, and listed in `GET /`'s `deletedWeeks: [{ id, label }]`. `GET /` also returns `rules: [{ id, kind, coach_id, school_id, value, active, note }]`. Saving a week with `PUT` un-deletes it. |

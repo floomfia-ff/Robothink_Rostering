@@ -349,8 +349,44 @@ for (const d of w.days.slice(0, 5)) {
 const tp2 = w.days[0].blocks.find((b) => b.coaches.some((c) => c.role === 'lead'))
 const leadId = tp2.coaches.find((c) => c.role === 'lead').id
 const unmarked = ranked.map((c) => (c.id === leadId ? { ...c, can_lead: false } : c))
-assert.match(R.leadWarnings(w, unmarked).join(' '), /isn't a Lead Coach/)
+assert.match(R.leadWarnings(w, unmarked).join(' '), /is a Beginner/)
 assert.deepEqual(R.leadWarnings(w, ranked).filter((m) => m.includes(tp2.name)), [])
+
+// levels: Advanced gives exactly the old Lead Coach roster
+const blank = structuredClone(weeks[0])
+for (const d of blank.days.slice(0, 5)) for (const b of d.blocks) b.coaches = []
+const leveled = coaches.map((c) => ({ ...c, coach_level: seasoned.has(c.id) ? 'advanced' : 'beginner' }))
+const viaLevel = structuredClone(blank)
+R.autoFill(viaLevel, leveled)
+// Leads among equals are picked at random, so compare who goes where.
+assert.deepEqual(placements(viaLevel), placements(w), 'Advanced = old Lead Coach, same placements')
+assert.equal(R.coachLevel({ can_lead: true }), 'advanced', 'no level saved yet: old toggle decides')
+assert.equal(R.coachLevel({ can_lead: true, coach_level: 'beginner' }), 'beginner', 'saved level wins')
+
+// no Advanced at all: Intermediates spread one per school and lead; Beginners never lead over them
+const mids = new Set([id('Ameer'), id('Kathleen')])
+const midLevels = coaches.map((c) => ({ ...c, coach_level: mids.has(c.id) ? 'intermediate' : 'beginner' }))
+const wm = structuredClone(blank)
+R.autoFill(wm, midLevels)
+for (const d of wm.days.slice(0, 5)) {
+  const lessons = d.blocks.filter((b) => b.kind === 'lesson' && R.requiredCoaches(b) > 0)
+  const midFree = [...mids].filter((cid) => R.availability(wm, cid, d.key) === 'available').length
+  const covered = lessons.filter((b) => b.coaches.some((c) => mids.has(c.id)))
+  assert.equal(covered.length, Math.min(lessons.length, midFree), `${d.key}: an Intermediate at as many schools as possible`)
+  for (const b of covered) assert.ok(mids.has(b.coaches.find((c) => c.role === 'lead').id), `${d.key} ${b.name}: Intermediate leads`)
+}
+assert.ok(R.leadWarnings(wm, midLevels).every((m) => !mids.has(coaches.find((c) => m.includes(`Lead ${c.name} `))?.id)), 'Intermediate Lead is no warning')
+
+// Advanced first, Intermediate only where no Advanced is left
+const mixed = coaches.map((c) => ({ ...c, coach_level: c.id === id('Ameer') ? 'advanced' : c.id === id('Kathleen') ? 'intermediate' : 'beginner' }))
+const wx = structuredClone(blank)
+R.autoFill(wx, mixed)
+for (const d of wx.days.slice(0, 5)) for (const b of d.blocks) {
+  const ids = b.coaches.map((c) => c.id)
+  if (ids.includes(id('Ameer')) && ids.includes(id('Kathleen')) && d.blocks.filter((x) => x.kind === 'lesson' && R.requiredCoaches(x) > 0).length > 1)
+    assert.fail(`${d.key} ${b.name}: Advanced and Intermediate stacked while another school had neither`)
+  if (ids.includes(id('Ameer'))) assert.equal(b.coaches.find((c) => c.role === 'lead')?.id, id('Ameer'), `${d.key} ${b.name}: Advanced leads`)
+}
 
 // clear coaches empties every block of the week but keeps availability
 w = structuredClone(weeks[0])
