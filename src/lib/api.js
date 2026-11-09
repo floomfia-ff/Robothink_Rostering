@@ -6,12 +6,15 @@ const CODE = import.meta.env.VITE_ROSTER_CODE
 
 let baseline = null // what the server last had, so saveDraft only sends what changed
 
-async function request(method, path, body) {
+async function request(method, path, body, signal) {
   if (!URL) throw new Error('VITE_ROSTER_API_URL is not set — copy .env.example to .env.local.')
   const res = await fetch(URL + path, {
     method,
     headers: { 'x-roster-code': CODE, ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
+    signal,
+  }).catch((e) => {
+    throw e.name === 'TimeoutError' ? new Error('The server took too long to answer. It may still be waking up — try again.') : e
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -21,7 +24,7 @@ async function request(method, path, body) {
 }
 
 export async function loadRoster() {
-  const roster = await request('GET', '/')
+  const roster = await request('GET', '/', undefined, AbortSignal.timeout(20000)) // never wait forever on "Loading roster…"
   baseline = structuredClone(roster)
   return roster
 }

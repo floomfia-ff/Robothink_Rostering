@@ -32,7 +32,11 @@ const base64url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 const textToBase64url = (text: string) => base64url(new TextEncoder().encode(text))
 
+// Google's token lasts an hour; keep it until 5 minutes before then instead of logging in on every load.
+let google: { token: string; until: number } | null = null
+
 async function getAccessToken(credentials: { client_email: string; private_key: string }) {
+  if (google && Date.now() < google.until) return google.token
   const now = Math.floor(Date.now() / 1000)
   const unsigned =
     `${textToBase64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))}.` +
@@ -59,6 +63,7 @@ async function getAccessToken(credentials: { client_email: string; private_key: 
   })
   const data = await response.json()
   if (!data.access_token) throw new Error(`Google refused the service account: ${JSON.stringify(data).slice(0, 300)}`)
+  google = { token: data.access_token, until: Date.now() + 55 * 60000 }
   return data.access_token as string
 }
 
@@ -75,6 +80,8 @@ async function readSheet(schools: { id: number; name: string; active: boolean }[
     { headers: { Authorization: `Bearer ${token}` } },
   )
 
+  // both tabs at once; a workbook without the Doubles tab is fine (no doubles recorded)
+  const doublesReply = get(DOUBLES_TAB, DOUBLES_RANGE).catch(() => null)
   const response = await get(TAB, RANGE)
   const raw = await response.text()
   if (!response.ok) {
@@ -89,11 +96,10 @@ async function readSheet(schools: { id: number; name: string; active: boolean }[
   }
   const rows = JSON.parse(raw).values || []
 
-  // A workbook without the Doubles tab is fine: no doubles recorded.
   let doubleRows: unknown[][] = []
   try {
-    const dres = await get(DOUBLES_TAB, DOUBLES_RANGE)
-    if (dres.ok) doubleRows = JSON.parse(await dres.text()).values || []
+    const dres = await doublesReply
+    if (dres?.ok) doubleRows = JSON.parse(await dres.text()).values || []
   } catch { /* leave empty */ }
 
   const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) // Singapore date
@@ -189,14 +195,25 @@ async function weekFor(id: string, coaches: unknown[], schools: Awaited<ReturnTy
 }
 
 // ── Handler ─────────────────────────────────────────────────────────────────
+// Right after the function wakes, the database can refuse its key as "JWT issued at future" for about a second
+// (the two clocks differ slightly). Every query fails before anything is written, so waiting and retrying once is safe.
 Deno.serve(async (req) => {
+  const again = req.clone()
+  const res = await handle(req)
+  if (res.status !== 500 || !(await res.clone().text()).includes('issued at future')) return res
+  await new Promise((r) => setTimeout(r, 1000))
+  return handle(again)
+})
+
+async function handle(req: Request) {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   try {
     const secret = Deno.env.get('ROSTER_CODE')
     if (!secret) return fail('ROSTER_CODE is not set on this function.', 500)
     if (req.headers.get('x-roster-code') !== secret) return fail('Roster code not accepted.', 401)
 
-    const path = new URL(req.url).pathname.replace(/^.*\/roster/, '') || '/'
+    // drop the function's own name, so a test copy under another name routes the same way
+    const path = new URL(req.url).pathname.replace(/^(\/functions\/v1)?\/[^/]+/, '') || '/'
     const m = req.method
     const body = m === 'GET' ? {} : await req.json().catch(() => null)
     if ((m === 'PUT' || m === 'PATCH') && (!body || typeof body !== 'object' || Array.isArray(body))) {
@@ -204,12 +221,14 @@ Deno.serve(async (req) => {
     }
 
     if (m === 'GET' && path === '/') {
-      const [coaches, schools, bases, travelRows, rules] = await Promise.all([
-        getCoaches(), getSchools(), db.from('roster_bases').select('id,code,name,address').order('id').then(ok),
+      // everything at once; the lesson plan only waits for the school list
+      const schoolsReply = getSchools()
+      const [coaches, schools, bases, travelRows, rules, all, { plan, planError }] = await Promise.all([
+        getCoaches(), schoolsReply, db.from('roster_bases').select('id,code,name,address').order('id').then(ok),
         db.from('travel_times').select('*').then(ok), getRules(),
+        db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at').order('id').then(ok),
+        schoolsReply.then(loadPlan),
       ])
-      const { plan, planError } = await loadPlan(schools)
-      const all = ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at').order('id'))
       const rows = all.filter((w) => !w.deleted_at)
       const deletedWeeks = all.filter((w) => w.deleted_at).map((w) => ({ id: w.id, label: weekShell(w.id).label }))
       const build = (id: string, saved: unknown, previous: unknown) =>
@@ -341,4 +360,4 @@ Deno.serve(async (req) => {
   } catch (error) {
     return fail(String((error as Error)?.message || error), 500)
   }
-})
+}

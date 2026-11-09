@@ -73,7 +73,7 @@ export function RosterProvider({ children }) {
       </div>
     )
   }
-  if (!roster) return <p className="p-8 text-slate-500">Loading roster…</p>
+  if (!roster) return <LoadingScreen />
 
   const week = roster.weeks.find((w) => w.id === weekId)
   const coachById = Object.fromEntries(roster.coaches.map((c) => [c.id, c]))
@@ -270,4 +270,23 @@ export function RosterProvider({ children }) {
   }
 
   return <RosterContext.Provider value={value}>{children}</RosterContext.Provider>
+}
+
+// Shown until the roster arrives; after 5 s it explains the wait (the server sleeps when nobody has used it for a while).
+function LoadingScreen() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 5000)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <div role="status" aria-live="polite" className="grid min-h-screen place-items-center bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100 p-8">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <img src="/robothink-logo.png" alt="RoboThink" className="h-12 w-auto" />
+        <span className="h-9 w-9 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600 motion-reduce:animate-none" aria-hidden="true" />
+        <p className="font-semibold text-slate-700">Loading roster…</p>
+        {slow && <p className="max-w-xs text-sm text-slate-500">Waking the server up — this can take a few seconds after a quiet spell.</p>}
+      </div>
+    </div>
+  )
 }
