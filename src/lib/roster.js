@@ -29,7 +29,7 @@ export const mondayOf = (date) => addDays(date, -((new Date(Date.parse(date)).ge
 export function venueList(roster) {
   const days = new Map()
   const note = (key, label) => days.set(key, new Set(days.get(key)).add(label))
-  for (const w of roster.weeks) for (const d of w.days) for (const b of d.blocks) {
+  for (const w of roster.weeks) for (const d of w.days ?? []) for (const b of d.blocks) {
     if (b.kind === 'lesson' && b.schoolId != null) note('school:' + b.schoolId, d.label)
     else if (b.kind === 'program') note('base:' + b.base, d.label)
   }

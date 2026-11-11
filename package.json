@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node src/lib/roster.test.js && node supabase/functions/roster/plan.test.js && node supabase/functions/roster/logic.test.js"
+    "test": "node src/lib/roster.test.js && node supabase/functions/roster/plan.test.js && node supabase/functions/roster/logic.test.js && node supabase/functions/roster/recent.test.js"
   },
   "dependencies": {
     "exceljs": "^4.4.0",

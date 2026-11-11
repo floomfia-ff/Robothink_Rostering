@@ -125,7 +125,16 @@ export function RosterProvider({ children }) {
 
   const value = {
     coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [], rules: roster.rules ?? [], schools: roster.schools, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
-    setWeekId, swapTarget, setSwapTarget,
+    // An older week arrives as a stub ({ archived: true }); it is loaded in full before it is shown.
+    setWeekId: (id) => {
+      if (!roster.weeks.find((w) => w.id === id)?.archived) return setWeekId(id)
+      run('Loading', async () => {
+        const full = await api.openArchivedWeek(id)
+        setRoster((r) => ({ ...r, weeks: r.weeks.map((w) => (w.id === id ? full : w)) }))
+        setWeekId(id)
+      })
+    },
+    swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
     assignCoach: (d, b, i, id) => edit((w) => R.assignCoach(w, d, b, i, id)),
@@ -138,7 +147,7 @@ export function RosterProvider({ children }) {
       setRoster((r) => ({
         ...r,
         weeks: r.weeks.map((w) => {
-          if (w.id !== weekId && !(intern && w.id > weekId)) return w
+          if (w.archived || (w.id !== weekId && !(intern && w.id > weekId))) return w
           const copy = structuredClone(w)
           R.setAvailability(copy, d, id, s)
           return copy
@@ -253,7 +262,7 @@ export function RosterProvider({ children }) {
           weeks: r.weeks.filter((w) => w.id !== week.id),
           deletedWeeks: [{ id: week.id, label: week.label }, ...(r.deletedWeeks ?? []).filter((w) => w.id !== week.id)],
         }))
-        setWeekId((roster.weeks[i + 1] ?? roster.weeks[i - 1]).id)
+        setWeekId((roster.weeks.slice(i + 1).find((w) => !w.archived) ?? roster.weeks.slice(0, i).findLast((w) => !w.archived)).id)
         say(`Deleted ${week.label}`)
       }),
     restoreWeek: (id) =>

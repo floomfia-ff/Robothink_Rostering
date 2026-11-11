@@ -53,7 +53,7 @@ function AddVenue({ day }) {
   const [base, setBase] = useState('WCP')
 
   // Picking a suggested programme also picks its base.
-  const programBase = new Map(weeks.flatMap((w) => w.days.flatMap((d) => d.blocks.filter((b) => b.kind === 'program').map((b) => [b.name, b.base]))))
+  const programBase = new Map(weeks.flatMap((w) => (w.days ?? []).flatMap((d) => d.blocks.filter((b) => b.kind === 'program').map((b) => [b.name, b.base]))))
   const suggestions = [...programBase.keys()]
   const taken = !!name.trim() && blockNameTaken(day, name)
   const listId = `venue-suggest-${day.key}`

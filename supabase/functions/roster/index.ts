@@ -1,5 +1,6 @@
 // Roster Edge Function: weekly rosters, coach/school/base details. See README.md.
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { isRecent, recentCutoff } from './recent.js'
 import { DOUBLES_RANGE, DOUBLES_TAB, RANGE, TAB, parsePlan, readDoubles } from './plan.js'
 import {
   buildWeek, currentMonday, isMonday, isValidAddress, matchSchools, pendingPairs, pickFields, routeMinutes, stationQuery,
@@ -223,23 +224,31 @@ async function handle(req: Request) {
     if (m === 'GET' && path === '/') {
       // everything at once; the lesson plan only waits for the school list
       const schoolsReply = getSchools()
-      const [coaches, schools, bases, travelRows, rules, all, { plan, planError }] = await Promise.all([
+      const current = currentMonday(new Date())
+      const cutoff = recentCutoff(new Date())
+      // only recent weeks (and the saved week just before them, for carry-over) are loaded in full; older ones are light stubs
+      const [coaches, schools, bases, travelRows, rules, all, recent, before, { plan, planError }] = await Promise.all([
         getCoaches(), schoolsReply, db.from('roster_bases').select('id,code,name,address').order('id').then(ok),
         db.from('travel_times').select('*').then(ok), getRules(),
-        db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at').order('id').then(ok),
+        db.from('roster_weeks').select('id,status,deleted_at').order('id').then(ok),
+        db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at').gte('id', cutoff).order('id').then(ok),
+        db.from('roster_weeks').select('id,status,changed_since_publish,data').lt('id', cutoff).is('deleted_at', null)
+          .order('id', { ascending: false }).limit(1).maybeSingle().then(ok),
         schoolsReply.then(loadPlan),
       ])
-      const rows = all.filter((w) => !w.deleted_at)
+      const rows = recent.filter((w) => !w.deleted_at)
       const deletedWeeks = all.filter((w) => w.deleted_at).map((w) => ({ id: w.id, label: weekShell(w.id).label }))
+      const archived = all.filter((w) => !w.deleted_at && !isRecent(w.id, cutoff))
+        .map((w) => ({ id: w.id, label: weekShell(w.id).label, status: w.status, archived: true }))
       const build = (id: string, saved: unknown, previous: unknown) =>
         buildWeek({ id, coaches, schools, plan, planError, saved, previous })
-      const weeks = rows.map((row, i) => build(row.id, row, rows[i - 1] ?? null))
-      const current = currentMonday(new Date())
+      const built = rows.map((row, i) => build(row.id, row, rows[i - 1] ?? before))
       if (!rows.some((w) => w.id === current)) {
-        const before = rows.filter((w) => w.id < current).pop() ?? null
-        weeks.push(build(current, null, before))
-        weeks.sort((x, y) => x.id.localeCompare(y.id))
+        const last = rows.filter((w) => w.id < current).pop() ?? before
+        built.push(build(current, null, last))
+        built.sort((x, y) => x.id.localeCompare(y.id))
       }
+      const weeks = [...archived, ...built]
       return json({ coaches, schools, bases, weeks, planError, unmatchedSchools: plan?.unmatched ?? [], deletedWeeks, rules, ...travelMap(travelRows, coaches, schools) })
     }
 

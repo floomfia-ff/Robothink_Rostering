@@ -31,6 +31,13 @@ export async function loadRoster() {
 
 export const loadWeek = (id) => request('GET', `/weeks/${id}`)
 
+// An older week that came as a stub: loads it in full and swaps it into the save baseline, so it isn't re-saved unchanged.
+export async function openArchivedWeek(id) {
+  const week = await loadWeek(id)
+  baseline.weeks = [...baseline.weeks.filter((w) => w.id !== id), structuredClone(week)]
+  return week
+}
+
 export async function deleteWeek(id) {
   await request('DELETE', `/weeks/${id}`)
   baseline.weeks = baseline.weeks.filter((w) => w.id !== id)
