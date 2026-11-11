@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import { baseCoaches, blockNameTaken, isWeekend } from '../lib/roster.js'
 import { addDays } from '../../supabase/functions/roster/logic.js'
-import CoachChip, { useCoachDrop } from './CoachChip.jsx'
+import CoachChip, { useCoachDrop, useDragAutoScroll } from './CoachChip.jsx'
 import VenueRow from './VenueRow.jsx'
 
 export const GRID_COLS = { gridTemplateColumns: '120px repeat(7, minmax(180px, 1fr))' }
 
 export default function WeeklyGrid() {
-  const { week } = useRoster()
+  const { week, dragging } = useRoster()
+  useDragAutoScroll(!!dragging)
   const bands = Math.max(...week.days.map((d) => d.blocks.filter((b) => b.kind !== 'other').length))
   const sgToday = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) // Singapore date
   const today = week.days.findIndex((_, i) => addDays(week.id, i) === sgToday) // -1 when this isn't the current week
@@ -170,6 +171,7 @@ function BaseCell({ day, base }) {
             onClick={other ? () => openSwap(day.key, other.id, i) : undefined}
           />
         ))}
+        {target && drop.ghost}
         {other && (
           <button
             type="button"

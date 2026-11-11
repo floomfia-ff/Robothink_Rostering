@@ -18,7 +18,7 @@ export function RosterProvider({ children }) {
   const [loadError, setLoadError] = useState('')
   const [swapTarget, setSwapTarget] = useState(null) // { dayKey, blockId, index? } — no index = add mode
   const [highlight, setHighlight] = useState('') // coach id picked in "Find coach"
-  const [dragging, setDragging] = useState(null) // { dayKey, coachId } while a chip is dragged
+  const [dragging, setDragging] = useState(null) // { dayKey, coachId, swapWith? } while a chip is dragged; swapWith = coach under the cursor
   const [changes, setChanges] = useState(null) // last Auto-Generate: { weekId, added, removed, newLeads, keys }
   // Undo / redo: earlier and undone versions of `roster.weeks`. Edits copy the week, so old versions stay intact.
   const [history, setHistory] = useState({ past: [], future: [] })
@@ -173,6 +173,7 @@ export function RosterProvider({ children }) {
     setNoLesson: (d, blockId, on) => edit((w) => R.setNoLesson(w, d, blockId, on)),
     dragging, setDragging,
     moveCoach: (d, coachId, toBlockId) => edit((w) => R.moveCoach(w, d, coachId, toBlockId)),
+    swapCoaches: (d, draggedId, targetId) => edit((w) => R.swapCoaches(w, d, draggedId, targetId)),
     changes: changes?.weekId === weekId ? changes : null,
     clearChanges: () => setChanges(null),
     highlight, setHighlight,

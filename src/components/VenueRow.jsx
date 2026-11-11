@@ -100,6 +100,7 @@ function VenueCell({ day, block }) {
         {block.coaches.map((c, i) => (
           <CoachChip key={`${c.id}-${i}`} coach={coachById[c.id]} role={c.role} dayKey={day.key} blockId={block.id} onClick={() => openSwap(day.key, block.id, i)} />
         ))}
+        {target && drop.ghost}
         {!block.noLesson && (
           <button
             type="button"
