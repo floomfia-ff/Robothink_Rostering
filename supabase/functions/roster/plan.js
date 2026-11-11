@@ -1,4 +1,4 @@
-// Copied from RoboThink-Feedback supabase/functions/read-lesson-plan/index.ts (2026-11-01). A parser fix there must be copied here, and the other way round.
+// Kept identical to RoboThink-Feedback supabase/functions/_shared/lessonPlan.js where they overlap (2026-11-12). A parser fix in one must be copied to the other.
 //
 // The sheet's shape, which the parser relies on:
 //
