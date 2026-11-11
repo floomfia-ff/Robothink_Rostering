@@ -421,6 +421,19 @@ console.log('weekend + auto-fill: all checks passed')
   assert.ok(!R.placementOf(w.days[0], id('Matin')), 'back to WCP')
   assert.ok(R.baseCoaches(w, 'mon', 'WCP', coaches).some((c) => c.id === id('Matin')))
 
+  // drop on a coach: swap places, Lead stays with the school
+  const s = structuredClone(weeks[0])
+  const [stp, sdover] = [s.days[0].blocks[0], s.days[0].blocks.find((b) => b.name === 'MBR Dover')]
+  const dLead = sdover.coaches.find((c) => c.role === 'lead').id
+  R.swapCoaches(s, 'mon', id('Matin'), dLead)
+  assert.equal(sdover.coaches.find((c) => c.role === 'lead').id, id('Matin'), 'Matin leads Dover')
+  assert.ok(stp.coaches.some((c) => c.id === dLead && c.role === 'coach'), 'Dover lead now a coach at Tanjong Pagar')
+  R.swapCoaches(s, 'mon', id('Reyes'), id('Matin')) // Reyes is at WCP: takes Matin's spot, Matin goes to WCP
+  assert.equal(sdover.coaches.find((c) => c.role === 'lead').id, id('Reyes'))
+  assert.ok(!R.placementOf(s.days[0], id('Matin')), 'Matin back at WCP')
+  R.swapCoaches(s, 'mon', id('Matin'), id('Linette')) // both at base: nothing to swap
+  assert.ok(!R.placementOf(s.days[0], id('Matin')) && !R.placementOf(s.days[0], id('Linette')))
+
   const before = structuredClone(weeks[0])
   const after = structuredClone(before)
   after.days[0].blocks[0].coaches = after.days[0].blocks[0].coaches.filter((c) => c.role !== 'lead') // Ameer removed

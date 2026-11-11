@@ -236,6 +236,17 @@ export function moveCoach(week, dayKey, coachId, toBlockId) {
   addCoach(week, dayKey, toBlockId, coachId)
 }
 
+// Drag-and-drop onto another coach: the two trade places (roles stay with the position, like assignCoach).
+// A target at base (not placed) takes the dragged coach's spot, and the dragged coach goes back to base.
+export function swapCoaches(week, dayKey, draggedId, targetId) {
+  if (draggedId === targetId) return
+  const day = getDay(week, dayKey)
+  const target = findSlot(day, targetId)
+  if (target) return assignCoach(week, dayKey, target.block.id, target.index, draggedId)
+  const from = findSlot(day, draggedId)
+  if (from) from.block.coaches[from.index].id = targetId
+}
+
 // What changed between two versions of a week: keys are `${blockId}:${coachId}`.
 export function diffAssignments(before, after) {
   const placed = (w) => {

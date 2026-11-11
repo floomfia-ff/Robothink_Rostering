@@ -18,8 +18,11 @@ export function RosterProvider({ children }) {
   const [loadError, setLoadError] = useState('')
   const [swapTarget, setSwapTarget] = useState(null) // { dayKey, blockId, index? } — no index = add mode
   const [highlight, setHighlight] = useState('') // coach id picked in "Find coach"
-  const [dragging, setDragging] = useState(null) // { dayKey, coachId } while a chip is dragged
+  const [dragging, setDragging] = useState(null) // { dayKey, coachId, swapWith? } while a chip is dragged; swapWith = coach under the cursor
   const [changes, setChanges] = useState(null) // last Auto-Generate: { weekId, added, removed, newLeads, keys }
+  // Undo / redo: earlier and undone versions of `roster.weeks`. Edits copy the week, so old versions stay intact.
+  const [history, setHistory] = useState({ past: [], future: [] })
+  useEffect(() => setHistory({ past: [], future: [] }), [weekId]) // switching, creating or deleting a week starts fresh
 
   const load = () => {
     setLoadError('')
@@ -79,8 +82,21 @@ export function RosterProvider({ children }) {
   const coachById = Object.fromEntries(roster.coaches.map((c) => [c.id, c]))
   const coaches = roster.coaches.filter((c) => c.active)
 
+  // Remembers the weeks as they are now, before an edit changes them. A new edit drops anything undone.
+  const remember = () => setHistory((h) => ({ past: [...h.past, roster.weeks].slice(-20), future: [] }))
+  // Puts back a remembered version; it then saves like any other edit.
+  const travel = (from, to) => {
+    const h = history
+    if (busy || !h[from].length) return
+    setHistory({ [from]: h[from].slice(0, -1), [to]: [...h[to], roster.weeks] })
+    setRoster((r) => ({ ...r, weeks: h[from].at(-1) }))
+    setChanges(null) // the Auto-Generate highlights no longer match
+    setDirty(true)
+  }
+
   // Every week change goes through here: clone the week and mutate the clone.
   const edit = (fn) => {
+    remember()
     setRoster((r) => ({
       ...r,
       weeks: r.weeks.map((w) => {
@@ -146,6 +162,7 @@ export function RosterProvider({ children }) {
     // An intern's day off (or back on) carries into every later week too, so it only needs setting once.
     setAvailability: (d, id, s) => {
       const intern = coachById[id]?.employment_type === 'intern'
+      remember()
       setRoster((r) => ({
         ...r,
         weeks: r.weeks.map((w) => {
@@ -167,9 +184,14 @@ export function RosterProvider({ children }) {
     setNoLesson: (d, blockId, on) => edit((w) => R.setNoLesson(w, d, blockId, on)),
     dragging, setDragging,
     moveCoach: (d, coachId, toBlockId) => edit((w) => R.moveCoach(w, d, coachId, toBlockId)),
+    swapCoaches: (d, draggedId, targetId) => edit((w) => R.swapCoaches(w, d, draggedId, targetId)),
     changes: changes?.weekId === weekId ? changes : null,
     clearChanges: () => setChanges(null),
     highlight, setHighlight,
+    canUndo: !busy && history.past.length > 0,
+    canRedo: !busy && history.future.length > 0,
+    undo: () => travel('past', 'future'),
+    redo: () => travel('future', 'past'),
     updateVenue: (kind, id, patch) =>
       editRoster((r) => Object.assign(r[kind === 'school' ? 'schools' : 'bases'].find((v) => v.id === id), patch)),
     updateCoach: (id, patch) => editRoster((r) => Object.assign(r.coaches.find((c) => c.id === id), patch)),

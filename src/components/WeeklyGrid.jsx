@@ -1,24 +1,36 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import { baseCoaches, blockNameTaken, isWeekend } from '../lib/roster.js'
-import CoachChip, { useCoachDrop } from './CoachChip.jsx'
+import { addDays } from '../../supabase/functions/roster/logic.js'
+import CoachChip, { useCoachDrop, useDragAutoScroll } from './CoachChip.jsx'
 import VenueRow from './VenueRow.jsx'
 
 export const GRID_COLS = { gridTemplateColumns: '120px repeat(7, minmax(180px, 1fr))' }
 
 export default function WeeklyGrid() {
-  const { week } = useRoster()
+  const { week, dragging } = useRoster()
+  useDragAutoScroll(!!dragging)
   const bands = Math.max(...week.days.map((d) => d.blocks.filter((b) => b.kind !== 'other').length))
+  const sgToday = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) // Singapore date
+  const today = week.days.findIndex((_, i) => addDays(week.id, i) === sgToday) // -1 when this isn't the current week
 
   return (
-    <section aria-label="Weekly roster" className="grid min-w-[1380px] border-r border-b border-slate-200" style={GRID_COLS}>
+    <section aria-label="Weekly roster" className="relative grid min-w-[1380px] border-r border-b border-slate-200" style={GRID_COLS}>
+      {/* Screen only: Excel and Copy Picture are drawn from the data, not from this grid. */}
+      {today >= 0 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 z-10 rounded-sm border-[3px] border-amber-400 print:hidden"
+          style={{ left: `calc(120px + (100% - 120px) * ${today} / 7)`, width: 'calc((100% - 120px) / 7)' }}
+        />
+      )}
       <div className="bg-slate-800 px-2 py-2 text-xs leading-5 text-white">
         <div><b className="text-amber-300">*</b> Lead Coach</div>
         <div><b className="text-sky-300">#</b> Shadow</div>
       </div>
       {week.days.map((d) => (
         <div key={d.key} className="border-l border-slate-600 bg-slate-800 py-2 text-center text-white">
-          <div className="text-sm font-bold tracking-wide">{d.label}</div>
+          <div className="text-sm font-bold tracking-wide">{d.label}{week.days[today] === d && <span className="ml-1.5 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-slate-900">TODAY</span>}</div>
           <div className="text-xs text-slate-300">{d.date}</div>
         </div>
       ))}
@@ -159,6 +171,7 @@ function BaseCell({ day, base }) {
             onClick={other ? () => openSwap(day.key, other.id, i) : undefined}
           />
         ))}
+        {target && drop.ghost}
         {other && (
           <button
             type="button"

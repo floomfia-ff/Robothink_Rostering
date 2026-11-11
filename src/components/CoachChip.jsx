@@ -10,10 +10,32 @@ const ROLE_BADGE = {
 // With dayKey it can be dragged to another venue on the same day.
 // "Find coach" rings the picked coach and fades the rest; Auto-Generate rings what it added in green.
 export default function CoachChip({ coach, role = 'coach', onClick, dayKey, blockId }) {
-  const { highlight, changes, setDragging, coachById } = useRoster()
+  const { highlight, changes, dragging, setDragging, swapCoaches, coachById } = useRoster()
   const badge = ROLE_BADGE[role]
   const changed = changes?.keys.has(`${blockId}:${coach.id}`)
-  const focus = highlight
+  // While another coach from the same day is dragged, this chip is a drop target: dropping swaps the two.
+  const canSwap = dayKey && dragging?.dayKey === dayKey && dragging.coachId !== coach.id
+  const swapping = canSwap && dragging.swapWith === coach.id
+  const lifted = dayKey && dragging?.dayKey === dayKey && dragging.coachId === coach.id
+  const swapTarget = canSwap && {
+    onDragOver: (e) => {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      if (!swapping) setDragging((d) => d && { ...d, swapWith: coach.id })
+    },
+    onDragLeave: (e) => !e.currentTarget.contains(e.relatedTarget) && setDragging((d) => (d?.swapWith === coach.id ? { ...d, swapWith: null } : d)),
+    onDrop: (e) => {
+      e.preventDefault()
+      e.stopPropagation() // the cell under it would otherwise add the coach as well
+      swapCoaches(dayKey, dragging.coachId, coach.id)
+      setDragging(null)
+    },
+  }
+  const focus = swapping
+    ? 'scale-110 ring-2 ring-amber-500 ring-offset-1'
+    : lifted
+      ? 'opacity-40'
+      : highlight
     ? highlight === String(coach.id)
       ? 'ring-2 ring-amber-400 ring-offset-1'
       : 'opacity-25'
@@ -22,8 +44,8 @@ export default function CoachChip({ coach, role = 'coach', onClick, dayKey, bloc
       : role === 'shadow'
         ? 'opacity-80'
         : ''
-  const base = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-    coach.employment_type === 'intern' ? 'bg-slate-700 text-white' : 'border border-slate-400 bg-white text-slate-700'
+  const base = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium transition-transform motion-reduce:transition-none ${
+    swapping ? 'bg-amber-300 text-amber-950' : coach.employment_type === 'intern' ? 'bg-slate-700 text-white' : 'border border-slate-400 bg-white text-slate-700'
   } ${role === 'shadow' ? 'italic' : ''} ${focus}`
   const drag = dayKey && {
     draggable: true,
@@ -33,10 +55,12 @@ export default function CoachChip({ coach, role = 'coach', onClick, dayKey, bloc
       setDragging({ dayKey, coachId: coach.id })
     },
     onDragEnd: () => setDragging(null),
+    ...swapTarget,
   }
   const title = `${badge?.title ?? 'Coach'}${changed ? ' · added by Auto-Generate' : ''}${dayKey ? ' — drag to move' : ''}${onClick ? ', click to swap' : ''}`
   const content = (
     <>
+      {swapping && <span aria-hidden="true">⇄</span>}
       {badge && (
         <span title={badge.title} className={`grid h-4 w-4 place-items-center rounded-full text-[11px] font-bold not-italic ${badge.cls}`}>
           {badge.mark}
@@ -67,10 +91,18 @@ export default function CoachChip({ coach, role = 'coach', onClick, dayKey, bloc
 }
 
 // Makes a venue / WCP / OTHERS cell accept a dragged coach from the same day. toBlockId null = back to base.
+// `ghost`: a see-through chip of the dragged coach, shown where they would land (not when over a coach to swap).
 export function useCoachDrop(dayKey, toBlockId) {
-  const { dragging, setDragging, moveCoach } = useRoster()
+  const { week, dragging, setDragging, moveCoach, coachById } = useRoster()
   const [over, setOver] = useState(false)
   const valid = dragging?.dayKey === dayKey
+  const placed = valid && week.days.find((d) => d.key === dayKey).blocks.find((b) => b.coaches.some((c) => c.id === dragging.coachId))
+  const alreadyHere = toBlockId ? placed?.id === toBlockId : !placed // dropping here would change nothing
+  const ghost = valid && over && !dragging.swapWith && !alreadyHere && (
+    <span aria-hidden="true" className="inline-flex items-center rounded-full border-2 border-dashed border-indigo-400 bg-indigo-100/70 px-2 py-0.5 text-xs font-medium text-indigo-700 opacity-80">
+      + {coachById[dragging.coachId]?.name}
+    </span>
+  )
   useEffect(() => {
     if (!dragging) setOver(false)
   }, [dragging])
@@ -89,5 +121,24 @@ export function useCoachDrop(dayKey, toBlockId) {
         },
       }
     : {}
-  return { valid, over: valid && over, props }
+  return { valid, over: valid && over, props, ghost }
+}
+
+// Scrolls the page while a coach is dragged near the top or bottom edge; faster the closer to the edge.
+export function useDragAutoScroll(active) {
+  useEffect(() => {
+    if (!active) return
+    const EDGE = 100
+    let speed = 0
+    const onOver = (e) => {
+      const y = e.clientY
+      speed = y < EDGE ? -Math.ceil((EDGE - y) / 5) : y > innerHeight - EDGE ? Math.ceil((y - innerHeight + EDGE) / 5) : 0
+    }
+    const timer = setInterval(() => speed && window.scrollBy(0, speed), 16) // ~60 steps a second
+    document.addEventListener('dragover', onOver)
+    return () => {
+      document.removeEventListener('dragover', onOver)
+      clearInterval(timer)
+    }
+  }, [active])
 }
