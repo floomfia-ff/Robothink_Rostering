@@ -172,8 +172,22 @@ export function ActionButton({ action, label, working, done, failed = 'Failed', 
 }
 
 export default function HeaderControls() {
-  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, deleteWeek, restoreWeek, deletedWeeks, rules, saving, planError, unmatchedSchools, highlight, setHighlight } =
+  const { week, weeks, weekId, setWeekId, coaches, coachById, busy, changes, clearChanges, autoGenerate, clearCoaches, createWeek, deleteWeek, restoreWeek, deletedWeeks, rules, saving, planError, unmatchedSchools, highlight, setHighlight, canUndo, canRedo, undo, redo } =
     useRoster()
+
+  // Ctrl+Z / Ctrl+Y (and Ctrl+Shift+Z); typing boxes keep their own undo.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.target.closest?.('input, textarea, select, [contenteditable="true"]')) return
+      const k = e.key.toLowerCase()
+      if (k === 'z' && !e.shiftKey) undo()
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) redo()
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   const [showWarnings, setShowWarnings] = useState(false)
   const everyone = Object.values(coachById)
@@ -302,6 +316,14 @@ export default function HeaderControls() {
             )}
           </span>
           <ActionButton action={onClear} label={<span className="inline-flex items-center gap-1.5"><Eraser /> Clear coaches</span>} working="Clearing…" done="Cleared" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700" />
+          <span className="inline-flex items-center gap-1">
+            <button type="button" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Ctrl+Z)" className={`${PILL} w-10 justify-center`}>
+              <Undo />
+            </button>
+            <button type="button" onClick={redo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl+Y)" className={`${PILL} w-10 justify-center`}>
+              <Undo className="h-4 w-4 -scale-x-100" />
+            </button>
+          </span>
         </div>
 
         {highlight && coachById[highlight] && (
