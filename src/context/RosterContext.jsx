@@ -123,17 +123,19 @@ export function RosterProvider({ children }) {
     }
   }
 
+  // An older week arrives as a stub ({ archived: true }); it is loaded in full before it is shown.
+  const openWeek = (id) => {
+    if (!roster.weeks.find((w) => w.id === id)?.archived) return setWeekId(id)
+    return run('Loading', async () => {
+      const full = await api.openArchivedWeek(id)
+      setRoster((r) => ({ ...r, weeks: r.weeks.map((w) => (w.id === id ? full : w)) }))
+      setWeekId(id)
+    })
+  }
+
   const value = {
     coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [], rules: roster.rules ?? [], schools: roster.schools, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
-    // An older week arrives as a stub ({ archived: true }); it is loaded in full before it is shown.
-    setWeekId: (id) => {
-      if (!roster.weeks.find((w) => w.id === id)?.archived) return setWeekId(id)
-      run('Loading', async () => {
-        const full = await api.openArchivedWeek(id)
-        setRoster((r) => ({ ...r, weeks: r.weeks.map((w) => (w.id === id ? full : w)) }))
-        setWeekId(id)
-      })
-    },
+    setWeekId: openWeek,
     swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
@@ -236,7 +238,7 @@ export function RosterProvider({ children }) {
     // `id` is the week's Monday. A week that's already there is just opened.
     createWeek: (id) => {
       if (roster.weeks.some((w) => w.id === id)) {
-        setWeekId(id)
+        openWeek(id) // an archived stub is loaded first
         return Promise.resolve(true)
       }
       return run('Creating', async () => {
@@ -262,7 +264,15 @@ export function RosterProvider({ children }) {
           weeks: r.weeks.filter((w) => w.id !== week.id),
           deletedWeeks: [{ id: week.id, label: week.label }, ...(r.deletedWeeks ?? []).filter((w) => w.id !== week.id)],
         }))
-        setWeekId((roster.weeks.slice(i + 1).find((w) => !w.archived) ?? roster.weeks.slice(0, i).findLast((w) => !w.archived)).id)
+        // Prefer a loaded neighbour; if only older stubs are left, load the nearest one in full first.
+        const others = roster.weeks.filter((w) => w.id !== week.id)
+        const loaded = roster.weeks.slice(i + 1).find((w) => !w.archived) ?? roster.weeks.slice(0, i).findLast((w) => !w.archived)
+        const nearest = loaded ?? others.at(-1)
+        if (nearest?.archived) {
+          const full = await api.openArchivedWeek(nearest.id)
+          setRoster((r) => ({ ...r, weeks: r.weeks.map((w) => (w.id === nearest.id ? full : w)) }))
+        }
+        if (nearest) setWeekId(nearest.id)
         say(`Deleted ${week.label}`)
       }),
     restoreWeek: (id) =>
