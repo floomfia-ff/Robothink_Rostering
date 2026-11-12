@@ -208,13 +208,13 @@ what changed; an address that is half-typed (not blank, no 6-digit postal code) 
 
 | Request | Body | Notes |
 |---|---|---|
-| `POST /rules` | `{ "kind": "fixed_coach", "coach_id": 11, "school_id": 5 }` or `{ "kind": "max_coaches", "value": 4 }` | `kind` is `fixed_coach`, `max_coaches` or `students_per_coach`; a fixed coach needs a known coach and school and must not repeat an existing pair; `value` is a whole number 1–20. `201 { id }`. |
-| `PATCH /rules/:id` | any of `value`, `active`, `note`, `coach_id`, `school_id` | Checked as the whole rule it would leave; `active` is `true` / `false`. `404` if there is no such rule. |
+| `POST /rules` | `{ "kind": "fixed_coach", "coach_id": 11, "school_id": 5 }`, `{ "kind": "fixed_coach", "coach_id": 11, "base": "WCP", "days": ["mon", "sat"] }` or `{ "kind": "max_coaches", "value": 4 }` | `kind` is `fixed_coach`, `max_coaches` or `students_per_coach`; a fixed coach needs a known coach and either a school or a centre (`base` `WCP` / `DV` with at least one `days` key), and must not repeat an existing coach + school or coach + centre; `value` is a whole number 1–20. `201 { id }`. |
+| `PATCH /rules/:id` | any of `value`, `active`, `note`, `coach_id`, `school_id`, `base`, `days` | Checked as the whole rule it would leave; `active` is `true` / `false`. `404` if there is no such rule. |
 | `DELETE /rules/:id` | — | `204`. |
 | `PATCH /coaches/:id` | `{ "mrt_station": "…", "employment_type": "intern", "can_lead": true, "coach_level": "advanced" }` (any of them) | `employment_type` must be `intern` or `part-timer`; `mrt_station` is text or `null`; `can_lead` is `true` / `false`; `coach_level` is `beginner`, `intermediate` or `advanced`. |
 | `PATCH /schools/:id` | `{ "address": "…" }` | Must end in a 6-digit postal code. Blank or `null` clears it (stored as empty). |
 | `PATCH /bases/:id` | `{ "address": "…" }` | Same check. |
-| `DELETE /weeks/:id` | — | Hides the saved week (sets `deleted_at`); a week with no row still returns `204`. Deleted weeks are left out of `weeks`, of carry-over and of `GET /weeks/:id`, and listed in `GET /`'s `deletedWeeks: [{ id, label }]`. `GET /` also returns `rules: [{ id, kind, coach_id, school_id, value, active, note }]`. Saving a week with `PUT` un-deletes it. |
+| `DELETE /weeks/:id` | — | Hides the saved week (sets `deleted_at`); a week with no row still returns `204`. Deleted weeks are left out of `weeks`, of carry-over and of `GET /weeks/:id`, and listed in `GET /`'s `deletedWeeks: [{ id, label }]`. `GET /` also returns `rules: [{ id, kind, coach_id, school_id, base, days, value, active, note }]` (centre rules: on weekdays the coach stays at WCP, on weekends they join that centre's programme). Saving a week with `PUT` un-deletes it. |
 | `POST /weeks/:id/restore` | — | Clears `deleted_at`. `404` if there is no row. |
 | `PUT /weeks/:id` | The whole Week | `id` in the body must equal the address. Upserts the decisions. Status stays as it was; if the week is published, `changedSincePublish` becomes `true`. |
 | `POST /weeks/:id/publish` | — | The week must already be saved. |

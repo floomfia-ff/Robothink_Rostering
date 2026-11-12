@@ -210,8 +210,8 @@ const fresh = () => {
   for (const b of wk.days[0].blocks.slice(2)) b.noLesson = true // tests use the first two Monday schools only
   return wk
 }
-assert.deepEqual(R.ruleSettings([]), { ratio: 3, max: 4, fixed: [] })
-assert.deepEqual(R.ruleSettings([{ kind: 'max_coaches', value: 2, active: false }, { kind: 'students_per_coach', value: 5, active: true }]), { ratio: 5, max: 4, fixed: [] })
+assert.deepEqual(R.ruleSettings([]), { ratio: 3, max: 4, fixed: [], centre: [] })
+assert.deepEqual(R.ruleSettings([{ kind: 'max_coaches', value: 2, active: false }, { kind: 'students_per_coach', value: 5, active: true }]), { ratio: 5, max: 4, fixed: [], centre: [] })
 
 // the busier school takes the nearer coach
 w = fresh()
@@ -445,4 +445,39 @@ console.log('weekend + auto-fill: all checks passed')
   assert.deepEqual(d.newLeads, [`${tp.id}:${id('Matin')}`])
 }
 console.log('move + diff: all checks passed')
+
+// fixed at a centre (WCP / DV) on picked days
+{
+  const rule = (name, base, days) => ({ kind: 'fixed_coach', coach_id: id(name), base, days, active: true })
+  // weekday: Ameer stays at WCP on Monday, even though he was at Tanjong Pagar; the school still gets a Lead
+  let w = structuredClone(weeks[0])
+  const rules = [rule('Ameer', 'WCP', ['mon'])]
+  assert.ok(R.ruleWarnings(w, coaches, rules).some((m) => /Ameer is fixed at WCP but is at MBR Tanjong Pagar/.test(m)))
+  R.autoFill(w, coaches, {}, rules)
+  assert.ok(!R.placementOf(w.days[0], id('Ameer')), 'Ameer kept at WCP on Monday')
+  assert.ok(w.days[0].blocks[0].coaches.some((c) => c.role === 'lead'), 'Tanjong Pagar still has a Lead')
+  assert.ok(!R.ruleWarnings(w, coaches, rules).some((m) => /Ameer is fixed/.test(m)))
+
+  // weekend: Kaezel goes to a DV programme on Saturday
+  w = structuredClone(weeks[0])
+  for (const k of ['sat', 'sun']) for (const b of w.days.find((d) => d.key === k).blocks) b.coaches = []
+  R.autoFill(w, coaches, {}, [rule('Kaezel', 'DV', ['sat'])])
+  const at = R.placementOf(w.days[5], id('Kaezel'))
+  assert.ok(at?.kind === 'program' && at.base === 'DV', `Kaezel in a DV programme on Saturday, got ${at?.name}`)
+
+  // a centre day is never picked as the intern's day off: Reyes fixed at WCP on Tuesday gets Wednesday off
+  w = structuredClone(weeks[0])
+  w.availability[id('Reyes')] = Array(7).fill('available')
+  for (const d of w.days) for (const b of d.blocks) b.coaches = b.coaches.filter((c) => c.id !== id('Reyes'))
+  R.autoFill(w, coaches, {}, [rule('Reyes', 'WCP', ['tue'])])
+  assert.equal(R.availability(w, id('Reyes'), 'tue'), 'available')
+  assert.equal(R.availability(w, id('Reyes'), 'wed'), 'off')
+
+  // preschool rules still read the same, and an Off centre rule does nothing
+  assert.deepEqual(R.ruleSettings([rule('Ameer', 'WCP', ['mon']), { kind: 'fixed_coach', coach_id: 1, school_id: 2 }]).fixed, [{ coach_id: 1, school_id: 2 }])
+  w = structuredClone(weeks[0])
+  R.autoFill(w, coaches, {}, [{ ...rule('Ameer', 'WCP', ['mon']), active: false }])
+  assert.ok(R.placementOf(w.days[0], id('Ameer')), 'Off rule ignored')
+}
+console.log('centre rules: all checks passed')
 

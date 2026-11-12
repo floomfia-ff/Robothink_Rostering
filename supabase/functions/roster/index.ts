@@ -113,7 +113,7 @@ const getCoaches = async () =>
 const getSchools = async () =>
   ok(await db.from('schools').select('id,name,brand,class_day,active,address').order('name'))
 const getRules = async () =>
-  ok(await db.from('roster_rules').select('id,kind,coach_id,school_id,value,active,note').order('id'))
+  ok(await db.from('roster_rules').select('id,kind,coach_id,school_id,base,days,value,active,note').order('id'))
 const getSaved = async (id: string) =>
   ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').eq('id', id).is('deleted_at', null).maybeSingle())
 
@@ -333,7 +333,7 @@ async function handle(req: Request) {
         return noContent()
       }
       if (m === 'POST' && !id) {
-        const rule = pickFields(body ?? {}, ['kind', 'coach_id', 'school_id', 'value', 'note'])
+        const rule = pickFields(body ?? {}, ['kind', 'coach_id', 'school_id', 'base', 'days', 'value', 'note'])
         const problem = validateRule(rule, known)
         if (problem) return fail(problem, 400)
         return json({ id: ok(await db.from('roster_rules').insert(rule).select('id').single()).id }, 201)
@@ -341,7 +341,7 @@ async function handle(req: Request) {
       if (m === 'PATCH' && id) {
         const old = rules.find((x) => x.id === id)
         if (!old) return fail('No such rule.', 404)
-        const patch = pickFields(body, ['value', 'active', 'note', 'coach_id', 'school_id'])
+        const patch = pickFields(body, ['value', 'active', 'note', 'coach_id', 'school_id', 'base', 'days'])
         if (!Object.keys(patch).length) return fail('Nothing to update.', 400)
         if ('active' in patch && typeof patch.active !== 'boolean') return fail('Active must be true or false.', 400)
         const problem = validateRule({ ...old, ...patch }, known)

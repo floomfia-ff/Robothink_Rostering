@@ -122,9 +122,14 @@ export function ruleSettings(rules = []) {
   return {
     ratio: num('students_per_coach', 3),
     max: num('max_coaches', 4),
-    fixed: on.filter((r) => r.kind === 'fixed_coach').map(({ coach_id, school_id }) => ({ coach_id, school_id })),
+    fixed: on.filter((r) => r.kind === 'fixed_coach' && r.base == null).map(({ coach_id, school_id }) => ({ coach_id, school_id })),
+    // fixed at a centre on picked days: weekdays they stay back at WCP, weekends they go to that centre's programme
+    centre: on.filter((r) => r.kind === 'fixed_coach' && r.base != null).map(({ coach_id, base, days }) => ({ coach_id, base, days: days ?? [] })),
   }
 }
+
+// The centre (WCP / DV) a coach is fixed at on this day, if any.
+export const centreFor = (centre, coachId, dayKey) => centre.find((r) => r.coach_id === coachId && r.days.includes(dayKey))?.base
 
 // Weekday lessons that break a rule: a fixed coach not at their school, or more coaches than the max.
 export function ruleWarnings(week, coaches, rules = []) {
@@ -142,7 +147,19 @@ export function ruleWarnings(week, coaches, rules = []) {
       return [`${d.label} ${d.date}: ${coach.name} is fixed at ${b.name} but ${at}.`]
     })
     return [...misplaced, ...over]
-  })
+  }).concat(centreWarnings(week, coaches, rules))
+}
+
+// A coach fixed at a centre who is working that day but sent to a preschool (weekday) or not in that centre's programme (weekend).
+function centreWarnings(week, coaches, rules) {
+  const { centre } = ruleSettings(rules)
+  return week.days.flatMap((d) => centre.flatMap(({ coach_id, base, days }) => {
+    const coach = coaches.find((c) => c.id === coach_id)
+    if (!coach || !days.includes(d.key) || availability(week, coach_id, d.key) !== 'available') return []
+    const at = placementOf(d, coach_id)
+    if (isWeekend(d.key) ? at?.kind === 'program' && at.base === base : !at || at.kind !== 'lesson') return []
+    return [`${d.label} ${d.date}: ${coach.name} is fixed at ${base} but is ${at ? `at ${at.name}` : 'not placed'}.`]
+  }))
 }
 
 export function quotaWarnings(week, coaches) {
@@ -294,7 +311,7 @@ export function pickLead(pool, leadCount) {
 // Leads are shared out evenly. `travel` is { coachId: { schoolId: minutes } }, unknown times last.
 // shortcut: greedy, one school at a time; a full matching over all schools could lower total travel a little more.
 export function autoFill(week, coaches, travel = {}, rules = []) {
-  const { ratio, max, fixed } = ruleSettings(rules)
+  const { ratio, max, fixed, centre } = ruleSettings(rules)
   const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
   const leadCount = {}
   for (const d of week.days) for (const b of d.blocks) for (const c of b.coaches) {
@@ -308,7 +325,7 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
   for (const c of interns) {
     const free = (k) => availability(week, c.id, k) === 'available'
     // a day at their fixed school counts as placed, so it never becomes their day off
-    const fixedOn = (k) => fixed.some((r) => r.coach_id === c.id && getDay(week, k)?.blocks.some((b) => b.schoolId === r.school_id && requiredCoaches(b) > 0))
+    const fixedOn = (k) => fixed.some((r) => r.coach_id === c.id && getDay(week, k)?.blocks.some((b) => b.schoolId === r.school_id && requiredCoaches(b) > 0)) || !!centreFor(centre, c.id, k)
     const placed = (k) => (placementOf(getDay(week, k), c.id) || fixedOn(k) ? 1 : 0)
     const pickOff = (a, b) => [a, b].sort((x, y) => placed(x) - placed(y) || offCount(x) - offCount(y))[0]
     if (WEEKDAYS.every(free)) setAvailability(week, pickOff(...INTERN_WEEKDAY_OFF), c.id, 'off')
@@ -326,7 +343,8 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     for (const c of coaches) {
       const both = ['sat', 'sun'].every((k) => availability(week, c.id, k) === 'available')
       if (!both || placementOf(sat, c.id) || placementOf(sun, c.id)) continue
-      const day = count.sat <= count.sun ? 'sat' : 'sun'
+      const fixedDay = ['sat', 'sun'].filter((k) => centreFor(centre, c.id, k)) // fixed at a centre on one of them: that one
+      const day = fixedDay.length === 1 ? fixedDay[0] : count.sat <= count.sun ? 'sat' : 'sun'
       weekendDay[c.id] = day
       count[day]++
     }
@@ -336,7 +354,8 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     const seen = new Set()
     for (const b of day.blocks) {
       b.coaches = b.coaches.filter((c) => {
-        const ok = availability(week, c.id, day.key) === 'available' && !seen.has(c.id)
+        const atWcp = !isWeekend(day.key) && b.kind === 'lesson' && centreFor(centre, c.id, day.key) // fixed at a centre: off the preschool
+        const ok = availability(week, c.id, day.key) === 'available' && !seen.has(c.id) && !atWcp
         seen.add(c.id)
         return ok
       })
@@ -350,6 +369,20 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     const otherWeekendDay = day.key === 'sat' ? 'sun' : 'sat'
     const isDouble = (id) => isWeekend(day.key) && byId[id].employment_type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
     free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
+    // 0. fixed at a centre today: weekdays they stay at WCP (never sent out); weekends they join that centre's
+    // emptiest running programme (an empty one if none is running), when the centre has one that day
+    for (const id of free.filter((x) => centreFor(centre, x, day.key))) {
+      if (!isWeekend(day.key)) {
+        free.splice(free.indexOf(id), 1)
+        continue
+      }
+      const programs = day.blocks.filter((b) => b.kind === 'program' && b.base === centreFor(centre, id, day.key))
+      const running = programs.filter((b) => b.coaches.length || requiredCoaches(b))
+      const targets = running.length ? running : programs
+      if (!targets.length) continue
+      targets.reduce((a, b) => (b.coaches.length < a.coaches.length ? b : a)).coaches.push({ id, role: 'coach' })
+      free.splice(free.indexOf(id), 1)
+    }
 
     const lessons = day.blocks.filter((x) => requiredCoaches(x) > 0)
     const level = (id) => rank(byId[id])

@@ -156,6 +156,7 @@ export function validateCoachFields(f) {
 // ---- roster rules ----
 
 export const RULE_KINDS = ['fixed_coach', 'max_coaches', 'students_per_coach']
+export const CENTRES = ['WCP', 'DV']
 
 // `rules` are the stored rows; the row being edited (same id) is not a duplicate of itself.
 export function validateRule(rule, { coachIds, schoolIds, rules }) {
@@ -164,9 +165,16 @@ export function validateRule(rule, { coachIds, schoolIds, rules }) {
     return Number.isInteger(rule.value) && rule.value >= 1 && rule.value <= 20 ? null : 'Value must be a whole number from 1 to 20.'
   }
   if (!coachIds.has(rule.coach_id)) return 'Unknown coach.'
-  if (!schoolIds.has(rule.school_id)) return 'Unknown school.'
-  const twin = rules.some((r) => r.id !== rule.id && r.kind === 'fixed_coach' && r.coach_id === rule.coach_id && r.school_id === rule.school_id)
-  return twin ? 'That coach is already fixed at that school.' : null
+  // A centre rule (WCP / DV) applies on the days picked; a preschool rule on that school's one lesson day.
+  if (rule.base != null) {
+    if (!CENTRES.includes(rule.base)) return 'Centre must be WCP or DV.'
+    if (rule.school_id != null) return 'Pick a preschool or a centre, not both.'
+    const days = rule.days
+    if (!Array.isArray(days) || !days.length || days.some((d) => !DAY_KEYS.includes(d)) || new Set(days).size !== days.length) return 'Pick at least one day for the centre.'
+  } else if (!schoolIds.has(rule.school_id)) return 'Unknown school.'
+  const same = (r) => (rule.base != null ? r.base === rule.base : r.school_id === rule.school_id)
+  const twin = rules.some((r) => r.id !== rule.id && r.kind === 'fixed_coach' && r.coach_id === rule.coach_id && same(r))
+  return twin ? `That coach is already fixed at that ${rule.base != null ? 'centre' : 'school'}.` : null
 }
 
 // ---- travel times (OneMap) ----

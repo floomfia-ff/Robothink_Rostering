@@ -171,4 +171,15 @@ assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 99, school_id: 5 },
 assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, school_id: 99 }, ids), /school/i)
 assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, school_id: 5 }, ids), /already/i)
 assert.equal(L.validateRule({ id: 1, kind: 'fixed_coach', coach_id: 11, school_id: 5 }, ids), null) // editing itself
+// centre rules: WCP / DV on picked days
+assert.equal(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'WCP', days: ['mon', 'sat'] }, ids), null)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'XYZ', days: ['mon'] }, ids), /WCP or DV/)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'DV', days: [] }, ids), /day/)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'DV', days: ['funday'] }, ids), /day/)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'DV', days: ['mon', 'mon'] }, ids), /day/)
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'DV', days: ['mon'], school_id: 5 }, ids), /not both/)
+const withCentre = { ...ids, rules: [...ids.rules, { id: 7, kind: 'fixed_coach', coach_id: 11, school_id: null, base: 'WCP', days: ['mon'] }] }
+assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'WCP', days: ['tue'] }, withCentre), /already.*centre/)
+assert.equal(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'DV', days: ['tue'] }, withCentre), null)
+assert.equal(L.validateRule({ id: 7, kind: 'fixed_coach', coach_id: 11, school_id: null, base: 'WCP', days: ['mon', 'fri'] }, withCentre), null) // changing its days
 console.log('logic ok')

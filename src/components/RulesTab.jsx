@@ -10,6 +10,9 @@ const NUMBERS = [
   ['students_per_coach', 'Students per coach', 'One coach for every this many students, rounded up.', 3],
   ['max_coaches', 'Max coaches per school', 'Auto-Generate never puts more than this at one preschool.', 4],
 ]
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+const CENTRES = ['WCP', 'DV']
+const dayList = (days) => DAYS.filter((d) => days?.includes(d)).map((d) => d[0].toUpperCase() + d.slice(1)).join(', ')
 const FIELD = 'rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none'
 
 export default function RulesTab() {
@@ -17,6 +20,7 @@ export default function RulesTab() {
   const weekdaySchools = schools.filter((s) => s.active && WEEKDAYS.includes(s.class_day?.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name))
   const schoolName = Object.fromEntries(schools.map((s) => [s.id, s.name]))
   const fixed = rules.filter((r) => r.kind === 'fixed_coach')
+  const place = (r) => (r.base ? `${r.base} · ${dayList(r.days)}` : schoolName[r.school_id] ?? 'Unknown school')
 
   return (
     <section aria-labelledby="rules-title" className="mx-auto max-w-6xl space-y-4">
@@ -27,7 +31,7 @@ export default function RulesTab() {
 
       <p className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" />
-        <span>Auto-Generate follows these on weekdays. Coaches not needed stay at WCP. Placing coaches by hand can break a rule; the roster then shows a warning.</span>
+        <span>Auto-Generate follows these (centre rules on weekends too). Coaches not needed stay at WCP. Placing coaches by hand can break a rule; the roster then shows a warning.</span>
       </p>
 
       <Card title="Numbers" Icon={Rules}>
@@ -40,17 +44,17 @@ export default function RulesTab() {
       </Card>
 
       <Card title="Fixed coaches" Icon={School} count={fixed.length}>
-        <p className="mb-3 text-sm text-slate-500">A fixed coach always goes to that preschool on its lesson day, when they're working.</p>
+        <p className="mb-3 text-sm text-slate-500">A fixed coach always goes to that preschool on its lesson day, when they're working. Fixed at a centre: on weekdays they stay at WCP (never sent to a preschool); on weekends they join that centre's programme.</p>
         <ul className="space-y-2">
           {fixed.map((r) => (
             <li key={r.id} className={`flex flex-wrap items-center gap-3 rounded-xl border bg-white px-4 py-2.5 ${r.active ? 'border-slate-200' : 'border-dashed border-slate-300 opacity-70'}`}>
               <span className="flex-1 text-sm font-semibold text-slate-800">
-                {coachById[r.coach_id]?.name ?? 'Unknown coach'} <span className="text-slate-400">→</span> {schoolName[r.school_id] ?? 'Unknown school'}
+                {coachById[r.coach_id]?.name ?? 'Unknown coach'} <span className="text-slate-400">→</span> {place(r)}
               </span>
               <button
                 type="button"
                 aria-pressed={r.active}
-                aria-label={`Rule on: ${coachById[r.coach_id]?.name} at ${schoolName[r.school_id]}`}
+                aria-label={`Rule on: ${coachById[r.coach_id]?.name} at ${place(r)}`}
                 onClick={() => updateRule(r.id, { active: !r.active })}
                 disabled={!!busy}
                 className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition-colors ${r.active ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100' : 'bg-white text-slate-500 ring-slate-200 hover:bg-slate-50'}`}
@@ -123,15 +127,19 @@ function NumberRule({ rule, kind, label, help, fallback, addRule, updateRule, bu
 
 function AddFixed({ coaches, schools, addRule, busy }) {
   const [coachId, setCoachId] = useState('')
-  const [schoolId, setSchoolId] = useState('')
+  const [where, setWhere] = useState('') // a school id, or 'WCP' / 'DV'
+  const [days, setDays] = useState([])
+  const centre = CENTRES.includes(where)
   const add = async () => {
-    const ok = await addRule({ kind: 'fixed_coach', coach_id: Number(coachId), school_id: Number(schoolId) })
+    const ok = await addRule(centre ? { kind: 'fixed_coach', coach_id: Number(coachId), base: where, days } : { kind: 'fixed_coach', coach_id: Number(coachId), school_id: Number(where) })
     if (ok) {
       setCoachId('')
-      setSchoolId('')
+      setWhere('')
+      setDays([])
     }
     return ok
   }
+  const toggle = (d) => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d]))
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
       <select value={coachId} onChange={(e) => setCoachId(e.target.value)} aria-label="Coach" className={FIELD}>
@@ -143,21 +151,45 @@ function AddFixed({ coaches, schools, addRule, busy }) {
         ))}
       </select>
       <span className="text-slate-400">→</span>
-      <select value={schoolId} onChange={(e) => setSchoolId(e.target.value)} aria-label="Preschool" className={FIELD}>
-        <option value="">Pick a preschool…</option>
-        {schools.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name} ({s.class_day})
-          </option>
-        ))}
+      <select value={where} onChange={(e) => setWhere(e.target.value)} aria-label="Preschool or centre" className={FIELD}>
+        <option value="">Pick a preschool or centre…</option>
+        <optgroup label="Centres (pick the days)">
+          {CENTRES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Preschools">
+          {schools.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} ({s.class_day})
+            </option>
+          ))}
+        </optgroup>
       </select>
+      {centre && (
+        <span role="group" aria-label="Days" className="inline-flex flex-wrap gap-1">
+          {DAYS.map((d) => (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={days.includes(d)}
+              onClick={() => toggle(d)}
+              className={`h-9 rounded-lg px-2.5 text-xs font-semibold uppercase ring-1 transition-colors ${days.includes(d) ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white text-slate-600 ring-slate-200 hover:bg-indigo-50'}`}
+            >
+              {d}
+            </button>
+          ))}
+        </span>
+      )}
       <ActionButton
         action={add}
         label="Add fixed coach"
         working="Adding…"
         done="Added"
         failed="Couldn't add"
-        disabled={!coachId || !schoolId || !!busy}
+        disabled={!coachId || !where || (centre && !days.length) || !!busy}
         className="bg-indigo-600 text-white hover:bg-indigo-700"
       />
     </div>
