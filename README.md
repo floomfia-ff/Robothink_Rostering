@@ -28,23 +28,25 @@ weekends. This site is where the admin builds that weekly roster:
 
 | Tab | What you do there |
 |---|---|
-| 📅 **Weekly Roster** | Pick a week, Auto-Generate a draft, drag coaches between schools, set days off, check warnings, export. |
+| 📅 **Weekly Roster** | Pick a week, Auto-Generate a draft, drag coaches between schools (or onto another coach to swap), undo / redo, set days off, check warnings, export. |
 | 👥 **Coach Profiles** | Each coach's nearest MRT, Intern / Part-timer, and the **Lead Coach** toggle. *Work out travel times* fetches trip times from OneMap. |
 | 📍 **Venues** | Address of each preschool and the WCP / DV bases (the postcode is used for travel times). |
-| 🎚️ **Rules** | What Auto-Generate always follows: students per coach, max coaches per school, and coaches fixed to a school. |
+| 🎚️ **Rules** | What Auto-Generate always follows: students per coach, max coaches per school, and coaches fixed to a preschool, or to a centre (WCP / DV) on chosen days. |
 
 **Admin** links to the RoboThink feedback site, where coaches and schools are added or renamed.
 
 ## How to use it each week
 
 1. **Open the week.** Use the ← → arrows or the week picker. **New Week** lets you pick any date and adds that
-   week (Monday to Sunday).
+   week (Monday to Sunday). Weeks older than 8 weeks load when you open them, so the site stays fast as weeks
+   pile up.
 2. **Check days off.** In the availability table under the roster, click a coach's day to cycle
    available → OFF → X. An intern's change carries into every later week.
 3. **Click ✨ Auto-Generate Draft.** It fills the weekday schools and weekend programmes. New placements get a
    green ring so you can see what changed.
-4. **Fix anything by hand.** Drag a coach chip to another school, click a chip to swap, or use **+** to add someone
-   (the list is sorted by travel time). **Find coaches** highlights one coach's whole week.
+4. **Fix anything by hand.** Drag a coach chip to another school, drop it on another coach to swap the two, click a
+   chip to swap, or use **+** to add someone (the list is sorted by travel time). **Find coaches** highlights one
+   coach's whole week. **Undo / Redo** (or Ctrl+Z / Ctrl+Y) steps back through your edits to the open week.
 5. **Check the warnings pill.** It lists things like an intern without the right days off, a Lead who isn't a
    Lead Coach, a fixed coach who couldn't be placed, or a school over the max. Warnings never block you.
 6. **Share it.** **Export → Copy Picture** puts an image on the clipboard (paste it straight into WhatsApp);
@@ -57,7 +59,8 @@ Made a mistake? **Clear coaches** empties the week (days off stay). **Delete Wee
 
 On each weekday it fills every preschool in this order:
 
-1. **Fixed coaches** go to their school (e.g. Kathleen → MBR East Coast).
+1. **Fixed coaches** go to their school (e.g. Kathleen → MBR East Coast). A coach fixed to a **centre** stays at WCP on
+   their weekdays (never sent to a preschool) and joins that centre's programme at weekends, on the days you picked.
 2. Each school gets a **target**: kids ÷ *students per coach* (3), rounded up, never more than the **max** (4).
    8 kids → 3 coaches, 15 kids → 4.
 3. Every school gets a **Lead Coach** first, then schools fill up to their target. The school with the most kids
@@ -78,7 +81,7 @@ npm run dev                  # opens on http://localhost:5173
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start the site locally |
-| `npm test` | Run the roster, lesson plan and backend checks |
+| `npm test` | Run the roster, lesson plan, recent-weeks and backend checks |
 | `npm run build` | Build the site for deploying |
 
 > **Heads up:** your local site talks to the **live** database, so anything you change (rules, weeks, coach
@@ -98,10 +101,19 @@ Browser (this site)  ──▶  Supabase Edge Function "roster"  ──▶  Supa
 | `src/components/` | The screens: roster grid, header, coach profiles, venues, rules, top bar |
 | `src/lib/roster.js` | The roster rules and Auto-Generate (plain functions, tested with `npm test`) |
 | `src/lib/api.js` | Every call the page makes to the backend |
-| `supabase/functions/roster/` | The Edge Function. Deploy steps and secrets are in its [README](supabase/functions/roster/README.md) |
+| `supabase/functions/roster/` | The Edge Function. Deploy steps and secrets are in its [README](supabase/functions/roster/README.md). Deploy **all** its files (`index.ts`, `logic.js`, `plan.js`, `recent.js`) together |
+| `supabase/functions/roster/plan.js` | Reads the lesson plan sheet. Kept identical to the feedback site's `supabase/functions/_shared/lessonPlan.js`: copy a parser fix to both |
+| `supabase/functions/roster/recent.js` | Which weeks the first load builds in full (the last 8 and all future weeks) |
+| `.github/workflows/keep-awake.yml` | Pings the roster function every 5 minutes so the first load isn't slowed by a cold start |
 | `sql/` | Database changes, numbered in order. Already applied to the shared Supabase project |
 | `docs/API_CONTRACT.md` | Data shapes, rules and endpoints the page expects ([open](docs/API_CONTRACT.md)) |
 | `docs/superpowers/` | Design specs and implementation plans for each feature |
+
+## Sharing the database with the feedback site
+
+The roster and the [RoboThink feedback site](https://github.com/Shyiroh/RoboThink-Feedback) use the same Supabase
+project. The roster function reads with its own service key, so the feedback site's sign-in and admin rules don't
+affect it. Coaches and schools are still added or renamed on the feedback site.
 
 ## Branches
 
