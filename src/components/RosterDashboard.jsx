@@ -20,8 +20,8 @@ export default function RosterDashboard() {
           {tab === 'roster' ? (
             <>
               <HeaderControls />
-              {/* one scroll area so the grid and availability columns stay aligned */}
-              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white print:overflow-visible print:rounded-none print:border-0">
+              {/* one scroll area so the grid and availability columns stay aligned; its own height so headers can stay in view */}
+              <div data-roster-scroll className="max-h-[85vh] overflow-auto rounded-xl border border-slate-200 bg-white print:max-h-none print:overflow-visible print:rounded-none print:border-0">
                 <WeeklyGrid />
                 <AvailabilityPanel />
               </div>
