@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import { coachDay, dayTotals } from '../lib/roster.js'
 import { addDays } from '../../supabase/functions/roster/logic.js'
@@ -35,14 +35,35 @@ export default function AvailabilityPanel() {
   const today = week.days.findIndex((_, i) => addDays(week.id, i) === sgToday)
   const partTimers = coaches.filter((c) => c.employment_type !== 'intern')
 
+  // Today's outline runs from the day headers to the last coach row on screen, so it doesn't spill over the
+  // part-timer button when that list is folded. Re-measured whenever the table changes size.
+  const panel = useRef(null)
+  const [outline, setOutline] = useState(null)
+  useLayoutEffect(() => {
+    const el = panel.current
+    if (!el || today < 0) return setOutline(null)
+    const measure = () => {
+      const box = el.getBoundingClientRect()
+      const head = el.querySelector('[data-day-head]')
+      const rows = el.querySelectorAll('[data-coach-row]')
+      const last = rows[rows.length - 1] ?? head
+      if (!head) return
+      setOutline({ top: head.getBoundingClientRect().top - box.top, height: last.getBoundingClientRect().bottom - head.getBoundingClientRect().top })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [today, week])
+
   return (
-    <section aria-label="Coach availability" className="relative mt-4 grid min-w-[1380px] border-r border-b border-slate-200 text-xs" style={GRID_COLS}>
+    <section ref={panel} aria-label="Coach availability" className="relative mt-4 grid min-w-[1380px] border-r border-b border-slate-200 text-xs" style={GRID_COLS}>
       {/* Same yellow outline as the roster above. */}
-      {today >= 0 && (
+      {today >= 0 && outline && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 top-[30px] z-10 rounded-sm border-[3px] border-amber-400 print:hidden"
-          style={{ left: `calc(120px + (100% - 120px) * ${today} / 7)`, width: 'calc((100% - 120px) / 7)' }}
+          className="pointer-events-none absolute z-10 rounded-sm border-[3px] border-amber-400 print:hidden"
+          style={{ top: outline.top, height: outline.height, left: `calc(120px + (100% - 120px) * ${today} / 7)`, width: 'calc((100% - 120px) / 7)' }}
         />
       )}
 
@@ -59,7 +80,7 @@ export default function AvailabilityPanel() {
       </div>
 
       {/* Day headers stay in view while scrolling down the table. */}
-      <div className={`${STICKY_NAME} top-0 z-30 border-t border-slate-600 bg-slate-800 px-2 py-1 font-bold text-white`}>Coach</div>
+      <div data-day-head className={`${STICKY_NAME} top-0 z-30 border-t border-slate-600 bg-slate-800 px-2 py-1 font-bold text-white`}>Coach</div>
       {week.days.map((d, i) => (
         <div key={d.key} className="sticky top-0 z-20 border-t border-l border-slate-600 bg-slate-800 px-2 py-1 text-center font-bold text-white">
           {d.label} <span className="font-normal text-slate-300">{d.date}</span>
@@ -97,7 +118,7 @@ function Group({ title, list, foldIdle = false }) {
       </div>
       {shown.map((coach) => (
         <div key={coach.id} className="contents">
-          <div className={`${STICKY_NAME} truncate border-t border-slate-200 bg-slate-50 px-2 py-0.5 text-[13px] leading-5 text-slate-800`}>{coach.name}</div>
+          <div data-coach-row className={`${STICKY_NAME} truncate border-t border-slate-200 bg-slate-50 px-2 py-0.5 text-[13px] leading-5 text-slate-800`}>{coach.name}</div>
           {week.days.map((d) => {
             const s = coachDay(week, d.key, coach)
             const cell = CELL[s.status]
