@@ -257,6 +257,25 @@ export function RosterProvider({ children }) {
         say('Rule removed')
       }, true)
     },
+    // Several rules at once (a coach's whole card). One at a time, so a failure puts back only what wasn't removed.
+    removeRules: (ids) => {
+      if (busy || !ids.length) return Promise.resolve(false)
+      const before = roster.rules
+      setRoster((r) => ({ ...r, rules: r.rules.filter((x) => !ids.includes(x.id)) }))
+      return run('Removing rules', async () => {
+        const done = []
+        try {
+          for (const id of ids) {
+            await api.deleteRule(id)
+            done.push(id)
+          }
+        } catch (e) {
+          setRoster((r) => ({ ...r, rules: before.filter((x) => !done.includes(x.id)) }))
+          throw e
+        }
+        say(ids.length === 1 ? 'Rule removed' : `${ids.length} rules removed`)
+      }, true)
+    },
     // `id` is the week's Monday. A week that's already there is just opened.
     createWeek: (id) => {
       if (roster.weeks.some((w) => w.id === id)) {

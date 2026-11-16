@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
 import SearchPick from './SearchPick.jsx'
+import ConfirmDialog from './ConfirmDialog.jsx'
 import { ActionButton } from './HeaderControls.jsx'
-import { Close, Info, Plus, Rules, School } from './coachIcons.jsx'
+import { Close, Info, Plus, Rules, School, Trash } from './coachIcons.jsx'
 import { WEEKDAYS } from '../lib/roster.js'
 
 // Rules Auto-Generate always follows. Each change goes straight to the server (see RosterContext addRule etc.).
@@ -25,7 +26,7 @@ const EMPLOYMENT = {
 const avatarFor = (name) => AVATARS[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % AVATARS.length]
 
 export default function RulesTab() {
-  const { rules, coaches, schools, coachById, addRule, updateRule, removeRule, busy } = useRoster()
+  const { rules, coaches, schools, coachById, addRule, updateRule, removeRule, removeRules, busy } = useRoster()
   const weekdaySchools = schools.filter((s) => s.active && WEEKDAYS.includes(s.class_day?.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name))
   const schoolName = Object.fromEntries(schools.map((s) => [s.id, s.name]))
   const fixed = rules.filter((r) => r.kind === 'fixed_coach')
@@ -66,7 +67,7 @@ export default function RulesTab() {
         {byCoach.length ? (
           <ul className="grid gap-3 lg:grid-cols-2">
             {byCoach.map((c) => (
-              <CoachCard key={c.coachId} coach={c} schoolById={schoolById} coaches={coaches} schools={weekdaySchools} addRule={addRule} updateRule={updateRule} removeRule={removeRule} busy={busy} />
+              <CoachCard key={c.coachId} coach={c} schoolById={schoolById} coaches={coaches} schools={weekdaySchools} addRule={addRule} updateRule={updateRule} removeRule={removeRule} removeRules={removeRules} busy={busy} />
             ))}
           </ul>
         ) : (
@@ -78,8 +79,9 @@ export default function RulesTab() {
 }
 
 // One coach and every place they're fixed to. Each place is a chip: click it to switch the rule on or off.
-function CoachCard({ coach, schoolById, coaches, schools, addRule, updateRule, removeRule, busy }) {
+function CoachCard({ coach, schoolById, coaches, schools, addRule, updateRule, removeRule, removeRules, busy }) {
   const [adding, setAdding] = useState(false)
+  const [confirming, setConfirming] = useState(false)
   const on = coach.rules.filter((r) => r.active).length
   return (
     <li className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -107,7 +109,29 @@ function CoachCard({ coach, schoolById, coaches, schools, addRule, updateRule, r
         >
           <Plus className="h-3.5 w-3.5" /> Add place
         </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          disabled={!!busy}
+          aria-label={`Remove ${coach.name} from fixed coaches`}
+          title="Remove this coach from fixed coaches"
+          className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 ring-1 ring-slate-200 transition-colors hover:bg-red-50 hover:text-red-600 hover:ring-red-200 disabled:opacity-50"
+        >
+          <Trash className="h-4 w-4" />
+        </button>
       </div>
+      {confirming && (
+        <ConfirmDialog title={`Remove ${coach.name}?`} confirmLabel="Remove coach" onConfirm={() => removeRules(coach.rules.map((r) => r.id))} onClose={() => setConfirming(false)}>
+          {coach.name} will no longer be fixed anywhere. This removes {coach.rules.length === 1 ? 'their 1 place' : `all ${coach.rules.length} of their places`}:
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {coach.rules.map((r) => (
+              <li key={r.id} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                {r.base ? `${r.base} · ${dayList(r.days)}` : schoolById[r.school_id]?.name ?? 'Unknown school'}
+              </li>
+            ))}
+          </ul>
+        </ConfirmDialog>
+      )}
       <ul className="flex flex-wrap gap-2">
         {coach.rules.map((r) => (
           <PlaceChip key={r.id} rule={r} school={schoolById[r.school_id]} coachName={coach.name} updateRule={updateRule} removeRule={removeRule} busy={busy} />
@@ -121,6 +145,7 @@ function CoachCard({ coach, schoolById, coaches, schools, addRule, updateRule, r
 }
 
 function PlaceChip({ rule, school, coachName, updateRule, removeRule, busy }) {
+  const [confirming, setConfirming] = useState(false)
   const centre = !!rule.base
   const name = centre ? rule.base : school?.name ?? 'Unknown school'
   const when = centre ? dayList(rule.days) : school?.class_day ? school.class_day[0].toUpperCase() + school.class_day.slice(1).toLowerCase() : ''
@@ -145,12 +170,18 @@ function PlaceChip({ rule, school, coachName, updateRule, removeRule, busy }) {
       <button
         type="button"
         aria-label={`Remove ${coachName} at ${name}`}
-        onClick={() => window.confirm(`Remove ${coachName} at ${name}?`) && removeRule(rule.id)}
+        onClick={() => setConfirming(true)}
         disabled={!!busy}
         className="mr-1 grid h-6 w-6 place-items-center rounded-full opacity-60 transition hover:bg-red-100 hover:text-red-600 hover:opacity-100"
       >
         <Close className="h-3.5 w-3.5" />
       </button>
+      {confirming && (
+        <ConfirmDialog title={`Remove ${name} from ${coachName}?`} onConfirm={() => removeRule(rule.id)} onClose={() => setConfirming(false)}>
+          Auto-Generate will stop sending {coachName} to <b className="text-slate-800">{name}</b>
+          {when ? ` (${when})` : ''}. Their other places stay.
+        </ConfirmDialog>
+      )}
     </li>
   )
 }
