@@ -264,6 +264,25 @@ if (other) {
   R.autoFill(w, coaches, t, [fixedRule])
   assert.ok(second.coaches.some((c) => c.id === fixedId), 'fixed coach not swapped')
 }
+// the real Monday from 16 Nov: an Advanced coach and a Beginner placed at each other's nearer school trade places
+// when both schools keep an Advanced coach (Dover keeps Kathleen, Tanjong Pagar keeps Matin).
+{
+  const wk = fresh()
+  const [dover, tp] = wk.days[0].blocks
+  kids(dover, 9)
+  kids(tp, 8)
+  const [K, M, A, Z, P, L] = freeMon(wk)
+  const level = { [K]: 'advanced', [M]: 'advanced', [A]: 'advanced', [Z]: 'beginner', [P]: 'beginner', [L]: 'beginner' }
+  const team = coaches.filter((c) => level[c.id]).map((c) => ({ ...c, employment_type: 'intern', coach_level: level[c.id], can_lead: level[c.id] === 'advanced' }))
+  const t = (d, p) => ({ [dover.schoolId]: d, [tp.schoolId]: p })
+  const travel = { [K]: t(14, 25), [M]: t(64, 44), [A]: t(27, 53), [Z]: t(42, 37), [P]: t(61, 42), [L]: t(51, 29) }
+  R.autoFill(wk, team, travel, [{ kind: 'fixed_coach', coach_id: M, school_id: tp.schoolId, active: true }])
+  const at = (b) => b.coaches.map((c) => c.id)
+  assert.ok(at(dover).includes(A), 'Advanced coach nearer Dover goes to Dover')
+  assert.ok(at(tp).includes(P), 'Beginner nearer Tanjong Pagar goes to Tanjong Pagar')
+  assert.ok(at(tp).includes(M), 'fixed coach stays put')
+  for (const b of [dover, tp]) assert.ok(b.coaches.some((c) => level[c.id] === 'advanced'), `${b.name} still has an Advanced coach`)
+}
 // a fixed coach whose school has no lesson that day stays at WCP (not sent to another school), with no warning
 w = fresh()
 ;[first, second] = w.days[0].blocks

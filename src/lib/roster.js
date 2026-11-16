@@ -436,17 +436,21 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
       else if (free.length && under.length) placeNearest([busiest(under)])
       else break
     }
-    // 4. two coaches placed above (same type, neither a Lead Coach) trade schools when that shortens their trips
-    // together: one at a time can't see it. Lead Coaches and fixed coaches never trade.
-    const same = (x, y) => !level(x) && !level(y) && byId[x].employment_type === byId[y].employment_type
+    // 4. two coaches placed above (same type: intern with intern, part-timer with part-timer) trade schools when that
+    // shortens their trips together: one at a time can't see it. Any level may trade, as long as neither school loses
+    // its Advanced or Intermediate coach by it. Fixed coaches never trade; Leads are picked after this.
+    const same = (x, y) => byId[x].employment_type === byId[y].employment_type
+    const cover = (b) => [hasLevel(b, 2), hasLevel(b, 1)]
+    const kept = (before, after) => before.every((had, i) => !had || after[i])
     for (let swapped = true; swapped; ) {
       swapped = false
       for (const a of lessons) for (const b of lessons) for (const x of a.coaches) for (const y of b.coaches) {
         if (a === b || !placed.has(x.id) || !placed.has(y.id) || !same(x.id, y.id)) continue
-        if (mins(x.id, b) + mins(y.id, a) < mins(x.id, a) + mins(y.id, b)) {
-          ;[x.id, y.id] = [y.id, x.id]
-          swapped = true
-        }
+        if (!(mins(x.id, b) + mins(y.id, a) < mins(x.id, a) + mins(y.id, b))) continue
+        const before = [cover(a), cover(b)]
+        ;[x.id, y.id] = [y.id, x.id]
+        if (kept(before[0], cover(a)) && kept(before[1], cover(b))) swapped = true
+        else [x.id, y.id] = [y.id, x.id] // a school would lose its Advanced / Intermediate coach: undo
       }
     }
     if (isWeekend(day.key)) {
