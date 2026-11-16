@@ -3,6 +3,7 @@ import { useRoster } from '../context/RosterContext.jsx'
 import { coachDay, dayTotals } from '../lib/roster.js'
 import { addDays } from '../../supabase/functions/roster/logic.js'
 import { GRID_COLS } from './WeeklyGrid.jsx'
+import { ChevronDown } from './coachIcons.jsx'
 
 const NEXT = { available: 'off', off: 'unavailable', unavailable: 'available' }
 // Working days stand out; empty days are pale so they fade back.
@@ -118,17 +119,18 @@ function Group({ title, list, foldIdle = false }) {
         </div>
       ))}
       {idle.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setShowIdle((v) => !v)}
-          className="col-span-8 border-t border-slate-200 bg-white px-2 py-1 text-left text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
-        >
-          <span className={`${STICKY_NAME} bg-inherit`}>
-            {showIdle
-              ? `Hide the ${idle.length} part-timer${idle.length === 1 ? '' : 's'} not available this week`
-              : `${idle.length} part-timer${idle.length === 1 ? '' : 's'} not available this week (show)`}
-          </span>
-        </button>
+        <div className="col-span-8 border-t border-slate-200 bg-slate-50 px-2 py-1.5">
+          <button
+            type="button"
+            onClick={() => setShowIdle((v) => !v)}
+            aria-expanded={showIdle}
+            className={`${STICKY_NAME} inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white py-1 pl-1.5 pr-3 text-xs font-semibold text-indigo-700 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50`}
+          >
+            <span className="grid h-5 min-w-5 place-items-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-bold text-white">{idle.length}</span>
+            {showIdle ? 'Hide' : 'Show'} part-timer{idle.length === 1 ? '' : 's'} not available this week
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showIdle ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
       )}
     </>
   )
