@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { RosterProvider } from '../context/RosterContext.jsx'
+import { ConfirmProvider } from './ConfirmProvider.jsx'
 import AvailabilityPanel from './AvailabilityPanel.jsx'
 import CoachProfiles from './CoachProfiles.jsx'
 import CoachSwapModal from './CoachSwapModal.jsx'
@@ -13,6 +14,7 @@ export default function RosterDashboard() {
   const [tab, setTab] = useState('roster')
   return (
     <RosterProvider>
+      <ConfirmProvider>
       <div className="min-h-screen bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100">
         <TopNav tab={tab} setTab={setTab} />
 
@@ -36,6 +38,7 @@ export default function RosterDashboard() {
           )}
         </main>
       </div>
+      </ConfirmProvider>
     </RosterProvider>
   )
 }

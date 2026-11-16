@@ -3,6 +3,7 @@ import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
+import { useConfirm } from './ConfirmProvider.jsx'
 import { coachDay, isValidSlotTime, leadWarnings, mondayOf, quotaWarnings, ruleWarnings } from '../lib/roster.js'
 import { addDays, weekShell } from '../../supabase/functions/roster/logic.js'
 import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, Close, ChevronDown, Download, Eraser, Plus, Search, Sparkle, Trash, Undo } from './coachIcons.jsx'
@@ -149,9 +150,12 @@ function NewWeekPanel({ weeks, createWeek, busy, close }) {
 // A button that shows its own result: `working` while the action runs, then green "✓ done" or red "failed"
 // for a moment. The action resolves false for a failure and null when the admin cancelled (no message).
 const BTN = 'font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-wait disabled:opacity-50'
-export function ActionButton({ action, label, working, done, failed = 'Failed', className, disabled, size = 'rounded-lg px-3 py-1.5 text-sm' }) {
+// `ask`: an optional question (returns true / false) answered before anything starts, so the button only says
+// "Deleting…" once the answer is yes.
+export function ActionButton({ action, ask, label, working, done, failed = 'Failed', className, disabled, size = 'rounded-lg px-3 py-1.5 text-sm' }) {
   const [state, setState] = useState('idle')
   const click = async () => {
+    if (ask && !(await ask())) return
     setState('working')
     let result
     try {
@@ -193,12 +197,19 @@ export default function HeaderControls() {
   const everyone = Object.values(coachById)
   // ClipboardItem takes the promise so the copy still counts as part of the click
   const copyPicture = () => navigator.clipboard.write([new ClipboardItem({ 'image/png': rosterPicture(week, coaches, everyone) })])
-  const onClear = () =>
-    window.confirm(`Remove every coach from every school and programme in ${week.label}? Availability stays.`)
-      ? clearCoaches()
-      : null
-  const onDelete = () =>
-    window.confirm(`Delete the whole week ${week.label}? You can bring it back from "Restore a deleted week".`) ? deleteWeek() : null
+  const confirm = useConfirm()
+  const askClear = () =>
+    confirm({
+      title: `Clear all coaches in ${week.label}?`,
+      body: 'Every coach is taken off every school and programme this week. Days off and availability stay. Undo brings them back.',
+      confirmLabel: 'Clear coaches',
+    })
+  const askDelete = () =>
+    confirm({
+      title: `Delete the week ${week.label}?`,
+      body: 'The whole week and its coaches are removed. You can bring it back from "Restore a deleted week".',
+      confirmLabel: 'Delete week',
+    })
 
   const quota = [...quotaWarnings(week, coaches), ...leadWarnings(week, Object.values(coachById)), ...ruleWarnings(week, coaches, rules)]
   const badTimes = week.days.flatMap((d) =>
@@ -263,7 +274,7 @@ export default function HeaderControls() {
             </PopMenu>
             {/* not while a save runs: that save could put the week straight back */}
             <span title={weeks.length === 1 ? "The only week can't be deleted." : 'Delete this week and its coaches.'}>
-              <ActionButton action={onDelete} label={<span className="inline-flex items-center gap-1.5"><Trash /> Delete Week</span>} working="Deleting…" done="Deleted" failed="Couldn't delete" disabled={!!busy || weeks.length === 1 || saving === 'saving'} size="h-9 rounded-full px-4 text-sm" className="text-indigo-700 hover:bg-red-50 hover:text-red-700" />
+              <ActionButton action={deleteWeek} ask={askDelete} label={<span className="inline-flex items-center gap-1.5"><Trash /> Delete Week</span>} working="Deleting…" done="Deleted" failed="Couldn't delete" disabled={!!busy || weeks.length === 1 || saving === 'saving'} size="h-9 rounded-full px-4 text-sm" className="text-indigo-700 hover:bg-red-50 hover:text-red-700" />
             </span>
           </div>
 
@@ -315,7 +326,7 @@ export default function HeaderControls() {
               </button>
             )}
           </span>
-          <ActionButton action={onClear} label={<span className="inline-flex items-center gap-1.5"><Eraser /> Clear coaches</span>} working="Clearing…" done="Cleared" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700" />
+          <ActionButton action={clearCoaches} ask={askClear} label={<span className="inline-flex items-center gap-1.5"><Eraser /> Clear coaches</span>} working="Clearing…" done="Cleared" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700" />
           <span className="inline-flex items-center gap-1">
             <button type="button" onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Ctrl+Z)" className={`${PILL} w-10 justify-center`}>
               <Undo />
