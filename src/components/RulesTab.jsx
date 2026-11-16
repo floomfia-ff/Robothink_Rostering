@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
+import SearchPick from './SearchPick.jsx'
 import { ActionButton } from './HeaderControls.jsx'
 import { Close, Info, Plus, Rules, School } from './coachIcons.jsx'
 import { WEEKDAYS } from '../lib/roster.js'
@@ -219,25 +220,12 @@ function AddFixed({ coaches, schools, addRule, busy, fixedCoachId, onDone }) {
   const toggle = (d) => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d]))
   const ready = coachId && where && (!centre || days.length) && !busy
 
-  const placeSelect = (
-    <select value={where} onChange={(e) => setWhere(e.target.value)} aria-label="Preschool or centre" className={`${FIELD} w-full`}>
-      <option value="">Pick a preschool or centre…</option>
-      <optgroup label="Centres (pick the days)">
-        {CENTRES.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </optgroup>
-      <optgroup label="Preschools">
-        {schools.map((s) => (
-          <option key={s.id} value={s.id}>
-            {s.name} ({s.class_day})
-          </option>
-        ))}
-      </optgroup>
-    </select>
-  )
+  // Centres first, then preschools; the lesson day is a tag on the right, so typing "fri" finds Friday schools too.
+  const placeOptions = [
+    ...CENTRES.map((c) => ({ value: c, label: c, hint: 'pick days', group: 'Centres' })),
+    ...schools.map((s) => ({ value: s.id, label: s.name, hint: s.class_day, group: 'Preschools' })),
+  ]
+  const placeSelect = <SearchPick label="Preschool or centre" placeholder="Type or pick a preschool or centre…" options={placeOptions} value={where} onChange={setWhere} />
   const dayPicker = centre && (
     <span role="group" aria-label="Days" className="inline-flex flex-wrap gap-1">
       {DAYS.map((d) => (
@@ -286,21 +274,20 @@ function AddFixed({ coaches, schools, addRule, busy, fixedCoachId, onDone }) {
         <h3 className="text-sm font-bold text-slate-900">Fix a coach to a place</h3>
       </div>
       <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
-        <label className="block">
+        <div>
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Coach</span>
-          <select value={coachId} onChange={(e) => setCoachId(e.target.value)} aria-label="Coach" className={`${FIELD} w-full`}>
-            <option value="">Pick a coach…</option>
-            {coaches.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}{EMPLOYMENT[c.employment_type] ? ` · ${EMPLOYMENT[c.employment_type][0]}` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block">
+          <SearchPick
+            label="Coach"
+            placeholder="Type or pick a coach…"
+            options={coaches.map((c) => ({ value: c.id, label: c.name, hint: EMPLOYMENT[c.employment_type]?.[0] }))}
+            value={coachId}
+            onChange={setCoachId}
+          />
+        </div>
+        <div>
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Preschool or centre</span>
           {placeSelect}
-        </label>
+        </div>
         <div className="md:pb-px">{button}</div>
       </div>
       {centre && (
