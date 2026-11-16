@@ -243,20 +243,7 @@ export function RosterProvider({ children }) {
         say('Rule saved')
       }, true)
     },
-    removeRule: (id) => {
-      if (busy) return Promise.resolve(false)
-      const before = roster.rules
-      setRoster((r) => ({ ...r, rules: r.rules.filter((x) => x.id !== id) }))
-      return run('Removing rule', async () => {
-        try {
-          await api.deleteRule(id)
-        } catch (e) {
-          setRoster((r) => ({ ...r, rules: before }))
-          throw e
-        }
-        say('Rule removed')
-      }, true)
-    },
+    removeRule: (id) => value.removeRules([id]),
     // Several rules at once (a coach's whole card). One at a time, so a failure puts back only what wasn't removed.
     removeRules: (ids) => {
       if (busy || !ids.length) return Promise.resolve(false)

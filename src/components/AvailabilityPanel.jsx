@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
-import { coachDay, dayTotals } from '../lib/roster.js'
-import { addDays } from '../../supabase/functions/roster/logic.js'
+import { coachDay, dayTotals, todayIndex } from '../lib/roster.js'
 import { GRID_COLS } from './WeeklyGrid.jsx'
 import { ChevronDown } from './coachIcons.jsx'
 
@@ -31,8 +30,7 @@ const STICKY_NAME = 'sticky left-0 z-20' // coach names stay in view when the ta
 export default function AvailabilityPanel() {
   const { week, coaches } = useRoster()
   const totals = week.days.map((d) => dayTotals(week, d.key, coaches))
-  const sgToday = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) // Singapore date
-  const today = week.days.findIndex((_, i) => addDays(week.id, i) === sgToday)
+  const today = todayIndex(week)
   const partTimers = coaches.filter((c) => c.employment_type !== 'intern')
 
   // Today's outline runs from the day headers to the last coach row on screen, so it doesn't spill over the

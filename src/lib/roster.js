@@ -1,7 +1,6 @@
 // Pure roster rules. Everything here takes plain data, so the backend can mirror it.
 // Mutating helpers (assign/add/remove/setRole/autoFill/setAvailability) expect a cloned week.
 
-export const MAX_STUDENTS_PER_COACH = 6
 export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri']
 export const INTERN_QUOTA = { weekdays: 4, weekend: 1 }
 export const INTERN_WEEKDAY_OFF = ['tue', 'wed']
@@ -20,6 +19,12 @@ export function isValidSlotTime(time) {
 }
 export { isValidAddress } from '../../supabase/functions/roster/logic.js'
 import { addDays } from '../../supabase/functions/roster/logic.js'
+
+// Which day of this week is today in Singapore (0 = Monday); -1 when this isn't the current week.
+export const todayIndex = (week) => {
+  const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
+  return week.days.findIndex((_, i) => addDays(week.id, i) === today)
+}
 
 // The Monday of the week a "YYYY-MM-DD" date falls in (weeks are stored by their Monday).
 export const mondayOf = (date) => addDays(date, -((new Date(Date.parse(date)).getUTCDay() + 6) % 7))
@@ -40,11 +45,11 @@ export function venueList(roster) {
 export const availability = (week, coachId, dayKey) =>
   week.availability[coachId]?.[dayIndex(week, dayKey)] ?? 'unavailable'
 
-// Only auto-fill uses the ratio, and only for weekday lessons; the screen shows no coach cap.
+// 1 when a weekday lesson has students today, else 0. How many coaches it gets comes from the Rules tab (see autoFill).
 const mostStudents = (block) => Math.max(0, ...block.slots.map((s) => Number(s.students) || 0))
 export function requiredCoaches(block) {
   if (block.kind !== 'lesson' || block.noLesson) return 0
-  return Math.ceil(mostStudents(block) / MAX_STUDENTS_PER_COACH)
+  return mostStudents(block) > 0 ? 1 : 0
 }
 
 // Shadows don't count towards the ratio (matches the spreadsheet counts).
@@ -369,6 +374,9 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     const otherWeekendDay = day.key === 'sat' ? 'sun' : 'sat'
     const isDouble = (id) => isWeekend(day.key) && byId[id].employment_type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
     free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
+    // Weekend programmes that take coaches: the ones already running, or all of them if none is.
+    const open = (programs) => (programs.some((b) => b.coaches.length) ? programs.filter((b) => b.coaches.length) : programs)
+    const emptiest = (list) => list.reduce((a, b) => (b.coaches.length < a.coaches.length ? b : a))
     // 0. fixed at a centre today: weekdays they stay at WCP (never sent out); weekends they join that centre's
     // emptiest running programme (an empty one if none is running), when the centre has one that day
     for (const id of free.filter((x) => centreFor(centre, x, day.key))) {
@@ -376,11 +384,9 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
         free.splice(free.indexOf(id), 1)
         continue
       }
-      const programs = day.blocks.filter((b) => b.kind === 'program' && b.base === centreFor(centre, id, day.key))
-      const running = programs.filter((b) => b.coaches.length || requiredCoaches(b))
-      const targets = running.length ? running : programs
+      const targets = open(day.blocks.filter((b) => b.kind === 'program' && b.base === centreFor(centre, id, day.key)))
       if (!targets.length) continue
-      targets.reduce((a, b) => (b.coaches.length < a.coaches.length ? b : a)).coaches.push({ id, role: 'coach' })
+      emptiest(targets).coaches.push({ id, role: 'coach' })
       free.splice(free.indexOf(id), 1)
     }
 
@@ -455,13 +461,8 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     }
     if (isWeekend(day.key)) {
       // Leftovers go to programmes that are running; only open an empty one if none are.
-      const programs = day.blocks.filter((b) => b.kind === 'program')
-      const running = programs.filter((b) => b.coaches.length || requiredCoaches(b))
-      const targets = running.length ? running : programs
-      while (free.length && targets.length) {
-        const emptiest = targets.reduce((a, b) => (b.coaches.length < a.coaches.length ? b : a))
-        emptiest.coaches.push({ id: free.shift(), role: 'coach' })
-      }
+      const targets = open(day.blocks.filter((b) => b.kind === 'program'))
+      while (free.length && targets.length) emptiest(targets).coaches.push({ id: free.shift(), role: 'coach' })
     }
     for (const b of day.blocks) {
       const pool = b.coaches.filter((c) => c.role !== 'shadow')

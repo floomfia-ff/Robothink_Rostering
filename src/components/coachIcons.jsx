@@ -10,9 +10,6 @@ export const GradCap = ({ className = 'h-5 w-5' }) => (
 export const Briefcase = ({ className = 'h-5 w-5' }) => (
   <svg {...base} className={className}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><path d="M2 13h20" /></svg>
 )
-export const UserPlus = ({ className = 'h-5 w-5' }) => (
-  <svg {...base} className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6M16 11h6" /></svg>
-)
 export const Close = ({ className = 'h-5 w-5' }) => (
   <svg {...base} className={className}><path d="M18 6 6 18M6 6l12 12" /></svg>
 )

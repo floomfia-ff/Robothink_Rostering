@@ -50,7 +50,7 @@ assert.equal(R.countedCoaches(dover), 1)
 assert.notEqual(R.blockStatus(dover).tone, 'red', 'no coach cap: a school with few coaches is never red')
 assert.equal('required' in R.dayTotals(w, 'mon', coaches), false, 'no required count is shown')
 R.autoFill(w, coaches)
-assert.ok(R.countedCoaches(dover) >= R.requiredCoaches(dover), 'auto-fill still quietly tops up to 1 per 6')
+assert.ok(R.countedCoaches(dover) >= R.requiredCoaches(dover), 'a school with students gets at least one coach')
 assert.ok(w.days.filter((d) => R.isWeekend(d.key)).every((d) => d.blocks.every((b) => b.coaches.every((c) => c.role !== 'lead'))), 'auto-fill adds no weekend leads')
 
 // OFF removes the coach from the venue and triggers a quota warning

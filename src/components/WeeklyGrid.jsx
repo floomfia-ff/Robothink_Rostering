@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
-import { baseCoaches, blockNameTaken, isWeekend } from '../lib/roster.js'
-import { addDays } from '../../supabase/functions/roster/logic.js'
+import { baseCoaches, blockNameTaken, isWeekend, todayIndex } from '../lib/roster.js'
 import CoachChip, { useCoachDrop, useDragAutoScroll } from './CoachChip.jsx'
 import VenueRow from './VenueRow.jsx'
 
@@ -11,8 +10,7 @@ export default function WeeklyGrid() {
   const { week, dragging } = useRoster()
   useDragAutoScroll(!!dragging)
   const bands = Math.max(...week.days.map((d) => d.blocks.filter((b) => b.kind !== 'other').length))
-  const sgToday = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) // Singapore date
-  const today = week.days.findIndex((_, i) => addDays(week.id, i) === sgToday) // -1 when this isn't the current week
+  const today = todayIndex(week)
 
   return (
     <section aria-label="Weekly roster" className="relative grid min-w-[1380px] border-r border-b border-slate-200" style={GRID_COLS}>
