@@ -403,6 +403,14 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
       if (!isWeekend(day.key)) placed.add(best.id)
     }
     const target = (b) => Math.min(max, Math.ceil(mostStudents(b) / ratio))
+    // 1a. a coach fixed at a preschool that has No Lesson today stays at WCP rather than being sent to another
+    // school, unless another of their fixed schools has a lesson today. To send them somewhere anyway, drag them
+    // there by hand: placements made by hand are kept above.
+    for (const id of [...free]) {
+      const mine = fixed.filter((r) => r.coach_id === id)
+      const today = mine.map((r) => day.blocks.find((b) => b.kind === 'lesson' && b.schoolId === r.school_id)).filter(Boolean)
+      if (today.length && today.every((b) => requiredCoaches(b) === 0)) free.splice(free.indexOf(id), 1)
+    }
     // 1. fixed coaches go to their school (first by school name wins), unless it is already full
     const named = (r) => lessons.find((b) => b.schoolId === r.school_id)?.name ?? ''
     for (const r of [...fixed].sort((x, y) => named(x).localeCompare(named(y)))) {

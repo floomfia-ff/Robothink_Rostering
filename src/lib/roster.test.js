@@ -264,13 +264,23 @@ if (other) {
   R.autoFill(w, coaches, t, [fixedRule])
   assert.ok(second.coaches.some((c) => c.id === fixedId), 'fixed coach not swapped')
 }
-// a fixed coach whose school has no lesson that day is free for others, with no warning
+// a fixed coach whose school has no lesson that day stays at WCP (not sent to another school), with no warning
 w = fresh()
 ;[first, second] = w.days[0].blocks
 kids(first, 6)
 second.noLesson = true
 R.autoFill(w, coaches, {}, [fixedRule])
 assert.equal(R.ruleWarnings(w, coaches, [fixedRule]).length, 0, 'no lesson: nothing to warn about')
+assert.ok(!first.coaches.some((c) => c.id === fixedId), 'no lesson at their school: not sent to another school')
+assert.ok(freeMon(w).includes(fixedId), 'no lesson at their school: stays at WCP')
+// ...unless they were placed there by hand, which Auto-Generate keeps
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 6)
+second.noLesson = true
+R.addCoach(w, 'mon', first.id, fixedId)
+R.autoFill(w, coaches, {}, [fixedRule])
+assert.ok(first.coaches.some((c) => c.id === fixedId), 'a hand placement on a no-lesson day is kept')
 // warnings: fixed coach off / elsewhere, too many coaches
 w = fresh()
 ;[first, second] = w.days[0].blocks
