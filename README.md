@@ -29,9 +29,9 @@ weekends. This site is where the admin builds that weekly roster:
 | Tab | What you do there |
 |---|---|
 | 📅 **Weekly Roster** | Pick a week, Auto-Generate a draft, drag coaches between schools (or onto another coach to swap), undo / redo, set days off, check warnings, export. |
-| 👥 **Coach Profiles** | Each coach's nearest MRT, Intern / Part-timer, and the **Lead Coach** toggle. *Work out travel times* fetches trip times from OneMap. |
+| 👥 **Coach Profiles** | Each coach's nearest MRT, Intern / Part-timer, and level (**Beginner / Intermediate / Advanced**). *Work out travel times* fetches trip times from OneMap. |
 | 📍 **Venues** | Address of each preschool and the WCP / DV bases (the postcode is used for travel times). |
-| 🎚️ **Rules** | What Auto-Generate always follows: students per coach, max coaches per school, and coaches fixed to a preschool, or to a centre (WCP / DV) on chosen days. |
+| 🎚️ **Rules** | What Auto-Generate always follows: students per coach, max coaches per school, and **fixed coaches**: one card per coach listing every preschool, or centre (WCP / DV) on chosen days, they always go to. |
 
 **Admin** links to the RoboThink feedback site, where coaches and schools are added or renamed.
 
@@ -40,8 +40,10 @@ weekends. This site is where the admin builds that weekly roster:
 1. **Open the week.** Use the ← → arrows or the week picker. **New Week** lets you pick any date and adds that
    week (Monday to Sunday). Weeks older than 8 weeks load when you open them, so the site stays fast as weeks
    pile up.
-2. **Check days off.** In the availability table under the roster, click a coach's day to cycle
-   available → OFF → X. An intern's change carries into every later week.
+2. **Check days off.** In the **Coach availability** table under the roster, click a coach's day to cycle
+   available → OFF → X. An intern's change carries into every later week. The legend sits next to the table's title:
+   a venue name means placed there (hover for the full name), **–** available but not placed, **OFF** requested off,
+   **X** unavailable. Part-timers who are X all week are folded away; **Show all part-timers** opens them.
 3. **Click ✨ Auto-Generate Draft.** It fills the weekday schools and weekend programmes. New placements get a
    green ring so you can see what changed.
 4. **Fix anything by hand.** Drag a coach chip to another school, drop it on another coach to swap the two, click a
@@ -52,20 +54,27 @@ weekends. This site is where the admin builds that weekly roster:
 6. **Share it.** **Export → Copy Picture** puts an image on the clipboard (paste it straight into WhatsApp);
    **Export → Export to Excel** downloads the sheet.
 
-Made a mistake? **Clear coaches** empties the week (days off stay). **Delete Week** hides a week and
-**Restore a deleted week…** brings it back.
+Made a mistake? **Clear coaches** empties the week (days off stay; **Undo** brings the coaches back). **Delete Week**
+hides a week and **Restore a deleted week…** brings it back. Both ask first, in the site's own confirm window.
 
 ## How Auto-Generate decides
 
 On each weekday it fills every preschool in this order:
 
-1. **Fixed coaches** go to their school (e.g. Kathleen → MBR East Coast). A coach fixed to a **centre** stays at WCP on
-   their weekdays (never sent to a preschool) and joins that centre's programme at weekends, on the days you picked.
+1. **Fixed coaches** go to their school (e.g. Kathleen → MBR East Coast). If their school has **No Lesson** that day
+   (marked by hand, or a holiday on the lesson plan) they **stay at WCP** instead of being sent somewhere else; drag
+   them by hand if you want them elsewhere. A coach fixed to a **centre** stays at WCP on their weekdays (never sent
+   to a preschool) and joins that centre's programme at weekends, on the days you picked.
 2. Each school gets a **target**: kids ÷ *students per coach* (3), rounded up, never more than the **max** (4).
    8 kids → 3 coaches, 15 kids → 4.
-3. Every school gets a **Lead Coach** first, then schools fill up to their target. The school with the most kids
-   per coach always picks next and takes its **nearest free coach**.
-4. **Anyone not needed stays at WCP.** Coaches you placed by hand are never moved.
+3. Every school gets an **Advanced** coach first (an **Intermediate** if the Advanced run out), then schools fill up
+   to their target. The school with the most kids per coach always picks next and takes its **nearest free coach**,
+   avoiding a second Advanced coach where one is already placed so they spread across schools.
+4. **Swaps to cut travel.** Two coaches of the same type (intern with intern, part-timer with part-timer) trade
+   schools when that shortens their trips together, at any level, as long as neither school loses its Advanced or
+   Intermediate coach. Fixed coaches never trade.
+5. The highest-level coach at each school becomes its **Lead** (\*). **Anyone not needed stays at WCP.** Coaches you
+   placed by hand are never moved.
 
 Interns get one weekday off (Tuesday or Wednesday) and one weekend day off; weekend coaches are split evenly between
 Saturday and Sunday. All the numbers are set on the **Rules** tab.
@@ -98,7 +107,9 @@ Browser (this site)  ──▶  Supabase Edge Function "roster"  ──▶  Supa
 
 | Folder | What's in it |
 |---|---|
-| `src/components/` | The screens: roster grid, header, coach profiles, venues, rules, top bar |
+| `src/components/` | The screens: roster grid, availability table, header, coach profiles, venues, rules, top bar |
+| `src/components/ConfirmProvider.jsx` | The site's one "Are you sure?" window. Call `useConfirm()` instead of `window.confirm` |
+| `src/components/SearchPick.jsx` | The type-to-search picker used on the Rules tab |
 | `src/lib/roster.js` | The roster rules and Auto-Generate (plain functions, tested with `npm test`) |
 | `src/lib/api.js` | Every call the page makes to the backend |
 | `supabase/functions/roster/` | The Edge Function. Deploy steps and secrets are in its [README](supabase/functions/roster/README.md). Deploy **all** its files (`index.ts`, `logic.js`, `plan.js`, `recent.js`) together |
