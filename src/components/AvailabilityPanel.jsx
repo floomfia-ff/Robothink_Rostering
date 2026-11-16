@@ -145,10 +145,11 @@ function Group({ title, list, foldIdle = false }) {
             type="button"
             onClick={() => setShowIdle((v) => !v)}
             aria-expanded={showIdle}
+            title={`${idle.length} part-timer${idle.length === 1 ? "" : "s"} not available this week`}
             className={`${STICKY_NAME} inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white py-1 pl-1.5 pr-3 text-xs font-semibold text-indigo-700 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50`}
           >
             <span className="grid h-5 min-w-5 place-items-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-bold text-white">{idle.length}</span>
-            {showIdle ? 'Hide' : 'Show'} part-timer{idle.length === 1 ? '' : 's'} not available this week
+            {showIdle ? 'Hide unavailable part-timers' : 'Show all part-timers'}
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showIdle ? 'rotate-180' : ''}`} />
           </button>
         </div>
