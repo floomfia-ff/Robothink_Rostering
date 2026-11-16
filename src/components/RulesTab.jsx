@@ -17,6 +17,10 @@ const FIELD = 'rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm tex
 const DAY_ORDER = Object.fromEntries(DAYS.map((d, i) => [d, i]))
 // A soft colour per coach, picked from the name so it stays the same between visits.
 const AVATARS = ['bg-sky-100 text-sky-700', 'bg-amber-100 text-amber-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-violet-100 text-violet-700', 'bg-teal-100 text-teal-700']
+const EMPLOYMENT = {
+  intern: ['Intern', 'bg-amber-50 text-amber-700 ring-amber-200'],
+  'part-timer': ['Part-timer', 'bg-teal-50 text-teal-700 ring-teal-200'],
+}
 const avatarFor = (name) => AVATARS[[...name].reduce((n, ch) => n + ch.charCodeAt(0), 0) % AVATARS.length]
 
 export default function RulesTab() {
@@ -28,7 +32,7 @@ export default function RulesTab() {
   const schoolById = Object.fromEntries(schools.map((s) => [s.id, s]))
   // One card per coach, with every place they're fixed to: centres first, then preschools in lesson-day order.
   const byCoach = Object.values(fixed.reduce((acc, r) => {
-    (acc[r.coach_id] ??= { coachId: r.coach_id, name: coachById[r.coach_id]?.name ?? 'Unknown coach', rules: [] }).rules.push(r)
+    (acc[r.coach_id] ??= { coachId: r.coach_id, name: coachById[r.coach_id]?.name ?? 'Unknown coach', type: coachById[r.coach_id]?.employment_type, rules: [] }).rules.push(r)
     return acc
   }, {})).sort((a, b) => a.name.localeCompare(b.name))
   const order = (r) => (r.base ? -1 : DAY_ORDER[schoolById[r.school_id]?.class_day?.toLowerCase()] ?? 9)
@@ -57,6 +61,7 @@ export default function RulesTab() {
 
       <Card title="Fixed coaches" Icon={School} count={fixed.length}>
         <p className="mb-3 text-sm text-slate-500">A fixed coach always goes to that preschool on its lesson day, when they're working. Fixed at a centre: on weekdays they stay at WCP (never sent to a preschool); on weekends they join that centre's programme. Click a place to switch it off for now.</p>
+        <AddFixed coaches={coaches} schools={weekdaySchools} addRule={addRule} busy={busy} />
         {byCoach.length ? (
           <ul className="grid gap-3 lg:grid-cols-2">
             {byCoach.map((c) => (
@@ -64,9 +69,8 @@ export default function RulesTab() {
             ))}
           </ul>
         ) : (
-          <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">No fixed coaches yet. Add the first one below.</p>
+          <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">No fixed coaches yet. Add the first one above.</p>
         )}
-        <AddFixed coaches={coaches} schools={weekdaySchools} addRule={addRule} busy={busy} />
       </Card>
     </section>
   )
@@ -83,7 +87,12 @@ function CoachCard({ coach, schoolById, coaches, schools, addRule, updateRule, r
           {coach.name.charAt(0).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-base font-bold text-slate-900">{coach.name}</h3>
+          <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+            <span className="truncate">{coach.name}</span>
+            {EMPLOYMENT[coach.type] && (
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${EMPLOYMENT[coach.type][1]}`}>{EMPLOYMENT[coach.type][0]}</span>
+            )}
+          </h3>
           <p className="text-xs text-slate-500">
             {coach.rules.length} place{coach.rules.length === 1 ? '' : 's'}
             {on < coach.rules.length && <> · {coach.rules.length - on} switched off</>}
@@ -208,62 +217,98 @@ function AddFixed({ coaches, schools, addRule, busy, fixedCoachId, onDone }) {
     return ok
   }
   const toggle = (d) => setDays((list) => (list.includes(d) ? list.filter((x) => x !== d) : [...list, d]))
+  const ready = coachId && where && (!centre || days.length) && !busy
+
+  const placeSelect = (
+    <select value={where} onChange={(e) => setWhere(e.target.value)} aria-label="Preschool or centre" className={`${FIELD} w-full`}>
+      <option value="">Pick a preschool or centre…</option>
+      <optgroup label="Centres (pick the days)">
+        {CENTRES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </optgroup>
+      <optgroup label="Preschools">
+        {schools.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name} ({s.class_day})
+          </option>
+        ))}
+      </optgroup>
+    </select>
+  )
+  const dayPicker = centre && (
+    <span role="group" aria-label="Days" className="inline-flex flex-wrap gap-1">
+      {DAYS.map((d) => (
+        <button
+          key={d}
+          type="button"
+          aria-pressed={days.includes(d)}
+          onClick={() => toggle(d)}
+          className={`h-9 w-11 rounded-lg text-xs font-semibold uppercase ring-1 transition-colors ${days.includes(d) ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white text-slate-600 ring-slate-200 hover:bg-indigo-50'}`}
+        >
+          {d}
+        </button>
+      ))}
+    </span>
+  )
+  const button = (
+    <ActionButton
+      action={add}
+      label={fixedCoachId == null ? 'Add fixed coach' : 'Add'}
+      working="Adding…"
+      done="Added"
+      failed="Couldn't add"
+      disabled={!ready}
+      className="bg-indigo-600 text-white shadow-sm hover:bg-indigo-700"
+      size="rounded-lg px-4 py-2 text-sm font-semibold"
+    />
+  )
+
+  // Inside a coach's card: just the place, the days and Add.
+  if (fixedCoachId != null) {
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
+        <div className="min-w-48 flex-1">{placeSelect}</div>
+        {dayPicker}
+        {button}
+      </div>
+    )
+  }
+
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
-      {fixedCoachId == null && (
-        <>
-          <select value={coachId} onChange={(e) => setCoachId(e.target.value)} aria-label="Coach" className={FIELD}>
+    <div className="mb-4 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-4 shadow-sm">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-600 text-white">
+          <Plus className="h-4 w-4" />
+        </span>
+        <h3 className="text-sm font-bold text-slate-900">Fix a coach to a place</h3>
+      </div>
+      <div className="grid gap-3 md:grid-cols-[1fr_1.4fr_auto] md:items-end">
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Coach</span>
+          <select value={coachId} onChange={(e) => setCoachId(e.target.value)} aria-label="Coach" className={`${FIELD} w-full`}>
             <option value="">Pick a coach…</option>
             {coaches.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {c.name}{EMPLOYMENT[c.employment_type] ? ` · ${EMPLOYMENT[c.employment_type][0]}` : ''}
               </option>
             ))}
           </select>
-          <span className="text-slate-400">→</span>
-        </>
-      )}
-      <select value={where} onChange={(e) => setWhere(e.target.value)} aria-label="Preschool or centre" className={FIELD}>
-        <option value="">Pick a preschool or centre…</option>
-        <optgroup label="Centres (pick the days)">
-          {CENTRES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Preschools">
-          {schools.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name} ({s.class_day})
-            </option>
-          ))}
-        </optgroup>
-      </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Preschool or centre</span>
+          {placeSelect}
+        </label>
+        <div className="md:pb-px">{button}</div>
+      </div>
       {centre && (
-        <span role="group" aria-label="Days" className="inline-flex flex-wrap gap-1">
-          {DAYS.map((d) => (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={days.includes(d)}
-              onClick={() => toggle(d)}
-              className={`h-9 rounded-lg px-2.5 text-xs font-semibold uppercase ring-1 transition-colors ${days.includes(d) ? 'bg-indigo-600 text-white ring-indigo-600' : 'bg-white text-slate-600 ring-slate-200 hover:bg-indigo-50'}`}
-            >
-              {d}
-            </button>
-          ))}
-        </span>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">On these days</span>
+          {dayPicker}
+        </div>
       )}
-      <ActionButton
-        action={add}
-        label={fixedCoachId == null ? 'Add fixed coach' : 'Add'}
-        working="Adding…"
-        done="Added"
-        failed="Couldn't add"
-        disabled={!coachId || !where || (centre && !days.length) || !!busy}
-        className="bg-indigo-600 text-white hover:bg-indigo-700"
-      />
     </div>
   )
 }
