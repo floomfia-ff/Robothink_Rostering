@@ -130,15 +130,11 @@ export function useDragAutoScroll(active) {
     if (!active) return
     const EDGE = 100
     let speed = 0
-    // The roster scrolls inside its own box (so headers can stay in view); fall back to the page without one.
-    const box = document.querySelector('[data-roster-scroll]')
     const onOver = (e) => {
       const y = e.clientY
-      const top = box ? Math.max(box.getBoundingClientRect().top, 0) : 0
-      const bottom = box ? Math.min(box.getBoundingClientRect().bottom, innerHeight) : innerHeight
-      speed = y < top + EDGE ? -Math.ceil((top + EDGE - y) / 5) : y > bottom - EDGE ? Math.ceil((y - bottom + EDGE) / 5) : 0
+      speed = y < EDGE ? -Math.ceil((EDGE - y) / 5) : y > innerHeight - EDGE ? Math.ceil((y - innerHeight + EDGE) / 5) : 0
     }
-    const timer = setInterval(() => speed && (box ?? window).scrollBy(0, speed), 16) // ~60 steps a second
+    const timer = setInterval(() => speed && window.scrollBy(0, speed), 16) // ~60 steps a second
     document.addEventListener('dragover', onOver)
     return () => {
       document.removeEventListener('dragover', onOver)
