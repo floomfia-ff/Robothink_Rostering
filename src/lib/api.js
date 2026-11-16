@@ -1,5 +1,5 @@
 // Every screen talks to the roster function only through these functions.
-import { autoFill, isValidAddress } from './roster.js'
+import { isValidAddress } from './roster.js'
 
 const URL = import.meta.env.VITE_ROSTER_API_URL
 const CODE = import.meta.env.VITE_ROSTER_CODE
@@ -83,10 +83,3 @@ export async function saveDraft(roster) {
 export const createRule = (rule) => request('POST', '/rules', rule)
 export const updateRule = (id, patch) => request('PATCH', `/rules/${id}`, patch)
 export const deleteRule = (id) => request('DELETE', `/rules/${id}`)
-
-// The real endpoint is not built yet, so this still fills the week in the browser.
-export async function generateRoster(week, coaches, travel, rules) {
-  const filled = structuredClone(week)
-  autoFill(filled, coaches, travel, rules)
-  return filled
-}

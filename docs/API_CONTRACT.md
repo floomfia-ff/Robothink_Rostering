@@ -197,7 +197,7 @@ All under the function URL (`VITE_ROSTER_API_URL`). Send `x-roster-code` on ever
 | `deleteWeek(id)` | `DELETE /weeks/:id` | — | `204`. Hides the saved week (`deleted_at` set; fine if it was never saved). "Delete week" button, after a confirm. |
 | `restoreWeek(id)` | `POST /weeks/:id/restore`, then `GET /weeks/:id` | — | The week as saved. "Restore a deleted week" menu, shown when `deletedWeeks` is not empty. |
 | `saveDraft(roster)` | `PUT /weeks/:id` for each changed week, then `PATCH /coaches/:id`, `PATCH /schools/:id`, `PATCH /bases/:id` for each changed one | see below | `204` each |
-| `generateRoster(week, coaches, travel, rules)` | none yet | — | Runs `autoFill()` in the browser with `travelTimes` and `rules` (see Coach count). |
+| Auto-Generate (`autoFill()` in `src/lib/roster.js`) | none | — | Runs in the browser with `travelTimes` and `rules` (see Coach count); the result saves like any other edit. |
 | `createRule(rule)` / `updateRule(id, patch)` / `deleteRule(id)` | `POST /rules` / `PATCH /rules/:id` / `DELETE /rules/:id` | see below | Rules tab; sent straight away, not through `saveDraft`. |
 | `refreshTravelTimes(limit = 40)` | `POST /travel-times/refresh` | `{ "limit": 40 }` | `{ done, remaining, total, travelTimes, unrecognisedStations }`. The "Work out travel times" button calls it until `remaining` is 0 and takes the fresh times from each reply. |
 
@@ -244,9 +244,6 @@ lesson blocks have `slots: []`, and saving still works.
 
 - **Travel times, later:** weekends and WCP / DV, measuring interns from WCP, schools by their nearest MRT, and
   matching over all schools for the lowest total travel (Auto-Generate is greedy, one school at a time).
-- **Auto-generate engine (Dev 3):** `generateRoster()` still fills the week in the browser with `autoFill()`
-  in `src/lib/roster.js`. The planned `POST /weeks/:id/generate` should keep valid assignments, fill only what
-  is short, and return the whole week in the shape above. Its tests show the expected behaviour.
 - **Notifications on publish, coach mobile view (Dev 4).**
 - **Logins:** none, by design. The roster code is compiled into the site's JavaScript, so anyone with the
   site's link can use the roster and edit MRT stations, employment types and addresses. Accepted because
