@@ -182,23 +182,27 @@ export function validateRule(rule, { coachIds, schoolIds, rules }) {
 // The last standalone 6-digit group: a unit number after the postcode doesn't fool it.
 export const postcodeOf = (address) => [...String(address ?? '').matchAll(/(?:^|\D)(\d{6})(?!\d)/g)].at(-1)?.[1] ?? null
 
-// "Sengkang" and "Sengkang MRT" both search as "Sengkang MRT".
-export const stationQuery = (mrt) => (/mrt/i.test(mrt) ? mrt.trim() : `${mrt.trim()} MRT`)
+// "Sengkang" and "Sengkang MRT" both search as "Sengkang MRT"; "Samudera LRT" stays as typed.
+export const stationQuery = (mrt) => (/\b[ml]rt\b/i.test(mrt) ? mrt.trim() : `${mrt.trim()} MRT`)
+
+// Where trips to a school end: its MRT/LRT station, or its postcode while no station is set.
+// travel_times.to_postcode holds whichever was used, so changing either one marks the time as stale.
+const destOf = (s) => (s.station?.trim() ? stationQuery(s.station) : postcodeOf(s.address))
 
 const fromOf = (c) => c.active && c.mrt_station?.trim()
 const currentRows = (rows, coaches, schools) => {
   const from = new Map(coaches.map((c) => [c.id, fromOf(c)]))
-  const to = new Map(schools.filter((s) => s.active).map((s) => [s.id, postcodeOf(s.address)]))
+  const to = new Map(schools.filter((s) => s.active).map((s) => [s.id, destOf(s)]))
   return rows.filter((r) => from.get(r.coach_id) === r.from_station && to.get(r.school_id) === r.to_postcode)
 }
 
-// Coach x school pairs with no current stored time (coaches without an MRT and schools without a postcode are skipped).
+// Coach x school pairs with no current stored time (coaches without an MRT and schools with neither station nor postcode are skipped).
 export function pendingPairs(coaches, schools, rows) {
   const done = new Set(currentRows(rows, coaches, schools).map((r) => `${r.coach_id}:${r.school_id}`))
   return coaches.filter(fromOf).flatMap((c) =>
     schools
-      .filter((s) => s.active && postcodeOf(s.address) && !done.has(`${c.id}:${s.id}`))
-      .map((s) => ({ coach_id: c.id, school_id: s.id, from_station: fromOf(c), to_postcode: postcodeOf(s.address) })),
+      .filter((s) => s.active && destOf(s) && !done.has(`${c.id}:${s.id}`))
+      .map((s) => ({ coach_id: c.id, school_id: s.id, from_station: fromOf(c), to_postcode: destOf(s) })),
   )
 }
 

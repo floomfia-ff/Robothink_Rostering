@@ -30,7 +30,7 @@ weekends. This site is where the admin builds that weekly roster:
 |---|---|
 | 📅 **Weekly Roster** | Pick a week, Auto-Generate a draft, drag coaches between schools (or onto another coach to swap), undo / redo, set days off, check warnings, export. |
 | 👥 **Coach Profiles** | Each coach's nearest MRT, Intern / Part-timer, and level (**Beginner / Intermediate / Advanced**). *Work out travel times* fetches trip times from OneMap. |
-| 📍 **Venues** | Address of each preschool and the WCP / DV bases (the postcode is used for travel times). |
+| 📍 **Venues** | Address of each preschool and the WCP / DV bases, plus each preschool's **nearest MRT / LRT station**. Travel times run from the coach's station to the school's station (the postcode is used only when no station is set). |
 | 🎚️ **Rules** | What Auto-Generate always follows: students per coach, max coaches per school, and **fixed coaches**: one card per coach listing every preschool, or centre (WCP / DV) on chosen days, they always go to. |
 
 **Admin** links to the RoboThink feedback site, where coaches and schools are added or renamed.

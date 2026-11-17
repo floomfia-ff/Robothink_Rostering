@@ -38,7 +38,7 @@ export function venueList(roster) {
     if (b.kind === 'lesson' && b.schoolId != null) note('school:' + b.schoolId, d.label)
     else if (b.kind === 'program') note('base:' + b.base, d.label)
   }
-  const list = (kind, items) => items.map((v) => ({ kind, id: v.id, name: kind === 'base' ? v.code : v.name, address: v.address ?? '', days: [...(days.get(kind + ':' + (kind === 'base' ? v.code : v.id)) ?? [])] }))
+  const list = (kind, items) => items.map((v) => ({ kind, id: v.id, name: kind === 'base' ? v.code : v.name, address: v.address ?? '', station: v.station ?? '', days: [...(days.get(kind + ':' + (kind === 'base' ? v.code : v.id)) ?? [])] }))
   return [...list('school', (roster.schools ?? []).filter((s) => s.active)), ...list('base', roster.bases ?? [])]
 }
 

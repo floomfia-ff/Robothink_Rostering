@@ -144,8 +144,14 @@ assert.equal(L.postcodeOf('12 Hoy Fatt Road, Singapore 159506 #02-01 '), '159506
 assert.equal(L.postcodeOf(''), null)
 assert.equal(L.stationQuery(' Sengkang '), 'Sengkang MRT')
 assert.equal(L.stationQuery('Bukit Batok MRT'), 'Bukit Batok MRT')
+assert.equal(L.stationQuery('Samudera LRT'), 'Samudera LRT')
+assert.equal(L.stationQuery('Dover'), 'Dover MRT')
 const tc = [{ id: 1, active: true, mrt_station: 'Sengkang MRT' }, { id: 2, active: true, mrt_station: null }, { id: 3, active: false, mrt_station: 'Yishun MRT' }]
 const ts = [{ id: 10, active: true, address: '5 Tanjong Pagar Plaza, Singapore 081005' }, { id: 11, active: true, address: null }]
+// a school's station wins over its postcode, and changing it makes the stored time stale
+const st = [{ id: 10, active: true, address: '5 Tanjong Pagar Plaza, Singapore 081005', station: 'Tanjong Pagar' }]
+assert.deepEqual(L.pendingPairs(tc.slice(0, 1), st, []), [{ coach_id: 1, school_id: 10, from_station: 'Sengkang MRT', to_postcode: 'Tanjong Pagar MRT' }])
+assert.deepEqual(L.travelMap([{ coach_id: 1, school_id: 10, from_station: 'Sengkang MRT', to_postcode: '081005', minutes: 38 }], tc, st).travelTimes, {})
 assert.deepEqual(L.pendingPairs(tc, ts, []), [{ coach_id: 1, school_id: 10, from_station: 'Sengkang MRT', to_postcode: '081005' }])
 const trow = { coach_id: 1, school_id: 10, from_station: 'Sengkang MRT', to_postcode: '081005', minutes: 38, status: 'ok' }
 assert.deepEqual(L.pendingPairs(tc, ts, [trow]), [])

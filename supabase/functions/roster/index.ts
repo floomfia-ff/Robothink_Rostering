@@ -111,7 +111,7 @@ async function readSheet(schools: { id: number; name: string; active: boolean }[
 const getCoaches = async () =>
   ok(await db.from('coaches').select('id,name,active,mrt_station,employment_type,can_lead,coach_level').order('name'))
 const getSchools = async () =>
-  ok(await db.from('schools').select('id,name,brand,class_day,active,address').order('name'))
+  ok(await db.from('schools').select('id,name,brand,class_day,active,address,station').order('name'))
 const getRules = async () =>
   ok(await db.from('roster_rules').select('id,kind,coach_id,school_id,base,days,value,active,note').order('id'))
 const getSaved = async (id: string) =>
@@ -353,13 +353,15 @@ async function handle(req: Request) {
 
     if (m === 'PATCH' && (r = path.match(/^\/(coaches|schools|bases)\/(\d+)$/))) {
       const [, table, id] = r
-      const fields = table === 'coaches' ? pickFields(body, ['mrt_station', 'employment_type', 'can_lead', 'coach_level']) : pickFields(body, ['address'])
+      const fields = table === 'coaches' ? pickFields(body, ['mrt_station', 'employment_type', 'can_lead', 'coach_level']) : pickFields(body, table === 'schools' ? ['address', 'station'] : ['address'])
       if (!Object.keys(fields).length) return fail('Nothing to update.', 400)
-      // clearing an address is allowed: blank is stored as null
-      if ('address' in fields && (fields.address === null || (typeof fields.address === 'string' && !fields.address.trim()))) fields.address = null
+      // clearing an address or station is allowed: blank is stored as null
+      for (const k of ['address', 'station']) if (k in fields && (fields[k] === null || (typeof fields[k] === 'string' && !fields[k].trim()))) fields[k] = null
+      if (typeof fields.station === 'string') fields.station = fields.station.trim()
       const problem = table === 'coaches'
         ? validateCoachFields(fields)
-        : fields.address === null || isValidAddress(fields.address) ? null : 'Address must end with a 6-digit postcode.'
+        : 'station' in fields && fields.station !== null && typeof fields.station !== 'string' ? 'Station must be text.'
+        : !('address' in fields) || fields.address === null || isValidAddress(fields.address) ? null : 'Address must end with a 6-digit postcode.'
       if (problem) return fail(problem, 400)
       const rows = ok(await db.from(table === 'bases' ? 'roster_bases' : table).update(fields).eq('id', Number(id)).select('id'))
       return rows.length ? noContent() : fail(`No such ${table.slice(0, -1)}.`, 404)

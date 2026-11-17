@@ -31,7 +31,7 @@ export default function VenueProfiles() {
       <p className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" />
         <span>
-          Where each preschool and weekend base is, so the roster can work out travel later. Click a venue to edit its address.
+          Where each preschool and weekend base is, so the roster can work out travel later. Click a venue to edit its address. Travel times run to a preschool's MRT/LRT station when one is set.
           {missing > 0 && <span className="font-semibold text-orange-600"> {missing} venue{missing === 1 ? '' : 's'} still need an address ending in a 6-digit postal code.</span>}
         </span>
       </p>
@@ -80,6 +80,7 @@ export default function VenueProfiles() {
                         </span>
                         <span className="w-full truncate font-semibold text-slate-900" title={v.name}>{v.name}</span>
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{v.kind === 'base' ? 'Weekends' : v.days.join(', ')}</span>
+                        {v.station && <span className="text-xs font-medium text-slate-700">🚉 {v.station}</span>}
                         {v.address ? (
                           <span className={`line-clamp-2 w-full text-xs ${ok ? 'text-slate-500' : 'text-red-600'}`} title={v.address}>{v.address}</span>
                         ) : (
@@ -109,11 +110,15 @@ export default function VenueProfiles() {
 function VenueModal({ venue, onClose }) {
   const { updateVenue } = useRoster()
   const [address, setAddress] = useState(venue.address ?? '')
+  const [station, setStation] = useState(venue.station ?? '')
   const bad = !!address.trim() && !isValidAddress(address)
 
   const save = () => {
     if (bad) return // the field says what's wrong
-    if (address.trim() !== (venue.address ?? '').trim()) updateVenue(venue.kind, venue.id, { address: address.trim() })
+    const patch = {}
+    if (address.trim() !== (venue.address ?? '').trim()) patch.address = address.trim()
+    if (venue.kind === 'school' && station.trim() !== (venue.station ?? '').trim()) patch.station = station.trim()
+    if (Object.keys(patch).length) updateVenue(venue.kind, venue.id, patch)
     onClose()
   }
 
@@ -133,6 +138,20 @@ function VenueModal({ venue, onClose }) {
         />
         {bad && <p id="venue-address-problem" className="mt-1 text-xs text-red-600">Must end in a 6-digit postal code.</p>}
       </div>
+      {venue.kind === 'school' && (
+        <div>
+          <label htmlFor="venue-station" className="mb-1 block text-sm font-medium text-slate-700">Nearest MRT / LRT station</label>
+          <input
+            id="venue-station"
+            value={station}
+            onChange={(e) => setStation(e.target.value)}
+            placeholder="e.g. Braddell, or Samudera LRT"
+            autoComplete="off"
+            className={`${FIELD} border-slate-200`}
+          />
+          <p className="mt-1 text-xs text-slate-500">Travel times run to this station. Leave blank to use the postal code.</p>
+        </div>
+      )}
       <p className="text-xs text-slate-500">To add or remove a preschool, use the Schools tab on the feedback site.</p>
     </Dialog>
   )
