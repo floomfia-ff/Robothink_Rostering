@@ -11,6 +11,29 @@ const GROUPS = [
   { kind: 'base', title: 'Weekend bases', Icon: MapPin },
 ]
 
+// Station codes as on the MRT map, in each line's colour. Interchanges show every code.
+// shortcut: only the stations our preschools use; a station not listed shows its name with no badge, add it here when needed.
+const LINE = { NS: '#D42E12', EW: '#009645', CC: '#FA9E0D', DT: '#005EC4', TE: '#9D5B25', NE: '#9900AA', PW: '#748477' }
+const CODES = {
+  'jurong east': ['NS1', 'EW24'], newton: ['NS21', 'DT11'], redhill: ['EW18'], braddell: ['NS18'], bayshore: ['TE29'],
+  samudera: ['PW4'], 'king albert park': ['DT6'], dover: ['EW22'], 'one-north': ['CC23'], 'tanjong pagar': ['EW15'],
+  woodlands: ['NS9', 'TE2'],
+}
+const codesOf = (station) => CODES[station.toLowerCase().replace(/\b[ml]rt\b/g, '').trim()] ?? []
+
+function StationName({ station }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+      <span className="inline-flex overflow-hidden rounded">
+        {codesOf(station).map((code) => (
+          <span key={code} className="px-1 py-px text-[10px] font-bold leading-tight text-white" style={{ background: LINE[code.slice(0, 2)] }}>{code}</span>
+        ))}
+      </span>
+      {station}
+    </span>
+  )
+}
+
 // Where each preschool and weekend base is. Schools are added and removed in the feedback site;
 // address edits here save themselves into the shared tables.
 export default function VenueProfiles() {
@@ -80,7 +103,7 @@ export default function VenueProfiles() {
                         </span>
                         <span className="w-full truncate font-semibold text-slate-900" title={v.name}>{v.name}</span>
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">{v.kind === 'base' ? 'Weekends' : v.days.join(', ')}</span>
-                        {v.station && <span className="text-xs font-medium text-slate-700">🚉 {v.station}</span>}
+                        {v.station && <StationName station={v.station} />}
                         {v.address ? (
                           <span className={`line-clamp-2 w-full text-xs ${ok ? 'text-slate-500' : 'text-red-600'}`} title={v.address}>{v.address}</span>
                         ) : (
