@@ -5,6 +5,7 @@ import { ActionButton } from './HeaderControls.jsx'
 import CoachProfileModal from './CoachProfileModal.jsx'
 import { Briefcase, GradCap, Info, Pencil, Person } from './coachIcons.jsx'
 import { coachLevel } from '../lib/roster.js'
+import StationName from './StationName.jsx'
 
 // Advanced keeps the old Lead Coach amber.
 const LEVEL_STYLE = {
@@ -96,8 +97,8 @@ export default function CoachProfiles() {
                         </span>
                         <span className="w-full truncate font-semibold text-slate-900" title={c.name}>{c.name}</span>
                         {station ? (
-                          <span className="w-full truncate text-xs text-slate-500" title={station}>
-                            {station}
+                          <span className="w-full text-xs text-slate-500" title={station}>
+                            <StationName station={station} className="max-w-full" />
                             {unrecognisedStations.includes(c.id) && <span className="block font-medium text-orange-600">MRT not recognised</span>}
                           </span>
                         ) : (
