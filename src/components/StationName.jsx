@@ -11,8 +11,8 @@ const codesOf = (station) => CODES[station.toLowerCase().replace(/\b[ml]rt\b/g, 
 
 export default function StationName({ station, className = '' }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 ${className}`}>
-      <span className="inline-flex shrink-0 overflow-hidden rounded">
+    <span className={`inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 py-0.5 pl-1 pr-2.5 text-xs font-semibold text-slate-700 ${className}`}>
+      <span className="inline-flex shrink-0 overflow-hidden rounded-full empty:hidden">
         {codesOf(station).map((code) => (
           <span key={code} className="px-1 py-px text-[10px] font-bold leading-tight text-white" style={{ background: LINE[code.slice(0, 2)] }}>{code}</span>
         ))}
