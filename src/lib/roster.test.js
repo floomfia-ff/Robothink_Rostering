@@ -283,6 +283,21 @@ if (other) {
   assert.ok(at(tp).includes(M), 'fixed coach stays put')
   for (const b of [dover, tp]) assert.ok(b.coaches.some((c) => level[c.id] === 'advanced'), `${b.name} still has an Advanced coach`)
 }
+// the real Tuesday from 17 Nov: shortest trips first, so OUE Shenton gets its two nearest free coaches (Pei Qi 36,
+// Matin 38) and Matin is not moved to Fusionopolis just to save Yong Hao more time than it costs Matin.
+{
+  const wk = fresh()
+  const [fus, oue] = wk.days[0].blocks
+  kids(fus, 11)
+  kids(oue, 6)
+  const [K, M, YH, N, P] = freeMon(wk)
+  const level = { [K]: 'advanced', [M]: 'advanced', [YH]: 'advanced', [N]: 'beginner', [P]: 'beginner' }
+  const team = coaches.filter((c) => level[c.id]).map((c) => ({ ...c, employment_type: 'intern', coach_level: level[c.id], can_lead: level[c.id] === 'advanced' }))
+  const t = (f, o) => ({ [fus.schoolId]: f, [oue.schoolId]: o })
+  R.autoFill(wk, team, { [K]: t(19, 23), [M]: t(54, 38), [YH]: t(68, 46), [N]: t(62, 52), [P]: t(52, 36) })
+  assert.deepEqual(oue.coaches.map((c) => c.id).sort(), [M, P].sort(), 'OUE Shenton: Matin and Pei Qi')
+  assert.deepEqual(fus.coaches.map((c) => c.id).sort(), [K, N, YH].sort(), 'Fusionopolis: Kathleen, Nicole, Yong Hao')
+}
 // a fixed coach whose school has no lesson that day stays at WCP (not sent to another school), with no warning
 w = fresh()
 ;[first, second] = w.days[0].blocks
@@ -342,7 +357,7 @@ kids(w.days[0].blocks[0], 6)
 const ghost = [{ kind: 'fixed_coach', coach_id: 99999, school_id: w.days[0].blocks[0].schoolId, active: true }]
 R.autoFill(w, coaches, {}, ghost)
 assert.deepEqual(R.ruleWarnings(w, coaches, ghost), [])
-// two coaches trade schools when that shortens their trips together (one at a time would send q 100 min)
+// two coaches trade when one saves far more than the other loses (nearest-first alone would send one 100 min to save 1)
 w = structuredClone(weeks[0])
 for (const b of w.days[0].blocks) b.coaches = []
 const [a1, a2] = w.days[0].blocks

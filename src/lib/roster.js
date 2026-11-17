@@ -395,18 +395,21 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
     const hasLevel = (b, lv) => b.coaches.some((c) => byId[c.id] && level(c.id) >= lv)
     const mins = (id, b) => travel[id]?.[b.schoolId] ?? Infinity
     const placed = new Set() // coaches this run put on a weekday school; only these may be swapped below
+    // The school with the most students per coach first on a tie; an empty school beats any staffed one.
+    const load = (b) => mostStudents(b) / countedCoaches(b)
     // Moves one coach from `from` out of `free` into one of `blocks`: part-timers first, then anyone but a second
-    // Lead Coach for the school, then the shortest trip over every school/coach pair. Ties keep the old order.
+    // Lead Coach for the school, then the shortest trip over every school/coach pair, then the busier school.
     const placeNearest = (blocks, from = free) => {
       let best = null
       for (const b of blocks) for (const id of from) {
-        const cost = [byId[id].employment_type === 'part-timer' ? 0 : 1, level(id) && hasLevel(b, level(id)) ? 1 : 0, mins(id, b)]
+        const cost = [byId[id].employment_type === 'part-timer' ? 0 : 1, level(id) && hasLevel(b, level(id)) ? 1 : 0, mins(id, b), -load(b), -mostStudents(b)]
         const i = best ? cost.findIndex((v, k) => v !== best.cost[k]) : 0
         if (!best || (i >= 0 && cost[i] < best.cost[i])) best = { b, id, cost }
       }
       free.splice(free.indexOf(best.id), 1)
       best.b.coaches.push({ id: best.id, role: 'coach' })
       if (!isWeekend(day.key)) placed.add(best.id)
+      return best.b
     }
     const target = (b) => Math.min(max, Math.ceil(mostStudents(b) / ratio))
     // 1a. a coach fixed at a preschool that has No Lesson today stays at WCP rather than being sent to another
@@ -425,26 +428,34 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
       free.splice(free.indexOf(r.coach_id), 1)
       b.coaches.push({ id: r.coach_id, role: 'coach' })
     }
-    // The school with the most students per coach picks next; an empty school beats any staffed one, ties go to more students.
-    const load = (b) => mostStudents(b) / countedCoaches(b)
-    const busiest = (list) => list.reduce((a, b) => (load(b) > load(a) || (load(b) === load(a) && mostStudents(b) > mostStudents(a)) ? b : a))
+    // Shortest trips are handed out first. Schools take turns: in each round a school short of coaches gets at most
+    // one, so a school close to everyone can't take them all while another has none.
+    const served = new Set()
     for (;;) {
       const under = lessons.filter((b) => countedCoaches(b) < target(b))
       const needs = under.filter((b) => !hasLevel(b, 2))
       const advanced = free.filter((id) => level(id) === 2)
       const backup = under.filter((b) => !hasLevel(b, 1))
       const intermediate = free.filter((id) => level(id) === 1)
-      // 2. an Advanced coach at every school that has none yet, busiest first
-      if (advanced.length && needs.length) placeNearest([busiest(needs)], advanced)
+      // 2. an Advanced coach at every school that has none yet, shortest trip first
+      if (advanced.length && needs.length) placeNearest(needs, advanced)
       // 2b. out of Advanced coaches: an Intermediate at every school still without either
-      else if (intermediate.length && backup.length) placeNearest([busiest(backup)], intermediate)
-      // 3. up to each school's target, busiest first; anyone left stays at WCP
-      else if (free.length && under.length) placeNearest([busiest(under)])
-      else break
+      else if (intermediate.length && backup.length) placeNearest(backup, intermediate)
+      // 3. up to each school's target, shortest trip first, one per school per round; anyone left stays at WCP
+      else if (free.length && under.length) {
+        let open = under.filter((b) => !served.has(b))
+        if (!open.length) {
+          served.clear()
+          open = under
+        }
+        served.add(placeNearest(open))
+      } else break
     }
-    // 4. two coaches placed above (same type: intern with intern, part-timer with part-timer) trade schools when that
-    // shortens their trips together: one at a time can't see it. Any level may trade, as long as neither school loses
-    // its Advanced or Intermediate coach by it. Fixed coaches never trade; Leads are picked after this.
+    // 4. two coaches placed above (same type: intern with intern, part-timer with part-timer) trade schools when both get
+    // a shorter trip, or when one saves more than twice what the other loses (so nobody is sent further for a small
+    // saving, but nobody is stuck with a 100-minute trip to save someone else a minute). Any level may trade, as long
+    // as neither school loses its Advanced or Intermediate coach by it. Fixed coaches never trade; Leads come after.
+    const worth = (dx, dy) => (dx <= 0 && dy <= 0 && dx + dy < 0) || -Math.min(dx, dy) > 2 * Math.max(dx, dy)
     const same = (x, y) => byId[x].employment_type === byId[y].employment_type
     const cover = (b) => [hasLevel(b, 2), hasLevel(b, 1)]
     const kept = (before, after) => before.every((had, i) => !had || after[i])
@@ -452,7 +463,7 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
       swapped = false
       for (const a of lessons) for (const b of lessons) for (const x of a.coaches) for (const y of b.coaches) {
         if (a === b || !placed.has(x.id) || !placed.has(y.id) || !same(x.id, y.id)) continue
-        if (!(mins(x.id, b) + mins(y.id, a) < mins(x.id, a) + mins(y.id, b))) continue
+        if (!worth(mins(x.id, b) - mins(x.id, a), mins(y.id, a) - mins(y.id, b))) continue
         const before = [cover(a), cover(b)]
         ;[x.id, y.id] = [y.id, x.id]
         if (kept(before[0], cover(a)) && kept(before[1], cover(b))) swapped = true
