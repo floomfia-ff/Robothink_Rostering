@@ -1,0 +1,57 @@
+# Runs on every push to main and every pull request.
+#
+# Copied from the RoboThink-Feedback repo, which has had this for a while. The
+# roster had the tests but nothing that ran them, so they only ran when someone
+# remembered — and this is the project holding coach names and home MRT
+# stations, so it is the odd one to leave unchecked.
+#
+# Three checks, in the order they catch things:
+#
+#   lint   — unused variables, hook rules, obvious mistakes
+#   test   — the roster rules themselves: intern quotas, lead counts, fixed
+#            coaches, the auto-fill, the Excel export, the plan parser
+#   build  — broken imports. Lint and tests both pass with a bad import path;
+#            only the build catches it, and a blank white page is what the
+#            user sees when that reaches them.
+#
+# No deploy job: unlike the feedback repo this one has no Vercel deploy hook
+# set up here, so deployment is left exactly as it is.
+#
+# The checks need no secrets and touch nothing outside the runner — in
+# particular they never reach Supabase, Google Sheets or OneMap, because
+# everything tested is a pure function.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what the
+      # lockfile says, so CI cannot pass on a different set of packages than
+      # the ones that were tested.
+      - run: npm ci
+
+      # oxlint exits 0 on warnings, so this fails only on an error — a broken
+      # hook rule, say, which react/rules-of-hooks is set to "error" for.
+      # First run reported 13 warnings and no errors; that count is a baseline
+      # to bring down, not a gate. Add --deny-warnings here once it is zero.
+      - run: npm run lint
+
+      # The four test files assert at the top level with node:assert/strict, so
+      # a failure throws, node exits 1, and the && chain stops. Verified.
+      - run: npm test
+
+      - run: npm run build

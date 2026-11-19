@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "oxlint",
     "preview": "vite preview",
     "test": "node src/lib/roster.test.js && node supabase/functions/roster/plan.test.js && node supabase/functions/roster/logic.test.js && node supabase/functions/roster/recent.test.js"
   },
@@ -18,6 +19,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
+    "oxlint": "^1.94.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.5"
   }
