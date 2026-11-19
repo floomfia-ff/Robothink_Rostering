@@ -11,6 +11,7 @@
     "test": "node src/lib/roster.test.js && node supabase/functions/roster/plan.test.js && node supabase/functions/roster/logic.test.js && node supabase/functions/roster/recent.test.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.1",
     "exceljs": "^4.4.0",
     "html-to-image": "1.11.11",
     "react": "^19.3.1",

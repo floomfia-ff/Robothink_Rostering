@@ -7,10 +7,26 @@ import {
   toStored, travelMap, validateCoachFields, validateRule, validateWeek, weekShell,
 } from './logic.js'
 
+// CORS. Only our own two addresses are echoed back - it used to be '*', which
+// let any page call this using a visitor's browser. The origin header is added
+// at the single exit point in Deno.serve (withOrigin), so every reply gets it
+// without threading `req` through json(), noContent() and fail().
+//
+// CORS is not authentication: a non-browser client ignores it completely. The
+// admin check in handle() is the gate. This only removes the drive-by case.
+const ALLOWED_ORIGINS = ['https://robothink-rostering.vercel.app', 'http://localhost:5173']
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'content-type, x-roster-code',
+  'Access-Control-Allow-Headers': 'authorization, content-type, x-roster-code',
   'Access-Control-Allow-Methods': 'GET, PUT, POST, PATCH, DELETE, OPTIONS',
+  'Vary': 'Origin',
+}
+
+function withOrigin(res: Response, req: Request): Response {
+  const origin = req.headers.get('origin')
+  if (!origin || !ALLOWED_ORIGINS.includes(origin)) return res
+  const headers = new Headers(res.headers)
+  headers.set('Access-Control-Allow-Origin', origin)
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
 }
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'
 
@@ -201,17 +217,43 @@ async function weekFor(id: string, coaches: unknown[], schools: Awaited<ReturnTy
 Deno.serve(async (req) => {
   const again = req.clone()
   const res = await handle(req)
-  if (res.status !== 500 || !(await res.clone().text()).includes('issued at future')) return res
+  if (res.status !== 500 || !(await res.clone().text()).includes('issued at future')) {
+    return withOrigin(res, req)
+  }
   await new Promise((r) => setTimeout(r, 1000))
-  return handle(again)
+  return withOrigin(await handle(again), req)
 })
 
+// Who is calling. The token's signature is verified by Supabase here (not just
+// decoded), and the role is read from app_metadata, which only the server can
+// set - so a user cannot promote themselves.
+//
+// This REPLACES the old x-roster-code check. That code was read from
+// VITE_ROSTER_CODE, which Vite compiles into the public JavaScript, so every
+// visitor had it: anyone who found the address could read every coach's name
+// and home MRT station and delete any week. The function also uses the
+// service-role key, which bypasses row level security, so the code was the
+// only thing in the way.
+//
+// Returns null when the caller is a signed-in admin, or the reply to send back.
+async function refuse(req: Request): Promise<Response | null> {
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '')
+  if (!token) return fail('Sign in to use the roster.', 401)
+
+  const { data, error } = await db.auth.getUser(token)
+  if (error || !data.user) return fail('Sign in to use the roster.', 401)
+  if (data.user.app_metadata?.role !== 'admin') return fail('Admins only.', 403)
+
+  return null
+}
+
 async function handle(req: Request) {
+  // Answered before any check, so the keep-awake ping needs no credentials and
+  // never touches the database or the lesson plan sheet.
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   try {
-    const secret = Deno.env.get('ROSTER_CODE')
-    if (!secret) return fail('ROSTER_CODE is not set on this function.', 500)
-    if (req.headers.get('x-roster-code') !== secret) return fail('Roster code not accepted.', 401)
+    const refused = await refuse(req)
+    if (refused) return refused
 
     // drop the function's own name, so a test copy under another name routes the same way
     const path = new URL(req.url).pathname.replace(/^(\/functions\/v1)?\/[^/]+/, '') || '/'

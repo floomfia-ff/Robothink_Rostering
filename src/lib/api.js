@@ -1,16 +1,30 @@
 // Every screen talks to the roster function only through these functions.
 import { isValidAddress } from './roster.js'
+import { accessToken } from './supabase.js'
 
 const URL = import.meta.env.VITE_ROSTER_API_URL
+// Transitional, and on its way out. The function that is deployed TODAY still
+// asks for this header, so it keeps being sent until the new one below is
+// deployed - that way neither half breaks while the other is being updated.
+// Once supabase/functions/roster/index.ts is deployed, delete CODE, drop
+// VITE_ROSTER_CODE from .env.example and .env.local, and remove the
+// ROSTER_CODE secret in Supabase.
 const CODE = import.meta.env.VITE_ROSTER_CODE
 
 let baseline = null // what the server last had, so saveDraft only sends what changed
 
 async function request(method, path, body, signal) {
   if (!URL) throw new Error('VITE_ROSTER_API_URL is not set — copy .env.example to .env.local.')
+  // Who is asking. The function verifies this with Supabase and refuses
+  // anyone who is not an admin, so it is the real gate - not the code above.
+  const token = await accessToken()
   const res = await fetch(URL + path, {
     method,
-    headers: { 'x-roster-code': CODE, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(CODE ? { 'x-roster-code': CODE } : {}),
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
     signal,
   }).catch((e) => {
