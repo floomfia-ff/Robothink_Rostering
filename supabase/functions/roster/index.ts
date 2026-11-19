@@ -1,5 +1,8 @@
 // Roster Edge Function: weekly rosters, coach/school/base details. See README.md.
-import { createClient } from 'npm:@supabase/supabase-js@2'
+// Pinned. 'npm:...@2' re-resolves on every deploy, so a deploy that changed
+// nothing in this file could change the library under it - which is exactly
+// how admin sign-in broke on 20 Nov.
+import { createClient } from 'npm:@supabase/supabase-js@2.119.1'
 import { isRecent, recentCutoff } from './recent.js'
 import { DOUBLES_RANGE, DOUBLES_TAB, RANGE, TAB, parsePlan, readDoubles } from './plan.js'
 import {
@@ -236,13 +239,29 @@ Deno.serve(async (req) => {
 // only thing in the way.
 //
 // Returns null when the caller is a signed-in admin, or the reply to send back.
+// Asks the auth server to verify the token, by hand rather than through the
+// SDK. db.auth.getUser() did this until a redeploy pulled a newer library and
+// started rejecting valid admin tokens with no source change; this call is
+// plain HTTP and cannot drift the same way. Returns the user, or null with the
+// reason logged - never the token itself.
+async function userFor(token: string) {
+  const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')! },
+  })
+  if (!res.ok) {
+    console.error('token rejected by auth server:', res.status, (await res.text()).slice(0, 200))
+    return null
+  }
+  return await res.json()
+}
+
 async function refuse(req: Request): Promise<Response | null> {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return fail('Sign in to use the roster.', 401)
 
-  const { data, error } = await db.auth.getUser(token)
-  if (error || !data.user) return fail('Sign in to use the roster.', 401)
-  if (data.user.app_metadata?.role !== 'admin') return fail('Admins only.', 403)
+  const user = await userFor(token)
+  if (!user) return fail('Sign in to use the roster.', 401)
+  if (user.app_metadata?.role !== 'admin') return fail('Admins only.', 403)
 
   return null
 }
