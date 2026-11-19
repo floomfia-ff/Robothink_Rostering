@@ -1,6 +1,6 @@
 import { Calendar, Gear, MapPin, Rules, Users } from './coachIcons.jsx'
 
-// The site's top bar: RoboThink branding, the section tabs and the Admin link (to the feedback site).
+// The site's top bar: RoboThink branding, the section tabs and the link to the feedback site.
 // Animations live in index.css (rt-*) and switch off under prefers-reduced-motion.
 const TABS = [
   ['roster', 'Weekly Roster', Calendar],
@@ -8,7 +8,9 @@ const TABS = [
   ['venues', 'Venues', MapPin],
   ['rules', 'Rules', Rules],
 ]
-const ADMIN_URL = 'https://robothink-student-feedback.vercel.app/admin'
+// Lands on the coach form, which is the thing you go there to fill in. That
+// page's own header has an Admin link if the dashboard is what you wanted.
+const FEEDBACK_URL = 'https://robothink-student-feedback.vercel.app'
 
 const ITEM = 'rt-rise group inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:px-5 sm:text-[15px]'
 const IDLE = 'text-slate-800 hover:-translate-y-0.5 hover:bg-white hover:text-indigo-700 hover:shadow-md hover:shadow-indigo-100'
@@ -45,9 +47,9 @@ export default function TopNav({ tab, setTab }) {
                 {label}
               </button>
             ))}
-            <a href={ADMIN_URL} style={{ animationDelay: '400ms' }} className={`${ITEM} ${IDLE}`}>
+            <a href={FEEDBACK_URL} style={{ animationDelay: '400ms' }} className={`${ITEM} ${IDLE}`}>
               <Gear className={`${ICON} group-hover:rotate-45`} />
-              Admin
+              Feedback
             </a>
           </nav>
         </div>

@@ -131,7 +131,7 @@ const getSchools = async () =>
 const getRules = async () =>
   ok(await db.from('roster_rules').select('id,kind,coach_id,school_id,base,days,value,active,note').order('id'))
 const getSaved = async (id: string) =>
-  ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data').eq('id', id).is('deleted_at', null).maybeSingle())
+  ok(await db.from('roster_weeks').select('id,status,changed_since_publish,data,updated_at').eq('id', id).is('deleted_at', null).maybeSingle())
 
 async function loadPlan(schools: Awaited<ReturnType<typeof getSchools>>) {
   try {
@@ -273,7 +273,7 @@ async function handle(req: Request) {
         getCoaches(), schoolsReply, db.from('roster_bases').select('id,code,name,address').order('id').then(ok),
         db.from('travel_times').select('*').then(ok), getRules(),
         db.from('roster_weeks').select('id,status,deleted_at').order('id').then(ok),
-        db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at').gte('id', cutoff).order('id').then(ok),
+        db.from('roster_weeks').select('id,status,changed_since_publish,data,deleted_at,updated_at').gte('id', cutoff).order('id').then(ok),
         db.from('roster_weeks').select('id,status,changed_since_publish,data').lt('id', cutoff).is('deleted_at', null)
           .order('id', { ascending: false }).limit(1).maybeSingle().then(ok),
         schoolsReply.then(loadPlan),
@@ -337,13 +337,20 @@ async function handle(req: Request) {
         const problem = validateWeek(body, coachIds)
         if (problem) return fail(problem, 400)
         const saved = await getSaved(id)
+        // Two people editing one week used to mean the second save silently
+        // replaced the first. The client sends back the stamp it loaded; if the
+        // row has moved on since, refuse rather than overwrite.
+        if ((saved?.updated_at ?? null) !== (body.updatedAt ?? null)) {
+          return fail('Someone else saved this week while you were editing it. Reload the page, then make your change again.', 409)
+        }
         const published = saved?.status === 'published'
+        const updatedAt = new Date().toISOString()
         ok(await db.from('roster_weeks').upsert({
           id, status: saved?.status ?? 'draft', // only /publish changes status
           changed_since_publish: published || !!saved?.changed_since_publish,
-          data: toStored(body), updated_at: new Date().toISOString(), deleted_at: null,
+          data: toStored(body), updated_at: updatedAt, deleted_at: null,
         }))
-        return noContent()
+        return json({ updatedAt })
       }
       // hidden, not removed, so it can be restored; a week never saved has no row, which is still fine
       if (m === 'DELETE') {

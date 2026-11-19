@@ -76,7 +76,11 @@ export async function saveDraft(roster) {
   for (const w of roster.weeks) {
     const i = baseline.weeks.findIndex((b) => b.id === w.id)
     if (i >= 0 && JSON.stringify(baseline.weeks[i]) === JSON.stringify(w)) continue
-    await request('PUT', `/weeks/${w.id}`, w)
+    const { updatedAt } = await request('PUT', `/weeks/${w.id}`, w)
+    // Carry the new save stamp forward, or the next save looks like someone
+    // else's edit and the server refuses it. Written onto the live object so
+    // the clone below matches it.
+    w.updatedAt = updatedAt
     if (i >= 0) baseline.weeks[i] = structuredClone(w)
     else baseline.weeks.push(structuredClone(w))
   }

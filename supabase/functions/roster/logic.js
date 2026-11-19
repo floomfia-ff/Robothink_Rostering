@@ -64,6 +64,9 @@ export function lessonSlots(planSchool, date) {
 
 export function buildWeek({ id, coaches, schools, plan, planError, saved, previous }) {
   const week = weekShell(id)
+  // The save stamp the client sends back, so a PUT can tell whether someone
+  // else saved this week in the meantime. null means "never saved".
+  week.updatedAt = saved?.updated_at ?? null
   if (saved) {
     week.status = saved.status
     week.changedSincePublish = saved.changed_since_publish

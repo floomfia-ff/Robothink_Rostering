@@ -188,4 +188,9 @@ const withCentre = { ...ids, rules: [...ids.rules, { id: 7, kind: 'fixed_coach',
 assert.match(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'WCP', days: ['tue'] }, withCentre), /already.*centre/)
 assert.equal(L.validateRule({ kind: 'fixed_coach', coach_id: 11, base: 'DV', days: ['tue'] }, withCentre), null)
 assert.equal(L.validateRule({ id: 7, kind: 'fixed_coach', coach_id: 11, school_id: null, base: 'WCP', days: ['mon', 'fri'] }, withCentre), null) // changing its days
+// The save stamp the PUT compares against: null for a week never saved, the row's value otherwise.
+assert.equal(wk.updatedAt, null)
+assert.equal(L.buildWeek({ id: '2026-11-02', coaches, schools: dbSchools, plan: m, planError: null,
+  saved: { ...saved, updated_at: '2026-11-18T09:00:00Z' }, previous: null }).updatedAt, '2026-11-18T09:00:00Z')
+
 console.log('logic ok')
