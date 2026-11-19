@@ -340,7 +340,10 @@ async function handle(req: Request) {
         // Two people editing one week used to mean the second save silently
         // replaced the first. The client sends back the stamp it loaded; if the
         // row has moved on since, refuse rather than overwrite.
-        if ((saved?.updated_at ?? null) !== (body.updatedAt ?? null)) {
+        // shortcut: a body with no updatedAt at all is a page loaded before this
+        // shipped, and is let through rather than refused on every save. Drop
+        // the undefined check once nobody can still be holding that bundle.
+        if (body.updatedAt !== undefined && (saved?.updated_at ?? null) !== body.updatedAt) {
           return fail('Someone else saved this week while you were editing it. Reload the page, then make your change again.', 409)
         }
         const published = saved?.status === 'published'
