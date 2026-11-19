@@ -1,0 +1,37 @@
+# Supabase CLI config for the roster function.
+#
+# project_id saves passing --project-ref on every deploy:
+#
+#     npx supabase login                      (once, opens a browser)
+#     npx supabase functions deploy roster
+#
+# This is the SAME Supabase project the feedback site uses - one database, two
+# sites. The project ref is not a secret; it is the first part of the API URL
+# and is already in .env.example and .github/workflows/keep-awake.yml.
+
+project_id = "kfqaaehcjqzfqxhmtskg"
+
+# ── Why verify_jwt is OFF for this one ──────────────────────────────────────
+#
+# It looks wrong next to the feedback repo, where three functions have it on,
+# so here is the reason.
+#
+# verify_jwt makes Supabase's gateway reject any request without a valid token
+# BEFORE the function runs - including the CORS preflight and the OPTIONS ping
+# that .github/workflows/keep-awake.yml sends every few minutes to stop the
+# function going cold. That ping carries no credentials by design, and the
+# function answers it before any check precisely so it stays cheap.
+#
+# Turning it on is therefore not a free extra layer here: it would likely
+# break the keep-awake ping and the browser's preflight.
+#
+# Nothing is lost by it being off, because the function does the stronger
+# check itself. It calls db.auth.getUser(token), which asks Supabase to VERIFY
+# the token's signature rather than merely decoding it, and then requires
+# app_metadata.role === 'admin' - a field only the server can set. That is the
+# same pattern the feedback repo's coach-signup function uses, and for the same
+# reason: it runs where a gateway check cannot.
+#
+# So: the gateway is not the gate. refuse() in index.ts is.
+[functions.roster]
+verify_jwt = false
