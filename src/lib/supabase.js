@@ -11,13 +11,16 @@ import { createClient } from '@supabase/supabase-js'
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!url || !key) {
-  // Thrown at import time on purpose: a missing key otherwise shows up as a
-  // confusing "failed to fetch" on the first sign-in attempt.
-  throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are not set — copy .env.example to .env.local.')
-}
+/** False when the two variables above are missing, so the page can say so. */
+export const configured = Boolean(url && key)
 
-export const supabase = createClient(url, key)
+// Deliberately does NOT throw when they are missing. Throwing here runs at
+// import time, before React renders anything, so the whole site would be a
+// blank white page - and the likeliest moment for that is the first deploy
+// after this change, when the host has the old variables but not these two.
+// A placeholder client lets RequireAdmin render a message that says which
+// variables to add and where.
+export const supabase = createClient(url || 'https://placeholder.supabase.co', key || 'placeholder')
 
 /** The signed-in user's access token, or null. Sent with every roster API call. */
 export async function accessToken() {

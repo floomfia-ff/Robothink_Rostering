@@ -27,13 +27,30 @@
 // ============================================================================
 
 import { useState } from 'react'
-import { supabase } from '../lib/supabase.js'
+import { configured, supabase } from '../lib/supabase.js'
 import { useSession } from '../lib/session.js'
 
 const FIELD = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200'
 
 export default function RequireAdmin({ children }) {
   const { session, role } = useSession()
+
+  // The host is missing the two Supabase variables - most likely the first
+  // deploy after this change. Say which ones and where, rather than failing
+  // as a blank page or a confusing "failed to fetch" on the first sign-in.
+  if (!configured) {
+    return (
+      <Centred>
+        <p className="text-base font-semibold text-slate-900">The roster isn&rsquo;t configured yet</p>
+        <p className="max-w-md text-sm text-slate-600">
+          It needs <code className="rounded bg-slate-200 px-1">VITE_SUPABASE_URL</code> and{' '}
+          <code className="rounded bg-slate-200 px-1">VITE_SUPABASE_ANON_KEY</code>, the same two values the
+          feedback site uses. Add them in Vercel under Settings → Environment Variables, then redeploy.
+          Locally, copy them into <code className="rounded bg-slate-200 px-1">.env.local</code>.
+        </p>
+      </Centred>
+    )
+  }
 
   if (session === undefined) return <Centred><Spinner /><p className="font-semibold text-slate-700">Checking your sign-in…</p></Centred>
   if (!session) return <SignIn />
