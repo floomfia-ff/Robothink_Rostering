@@ -16,7 +16,7 @@ import {
 // admin check in handle() is the gate. This only removes the drive-by case.
 const ALLOWED_ORIGINS = ['https://robothink-rostering.vercel.app', 'http://localhost:5173']
 const CORS = {
-  'Access-Control-Allow-Headers': 'authorization, content-type, x-roster-code',
+  'Access-Control-Allow-Headers': 'authorization, content-type',
   'Access-Control-Allow-Methods': 'GET, PUT, POST, PATCH, DELETE, OPTIONS',
   'Vary': 'Origin',
 }
