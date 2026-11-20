@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { toBlob } from 'html-to-image'
 import { useRoster } from '../context/RosterContext.jsx'
 import { downloadXlsx, sheetCells, sheetFor } from '../lib/export.js'
 import SaveStatus from './SaveStatus.jsx'
@@ -79,6 +78,11 @@ async function rosterPicture(week, coaches, everyone) {
   holder.appendChild(table)
   document.body.appendChild(holder)
   try {
+    // Loaded here, not at the top: almost nobody presses Copy Picture, and the
+    // browser caches it after the first use. Measured at 12 kB (4.7 kB gzipped)
+    // off the main bundle - the audit's "~40%" was wrong; exceljs is the big one
+    // and it was already split.
+    const { toBlob } = await import('html-to-image')
     return await toBlob(table, { pixelRatio: 2, backgroundColor: '#ffffff' })
   } finally {
     holder.remove()

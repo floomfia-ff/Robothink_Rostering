@@ -12,8 +12,8 @@ const plan = [{ name: 'MBR TOA PAYOH (THU)', day: 'THU', classStart: '2026-01-01
   child('Future Child', '1600 - 1700', 'L1-2A', { start: '2026-12-01' }),
 ] }]
 
-const coaches = [{ id: 1, name: 'Ameer', active: true, employment_type: 'intern', mrt_station: 'Bukit Batok MRT' },
-                 { id: 2, name: 'Matin', active: true, employment_type: 'part-timer', mrt_station: null }]
+const coaches = [{ id: 1, name: 'Coach One', active: true, employment_type: 'intern', mrt_station: 'Bukit Batok MRT' },
+                 { id: 2, name: 'Coach Two', active: true, employment_type: 'part-timer', mrt_station: null }]
 
 // matches schools ignoring case and spaces
 const dbSchools = [{ id: 5, name: 'MBR Toa Payoh (Thu)', class_day: 'THU', active: true, address: '' },

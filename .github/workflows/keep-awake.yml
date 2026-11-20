@@ -6,7 +6,12 @@ name: Keep server awake
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # GitHub may run it a few minutes late; that's fine
+    # Every 15 minutes, and only 07:00-23:00 Singapore time (UTC+8), which is
+    # 23:00-15:00 UTC. Was every 5 minutes round the clock: ~8,600 runs a month
+    # for a server two people use in office hours. GitHub runs scheduled jobs
+    # late or skips them under load, so this was never really every 5 minutes
+    # anyway - the function's own logs show whole hours with no ping at all.
+    - cron: '*/15 23,0-15 * * *'
   workflow_dispatch: # lets you run it by hand from the Actions tab
 
 jobs:
