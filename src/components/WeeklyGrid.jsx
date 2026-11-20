@@ -1,24 +1,34 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
-import { baseCoaches, blockNameTaken, isWeekend } from '../lib/roster.js'
-import CoachChip, { useCoachDrop } from './CoachChip.jsx'
+import { baseCoaches, blockNameTaken, isWeekend, todayIndex } from '../lib/roster.js'
+import CoachChip, { useCoachDrop, useDragAutoScroll } from './CoachChip.jsx'
 import VenueRow from './VenueRow.jsx'
 
 export const GRID_COLS = { gridTemplateColumns: '120px repeat(7, minmax(180px, 1fr))' }
 
 export default function WeeklyGrid() {
-  const { week } = useRoster()
+  const { week, dragging } = useRoster()
+  useDragAutoScroll(!!dragging)
   const bands = Math.max(...week.days.map((d) => d.blocks.filter((b) => b.kind !== 'other').length))
+  const today = todayIndex(week)
 
   return (
-    <section aria-label="Weekly roster" className="grid min-w-[1380px] border-r border-b border-slate-200" style={GRID_COLS}>
+    <section aria-label="Weekly roster" className="relative grid min-w-[1380px] border-r border-b border-slate-200" style={GRID_COLS}>
+      {/* Screen only: Excel and Copy Picture are drawn from the data, not from this grid. */}
+      {today >= 0 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 z-10 rounded-sm border-[3px] border-amber-400 print:hidden"
+          style={{ left: `calc(120px + (100% - 120px) * ${today} / 7)`, width: 'calc((100% - 120px) / 7)' }}
+        />
+      )}
       <div className="bg-slate-800 px-2 py-2 text-xs leading-5 text-white">
         <div><b className="text-amber-300">*</b> Lead Coach</div>
         <div><b className="text-sky-300">#</b> Shadow</div>
       </div>
       {week.days.map((d) => (
         <div key={d.key} className="border-l border-slate-600 bg-slate-800 py-2 text-center text-white">
-          <div className="text-sm font-bold tracking-wide">{d.label}</div>
+          <div className="text-sm font-bold tracking-wide">{d.label}{week.days[today] === d && <span className="ml-1.5 rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-slate-900">TODAY</span>}</div>
           <div className="text-xs text-slate-300">{d.date}</div>
         </div>
       ))}
@@ -35,7 +45,7 @@ export default function WeeklyGrid() {
 
       <div className="border-t border-slate-200 bg-slate-50 print:hidden" />
       {week.days.map((d) => (
-        <AddVenue key={d.key} day={d} />
+        isWeekend(d.key) ? <AddVenue key={d.key} day={d} /> : <div key={d.key} className="border-t border-l border-slate-200 bg-slate-50 print:hidden" />
       ))}
 
       <BaseRow title="WCP" base="WCP" />
@@ -45,17 +55,16 @@ export default function WeeklyGrid() {
   )
 }
 
-// Add a venue (weekday) or programme (weekend) to one day. Suggests names already used on the roster.
+// Add a programme to a weekend day. Suggests programme names already used on the roster.
 function AddVenue({ day }) {
-  const { weeks, venues, addBlock } = useRoster()
+  const { weeks, addBlock } = useRoster()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [base, setBase] = useState('WCP')
-  const weekend = isWeekend(day.key)
 
-  // Weekend suggestions are programme names; picking one also picks its base.
-  const programBase = new Map(weeks.flatMap((w) => w.days.flatMap((d) => d.blocks.filter((b) => b.kind === 'program').map((b) => [b.name, b.base]))))
-  const suggestions = weekend ? [...programBase.keys()] : venues.map((v) => v.name).filter((n) => n !== 'WCP' && n !== 'DV')
+  // Picking a suggested programme also picks its base.
+  const programBase = new Map(weeks.flatMap((w) => (w.days ?? []).flatMap((d) => d.blocks.filter((b) => b.kind === 'program').map((b) => [b.name, b.base]))))
+  const suggestions = [...programBase.keys()]
   const taken = !!name.trim() && blockNameTaken(day, name)
   const listId = `venue-suggest-${day.key}`
 
@@ -66,7 +75,7 @@ function AddVenue({ day }) {
   const submit = (e) => {
     e.preventDefault()
     if (!name.trim() || taken) return
-    addBlock(day.key, name, weekend ? base : undefined)
+    addBlock(day.key, name, base)
     close()
   }
 
@@ -74,7 +83,7 @@ function AddVenue({ day }) {
     return (
       <div className="border-t border-l border-slate-200 bg-slate-50 px-2 py-1 print:hidden">
         <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium text-slate-400 hover:text-indigo-600">
-          + Add {weekend ? 'programme' : 'venue'}
+          + Add programme
         </button>
       </div>
     )
@@ -90,8 +99,8 @@ function AddVenue({ day }) {
           if (programBase.has(e.target.value)) setBase(programBase.get(e.target.value))
         }}
         onKeyDown={(e) => e.key === 'Escape' && close()}
-        placeholder={weekend ? 'Programme name' : 'Venue name'}
-        aria-label={`New ${weekend ? 'programme' : 'venue'} on ${day.label}`}
+        placeholder="Programme name"
+        aria-label={`New programme on ${day.label}`}
         aria-invalid={taken}
         className={`w-full rounded border px-2 py-1 text-xs focus:outline-none ${taken ? 'border-red-400 bg-red-50' : 'border-slate-200 focus:border-indigo-400'}`}
       />
@@ -101,12 +110,10 @@ function AddVenue({ day }) {
         ))}
       </datalist>
       {taken && <p className="text-[11px] text-red-600">Already on {day.label}</p>}
-      {weekend && (
-        <select value={base} onChange={(e) => setBase(e.target.value)} aria-label="Base" className="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs">
-          <option value="WCP">WCP base</option>
-          <option value="DV">DV base</option>
-        </select>
-      )}
+      <select value={base} onChange={(e) => setBase(e.target.value)} aria-label="Base" className="w-full rounded border border-slate-200 bg-white px-1 py-1 text-xs">
+        <option value="WCP">WCP base</option>
+        <option value="DV">DV base</option>
+      </select>
       <div className="flex gap-1">
         <button type="submit" disabled={!name.trim() || taken} className="rounded bg-indigo-600 px-2 py-1 text-xs font-semibold text-white disabled:opacity-40">
           Add
@@ -162,6 +169,7 @@ function BaseCell({ day, base }) {
             onClick={other ? () => openSwap(day.key, other.id, i) : undefined}
           />
         ))}
+        {target && drop.ghost}
         {other && (
           <button
             type="button"

@@ -1,9 +1,10 @@
 // Pure roster rules. Everything here takes plain data, so the backend can mirror it.
 // Mutating helpers (assign/add/remove/setRole/autoFill/setAvailability) expect a cloned week.
 
-export const MAX_STUDENTS_PER_COACH = 6
 export const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri']
 export const INTERN_QUOTA = { weekdays: 4, weekend: 1 }
+export const INTERN_WEEKDAY_OFF = ['tue', 'wed']
+const DAY_NAMES = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday' }
 
 export const isWeekend = (dayKey) => !WEEKDAYS.includes(dayKey)
 // Only weekday venue lessons have a Lead; weekend programmes and OTHERS don't.
@@ -16,29 +17,39 @@ export function isValidSlotTime(time) {
   const m = /^([01]\d|2[0-3]):([0-5]\d) - ([01]\d|2[0-3]):([0-5]\d)$/.exec((time ?? '').trim())
   return !!m && m[1] + m[2] < m[3] + m[4]
 }
-export const isValidPostalCode = (code) => /^\d{6}$/.test(code ?? '') // Singapore
+export { isValidAddress } from '../../supabase/functions/roster/logic.js'
+import { addDays } from '../../supabase/functions/roster/logic.js'
 
-// Every place coaches report to: weekday venues (by name, across all weeks) plus the weekend bases.
-// Returns [{ name, days, address, postalCode }] merged with saved details in roster.venues.
+// Which day of this week is today in Singapore (0 = Monday); -1 when this isn't the current week.
+export const todayIndex = (week) => {
+  const today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
+  return week.days.findIndex((_, i) => addDays(week.id, i) === today)
+}
+
+// The Monday of the week a "YYYY-MM-DD" date falls in (weeks are stored by their Monday).
+export const mondayOf = (date) => addDays(date, -((new Date(Date.parse(date)).getUTCDay() + 6) % 7))
+
+// Every place coaches report to: active schools, then the WCP / DV bases.
+// days = the day labels where a lesson block uses that school / a programme uses that base.
 export function venueList(roster) {
   const days = new Map()
-  for (const w of roster.weeks) for (const d of w.days) for (const b of d.blocks) {
-    const name = b.kind === 'lesson' ? b.name : b.kind === 'program' ? b.base : null
-    if (name) days.set(name, new Set(days.get(name)).add(d.label))
+  const note = (key, label) => days.set(key, new Set(days.get(key)).add(label))
+  for (const w of roster.weeks) for (const d of w.days ?? []) for (const b of d.blocks) {
+    if (b.kind === 'lesson' && b.schoolId != null) note('school:' + b.schoolId, d.label)
+    else if (b.kind === 'program') note('base:' + b.base, d.label)
   }
-  for (const v of roster.venues ?? []) if (!days.has(v.name)) days.set(v.name, new Set()) // added on Venues tab, not rostered yet
-  const saved = Object.fromEntries((roster.venues ?? []).map((v) => [v.name, v]))
-  return [...days].map(([name, set]) => ({ address: '', postalCode: '', ...saved[name], name, days: [...set] }))
+  const list = (kind, items) => items.map((v) => ({ kind, id: v.id, name: kind === 'base' ? v.code : v.name, address: v.address ?? '', station: v.station ?? '', days: [...(days.get(kind + ':' + (kind === 'base' ? v.code : v.id)) ?? [])] }))
+  return [...list('school', (roster.schools ?? []).filter((s) => s.active)), ...list('base', roster.bases ?? [])]
 }
 
 export const availability = (week, coachId, dayKey) =>
   week.availability[coachId]?.[dayIndex(week, dayKey)] ?? 'unavailable'
 
-// Weekday lessons and weekend programmes both use the ratio; programmes count students only once entered.
+// 1 when a weekday lesson has students today, else 0. How many coaches it gets comes from the Rules tab (see autoFill).
+const mostStudents = (block) => Math.max(0, ...block.slots.map((s) => Number(s.students) || 0))
 export function requiredCoaches(block) {
-  if (block.kind === 'other' || block.noLesson) return 0
-  const most = Math.max(0, ...block.slots.map((s) => Number(s.students) || 0))
-  return Math.ceil(most / MAX_STUDENTS_PER_COACH)
+  if (block.kind !== 'lesson' || block.noLesson) return 0
+  return mostStudents(block) > 0 ? 1 : 0
 }
 
 // Shadows don't count towards the ratio (matches the spreadsheet counts).
@@ -47,11 +58,8 @@ export const countedCoaches = (block) => block.coaches.filter((c) => c.role !== 
 export function blockStatus(block) {
   if (block.kind === 'other') return null
   if (block.noLesson) return { tone: 'grey', label: 'No lesson' }
-  const need = requiredCoaches(block)
-  const have = countedCoaches(block)
-  if (have < need) return { tone: 'red', label: `Short ${need - have}` }
   if (block.kind === 'program' && block.coaches.length === 0) return { tone: 'grey', label: 'No class' }
-  if (block.kind === 'lesson' && need === 0 && block.coaches.length === 0) return { tone: 'grey', label: 'No students' }
+  if (block.kind === 'lesson' && requiredCoaches(block) === 0 && block.coaches.length === 0) return { tone: 'grey', label: 'No students' }
   if (needsLead(block) && !block.coaches.some((c) => c.role === 'lead')) return { tone: 'yellow', label: 'No lead' }
   return { tone: 'green', label: 'OK' }
 }
@@ -64,7 +72,7 @@ export function baseCoaches(week, dayKey, base, coaches) {
   const day = getDay(week, dayKey)
   if (base === 'WCP' && !isWeekend(dayKey)) {
     return coaches
-      .filter((c) => c.type === 'intern' && availability(week, c.id, dayKey) === 'available' && !placementOf(day, c.id))
+      .filter((c) => c.employment_type === 'intern' && availability(week, c.id, dayKey) === 'available' && !placementOf(day, c.id))
       .map((c) => ({ id: c.id, role: 'coach' }))
   }
   return day.blocks.filter((b) => b.kind === 'program' && b.base === base).flatMap((b) => b.coaches)
@@ -73,7 +81,7 @@ export function baseCoaches(week, dayKey, base, coaches) {
 export function isWorking(week, dayKey, coach) {
   if (availability(week, coach.id, dayKey) !== 'available') return false
   if (placementOf(getDay(week, dayKey), coach.id)) return true
-  return coach.type === 'intern' && !isWeekend(dayKey) // at WCP
+  return coach.employment_type === 'intern' && !isWeekend(dayKey) // at WCP
 }
 
 export function dayTotals(week, dayKey, coaches) {
@@ -81,7 +89,6 @@ export function dayTotals(week, dayKey, coaches) {
   const wcp = isWeekend(dayKey) ? 0 : baseCoaches(week, dayKey, 'WCP', coaches).length
   return {
     assigned: day.blocks.reduce((n, b) => n + countedCoaches(b), 0) + wcp,
-    required: day.blocks.reduce((n, b) => n + requiredCoaches(b), 0),
     available: coaches.filter((c) => availability(week, c.id, dayKey) === 'available').length,
   }
 }
@@ -96,51 +103,84 @@ export function coachDay(week, dayKey, coach) {
   return { status: 'free' }
 }
 
+// Coach Profiles level, weakest first. Coaches saved before levels existed fall back to the old Lead Coach toggle.
+export const LEVELS = ['beginner', 'intermediate', 'advanced']
+export const coachLevel = (c) => (LEVELS.includes(c?.coach_level) ? c.coach_level : c?.can_lead ? 'advanced' : 'beginner')
+const rank = (c) => LEVELS.indexOf(coachLevel(c))
+
+// Weekday Leads should be Intermediate or Advanced in Coach Profiles.
+export function leadWarnings(week, coaches) {
+  const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  return week.days.flatMap((d) =>
+    d.blocks.flatMap((b) => {
+      const lead = needsLead(b) && b.coaches.find((c) => c.role === 'lead')
+      const coach = lead && byId[lead.id]
+      return coach && !rank(coach) ? [`${d.label} ${d.date}: ${b.name}'s Lead ${coach.name} is a Beginner.`] : []
+    }),
+  )
+}
+
+// The Rules tab's rows as Auto-Generate uses them; rules that are off are ignored.
+export function ruleSettings(rules = []) {
+  const on = rules.filter((r) => r.active !== false)
+  const num = (kind, fallback) => on.find((r) => r.kind === kind)?.value ?? fallback
+  return {
+    ratio: num('students_per_coach', 3),
+    max: num('max_coaches', 4),
+    fixed: on.filter((r) => r.kind === 'fixed_coach' && r.base == null).map(({ coach_id, school_id }) => ({ coach_id, school_id })),
+    // fixed at a centre on picked days: weekdays they stay back at WCP, weekends they go to that centre's programme
+    centre: on.filter((r) => r.kind === 'fixed_coach' && r.base != null).map(({ coach_id, base, days }) => ({ coach_id, base, days: days ?? [] })),
+  }
+}
+
+// The centre (WCP / DV) a coach is fixed at on this day, if any.
+export const centreFor = (centre, coachId, dayKey) => centre.find((r) => r.coach_id === coachId && r.days.includes(dayKey))?.base
+
+// Weekday lessons that break a rule: a fixed coach not at their school, or more coaches than the max.
+export function ruleWarnings(week, coaches, rules = []) {
+  const { max, fixed } = ruleSettings(rules)
+  const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  return week.days.filter((d) => !isWeekend(d.key)).flatMap((d) => {
+    const lessons = d.blocks.filter((b) => requiredCoaches(b) > 0)
+    const over = lessons.filter((b) => countedCoaches(b) > max)
+      .map((b) => `${d.label} ${d.date}: ${b.name} has ${countedCoaches(b)} coaches, more than the max of ${max}.`)
+    const misplaced = fixed.flatMap(({ coach_id, school_id }) => {
+      const coach = byId[coach_id]
+      const b = lessons.find((x) => x.schoolId === school_id)
+      if (!coach || !b || b.coaches.some((c) => c.id === coach_id)) return []
+      const at = availability(week, coach_id, d.key) === 'available' ? `is at ${placementOf(d, coach_id)?.name ?? 'WCP'}` : 'is off'
+      return [`${d.label} ${d.date}: ${coach.name} is fixed at ${b.name} but ${at}.`]
+    })
+    return [...misplaced, ...over]
+  }).concat(centreWarnings(week, coaches, rules))
+}
+
+// A coach fixed at a centre who is working that day but sent to a preschool (weekday) or not in that centre's programme (weekend).
+function centreWarnings(week, coaches, rules) {
+  const { centre } = ruleSettings(rules)
+  return week.days.flatMap((d) => centre.flatMap(({ coach_id, base, days }) => {
+    const coach = coaches.find((c) => c.id === coach_id)
+    if (!coach || !days.includes(d.key) || availability(week, coach_id, d.key) !== 'available') return []
+    const at = placementOf(d, coach_id)
+    if (isWeekend(d.key) ? at?.kind === 'program' && at.base === base : !at || at.kind !== 'lesson') return []
+    return [`${d.label} ${d.date}: ${coach.name} is fixed at ${base} but is ${at ? `at ${at.name}` : 'not placed'}.`]
+  }))
+}
+
 export function quotaWarnings(week, coaches) {
   return coaches
-    .filter((c) => c.type === 'intern')
+    .filter((c) => c.employment_type === 'intern')
     .map((c) => {
       const worked = week.days.filter((d) => isWorking(week, d.key, c))
       const weekdays = worked.filter((d) => !isWeekend(d.key)).length
       const weekend = worked.length - weekdays
-      if (weekdays === INTERN_QUOTA.weekdays && weekend === INTERN_QUOTA.weekend) return null
+      if (weekdays === INTERN_QUOTA.weekdays && weekend === INTERN_QUOTA.weekend) {
+        const off = week.days.find((d) => !isWeekend(d.key) && !worked.includes(d)).key
+        return INTERN_WEEKDAY_OFF.includes(off) ? null : `Intern ${c.name}'s weekday off is ${DAY_NAMES[off]}; it must be Tuesday or Wednesday.`
+      }
       return `Intern ${c.name} is assigned to ${weekdays} weekday${weekdays === 1 ? '' : 's'} + ${weekend} weekend day${weekend === 1 ? '' : 's'}; needs ${INTERN_QUOTA.weekdays} weekdays + ${INTERN_QUOTA.weekend} weekend.`
     })
     .filter(Boolean)
-}
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-// Copy `source` into a new draft week starting 7 days after `latest` (so weeks never clash).
-// Same venues, slots, students, availability and coaches; each weekday Lead passes to the next coach.
-export function nextWeek(source, latest) {
-  const start = new Date(`${latest.id}T00:00:00Z`)
-  start.setUTCDate(start.getUTCDate() + 7)
-  const id = start.toISOString().slice(0, 10)
-  const dates = source.days.map((_, i) => {
-    const d = new Date(start)
-    d.setUTCDate(d.getUTCDate() + i)
-    return `${d.getUTCDate()}-${MONTHS[d.getUTCMonth()]}`
-  })
-  const week = structuredClone(source)
-  Object.assign(week, { id, label: `${dates[0]} to ${dates.at(-1)}`, status: 'draft' })
-  delete week.changedSincePublish
-  week.days.forEach((day, i) => {
-    day.date = dates[i]
-    for (const b of day.blocks) {
-      b.id = b.id.replace(source.id, id)
-      if (needsLead(b)) rotateLead(b)
-    }
-  })
-  return week
-}
-
-function rotateLead(block) {
-  const pool = block.coaches.filter((c) => c.role !== 'shadow')
-  const i = pool.findIndex((c) => c.role === 'lead')
-  if (i < 0 || pool.length < 2) return
-  pool[i].role = 'coach'
-  pool[(i + 1) % pool.length].role = 'lead'
 }
 
 // ---- edits (on a cloned week) ----
@@ -166,6 +206,11 @@ export function removeBlock(week, dayKey, blockId) {
   day.blocks = day.blocks.filter((b) => b.id !== blockId)
 }
 
+// Start the week's placements over; availability is kept.
+export function clearCoaches(week) {
+  for (const d of week.days) for (const b of d.blocks) b.coaches = []
+}
+
 // No Lesson frees the coaches (interns fall back to WCP).
 export function setNoLesson(week, dayKey, blockId, on) {
   const block = getDay(week, dayKey).blocks.find((b) => b.id === blockId)
@@ -173,6 +218,7 @@ export function setNoLesson(week, dayKey, blockId, on) {
     block.noLesson = true
     block.coaches = []
   } else delete block.noLesson
+  delete block.holiday // an admin's explicit toggle is stored, not treated as sheet-derived
 }
 
 function findSlot(day, coachId) {
@@ -210,6 +256,17 @@ export function moveCoach(week, dayKey, coachId, toBlockId) {
   if (from?.block.id === toBlockId) return
   if (!toBlockId) return from && from.block.coaches.splice(from.index, 1)
   addCoach(week, dayKey, toBlockId, coachId)
+}
+
+// Drag-and-drop onto another coach: the two trade places (roles stay with the position, like assignCoach).
+// A target at base (not placed) takes the dragged coach's spot, and the dragged coach goes back to base.
+export function swapCoaches(week, dayKey, draggedId, targetId) {
+  if (draggedId === targetId) return
+  const day = getDay(week, dayKey)
+  const target = findSlot(day, targetId)
+  if (target) return assignCoach(week, dayKey, target.block.id, target.index, draggedId)
+  const from = findSlot(day, draggedId)
+  if (from) from.block.coaches[from.index].id = targetId
 }
 
 // What changed between two versions of a week: keys are `${blockId}:${coachId}`.
@@ -252,22 +309,58 @@ export function pickLead(pool, leadCount) {
   return tied[Math.floor(Math.random() * tied.length)]
 }
 
-// Draft fill: keep valid assignments, drop unavailable/double-booked coaches,
-// top up short venues and programmes from free coaches, spread weekend leftovers across running programmes,
-// keep interns to one weekend day unless a programme is short, and share Leads out evenly.
-// shortcut: greedy and ignores home location; replace with the backend solver once postal codes are geocoded.
-export function autoFill(week, coaches) {
+// Draft fill: keep valid assignments, drop unavailable/double-booked coaches. Weekdays follow the Rules tab:
+// fixed coaches first, then each school's target (students / ratio, rounded up, never past the max) is filled,
+// a Lead Coach first, by the school with the most students per coach taking its nearest free coach; anyone left
+// stays at WCP. Weekends spread leftovers across running programmes and split coaches over Sat / Sun.
+// Leads are shared out evenly. `travel` is { coachId: { schoolId: minutes } }, unknown times last.
+// shortcut: greedy, one school at a time; a full matching over all schools could lower total travel a little more.
+export function autoFill(week, coaches, travel = {}, rules = []) {
+  const { ratio, max, fixed, centre } = ruleSettings(rules)
   const byId = Object.fromEntries(coaches.map((c) => [c.id, c]))
   const leadCount = {}
   for (const d of week.days) for (const b of d.blocks) for (const c of b.coaches) {
     if (c.role === 'lead') leadCount[c.id] = (leadCount[c.id] ?? 0) + 1
   }
 
+  // Interns without days off get them, so they work 4 weekdays + 1 weekend day: the weekday off is Tue or Wed
+  // and each off goes to the day fewer interns already have off. A day they're already placed on is kept.
+  const interns = coaches.filter((c) => c.employment_type === 'intern')
+  const offCount = (k) => interns.filter((c) => availability(week, c.id, k) === 'off').length
+  for (const c of interns) {
+    const free = (k) => availability(week, c.id, k) === 'available'
+    // a day at their fixed school counts as placed, so it never becomes their day off
+    const fixedOn = (k) => fixed.some((r) => r.coach_id === c.id && getDay(week, k)?.blocks.some((b) => b.schoolId === r.school_id && requiredCoaches(b) > 0)) || !!centreFor(centre, c.id, k)
+    const placed = (k) => (placementOf(getDay(week, k), c.id) || fixedOn(k) ? 1 : 0)
+    const pickOff = (a, b) => [a, b].sort((x, y) => placed(x) - placed(y) || offCount(x) - offCount(y))[0]
+    if (WEEKDAYS.every(free)) setAvailability(week, pickOff(...INTERN_WEEKDAY_OFF), c.id, 'off')
+    if (getDay(week, 'sat') && free('sat') && free('sun')) setAvailability(week, pickOff('sat', 'sun'), c.id, 'off')
+  }
+
+  // Coaches free on both weekend days and not yet placed on either get one day each, filling the
+  // quieter day first, so Saturday and Sunday split evenly.
+  const weekendDay = {}
+  const sat = getDay(week, 'sat')
+  const sun = getDay(week, 'sun')
+  if (sat && sun) {
+    const placedOn = (day) => new Set(day.blocks.flatMap((b) => b.coaches.map((c) => c.id)))
+    const count = { sat: placedOn(sat).size, sun: placedOn(sun).size }
+    for (const c of coaches) {
+      const both = ['sat', 'sun'].every((k) => availability(week, c.id, k) === 'available')
+      if (!both || placementOf(sat, c.id) || placementOf(sun, c.id)) continue
+      const fixedDay = ['sat', 'sun'].filter((k) => centreFor(centre, c.id, k)) // fixed at a centre on one of them: that one
+      const day = fixedDay.length === 1 ? fixedDay[0] : count.sat <= count.sun ? 'sat' : 'sun'
+      weekendDay[c.id] = day
+      count[day]++
+    }
+  }
+
   for (const day of week.days) {
     const seen = new Set()
     for (const b of day.blocks) {
       b.coaches = b.coaches.filter((c) => {
-        const ok = availability(week, c.id, day.key) === 'available' && !seen.has(c.id)
+        const atWcp = !isWeekend(day.key) && b.kind === 'lesson' && centreFor(centre, c.id, day.key) // fixed at a centre: off the preschool
+        const ok = availability(week, c.id, day.key) === 'available' && !seen.has(c.id) && !atWcp
         seen.add(c.id)
         return ok
       })
@@ -275,33 +368,118 @@ export function autoFill(week, coaches) {
     // Part-timers only come in when free that day, so use them before pulling interns off WCP.
     let free = coaches
       .filter((c) => availability(week, c.id, day.key) === 'available' && !seen.has(c.id))
-      .sort((a, b) => (a.type === b.type ? 0 : a.type === 'part-timer' ? -1 : 1))
+      .sort((a, b) => (a.employment_type === b.employment_type ? 0 : a.employment_type === 'part-timer' ? -1 : 1))
       .map((c) => c.id)
-    // Interns already on the other weekend day are kept back: only used if a programme is short.
+    // Interns already on the other weekend day are kept back: one weekend day each.
     const otherWeekendDay = day.key === 'sat' ? 'sun' : 'sat'
-    const isDouble = (id) => isWeekend(day.key) && byId[id].type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
-    const spare = free.filter(isDouble)
-    free = free.filter((id) => !isDouble(id))
+    const isDouble = (id) => isWeekend(day.key) && byId[id].employment_type === 'intern' && isWorking(week, otherWeekendDay, byId[id])
+    free = free.filter((id) => !isDouble(id) && (!weekendDay[id] || weekendDay[id] === day.key))
+    // Weekend programmes that take coaches: the ones already running, or all of them if none is.
+    const open = (programs) => (programs.some((b) => b.coaches.length) ? programs.filter((b) => b.coaches.length) : programs)
+    const emptiest = (list) => list.reduce((a, b) => (b.coaches.length < a.coaches.length ? b : a))
+    // 0. fixed at a centre today: weekdays they stay at WCP (never sent out); weekends they join that centre's
+    // emptiest running programme (an empty one if none is running), when the centre has one that day
+    for (const id of free.filter((x) => centreFor(centre, x, day.key))) {
+      if (!isWeekend(day.key)) {
+        free.splice(free.indexOf(id), 1)
+        continue
+      }
+      const targets = open(day.blocks.filter((b) => b.kind === 'program' && b.base === centreFor(centre, id, day.key)))
+      if (!targets.length) continue
+      emptiest(targets).coaches.push({ id, role: 'coach' })
+      free.splice(free.indexOf(id), 1)
+    }
 
-    for (const b of day.blocks.filter((x) => requiredCoaches(x) > 0)) {
-      while (countedCoaches(b) < requiredCoaches(b) && (free.length || spare.length)) {
-        b.coaches.push({ id: free.length ? free.shift() : spare.shift(), role: 'coach' })
+    const lessons = day.blocks.filter((x) => requiredCoaches(x) > 0)
+    const level = (id) => rank(byId[id])
+    const hasLevel = (b, lv) => b.coaches.some((c) => byId[c.id] && level(c.id) >= lv)
+    const mins = (id, b) => travel[id]?.[b.schoolId] ?? Infinity
+    const placed = new Set() // coaches this run put on a weekday school; only these may be swapped below
+    // The school with the most students per coach first on a tie; an empty school beats any staffed one.
+    const load = (b) => mostStudents(b) / countedCoaches(b)
+    // Moves one coach from `from` out of `free` into one of `blocks`: part-timers first, then anyone but a second
+    // Lead Coach for the school, then the shortest trip over every school/coach pair, then the busier school.
+    const placeNearest = (blocks, from = free) => {
+      let best = null
+      for (const b of blocks) for (const id of from) {
+        const cost = [byId[id].employment_type === 'part-timer' ? 0 : 1, level(id) && hasLevel(b, level(id)) ? 1 : 0, mins(id, b), -load(b), -mostStudents(b)]
+        const i = best ? cost.findIndex((v, k) => v !== best.cost[k]) : 0
+        if (!best || (i >= 0 && cost[i] < best.cost[i])) best = { b, id, cost }
+      }
+      free.splice(free.indexOf(best.id), 1)
+      best.b.coaches.push({ id: best.id, role: 'coach' })
+      if (!isWeekend(day.key)) placed.add(best.id)
+      return best.b
+    }
+    const target = (b) => Math.min(max, Math.ceil(mostStudents(b) / ratio))
+    // 1a. a coach fixed at a preschool that has No Lesson today stays at WCP rather than being sent to another
+    // school, unless another of their fixed schools has a lesson today. To send them somewhere anyway, drag them
+    // there by hand: placements made by hand are kept above.
+    for (const id of [...free]) {
+      const mine = fixed.filter((r) => r.coach_id === id)
+      const today = mine.map((r) => day.blocks.find((b) => b.kind === 'lesson' && b.schoolId === r.school_id)).filter(Boolean)
+      if (today.length && today.every((b) => requiredCoaches(b) === 0)) free.splice(free.indexOf(id), 1)
+    }
+    // 1. fixed coaches go to their school (first by school name wins), unless it is already full
+    const named = (r) => lessons.find((b) => b.schoolId === r.school_id)?.name ?? ''
+    for (const r of [...fixed].sort((x, y) => named(x).localeCompare(named(y)))) {
+      const b = lessons.find((x) => x.schoolId === r.school_id)
+      if (!b || !free.includes(r.coach_id) || countedCoaches(b) >= max) continue
+      free.splice(free.indexOf(r.coach_id), 1)
+      b.coaches.push({ id: r.coach_id, role: 'coach' })
+    }
+    // Shortest trips are handed out first. Schools take turns: in each round a school short of coaches gets at most
+    // one, so a school close to everyone can't take them all while another has none.
+    const served = new Set()
+    for (;;) {
+      const under = lessons.filter((b) => countedCoaches(b) < target(b))
+      const needs = under.filter((b) => !hasLevel(b, 2))
+      const advanced = free.filter((id) => level(id) === 2)
+      const backup = under.filter((b) => !hasLevel(b, 1))
+      const intermediate = free.filter((id) => level(id) === 1)
+      // 2. an Advanced coach at every school that has none yet, shortest trip first
+      if (advanced.length && needs.length) placeNearest(needs, advanced)
+      // 2b. out of Advanced coaches: an Intermediate at every school still without either
+      else if (intermediate.length && backup.length) placeNearest(backup, intermediate)
+      // 3. up to each school's target, shortest trip first, one per school per round; anyone left stays at WCP
+      else if (free.length && under.length) {
+        let open = under.filter((b) => !served.has(b))
+        if (!open.length) {
+          served.clear()
+          open = under
+        }
+        served.add(placeNearest(open))
+      } else break
+    }
+    // 4. two coaches placed above (same type: intern with intern, part-timer with part-timer) trade schools when both get
+    // a shorter trip, or when one saves more than twice what the other loses (so nobody is sent further for a small
+    // saving, but nobody is stuck with a 100-minute trip to save someone else a minute). Any level may trade, as long
+    // as neither school loses its Advanced or Intermediate coach by it. Fixed coaches never trade; Leads come after.
+    const worth = (dx, dy) => (dx <= 0 && dy <= 0 && dx + dy < 0) || -Math.min(dx, dy) > 2 * Math.max(dx, dy)
+    const same = (x, y) => byId[x].employment_type === byId[y].employment_type
+    const cover = (b) => [hasLevel(b, 2), hasLevel(b, 1)]
+    const kept = (before, after) => before.every((had, i) => !had || after[i])
+    for (let swapped = true; swapped; ) {
+      swapped = false
+      for (const a of lessons) for (const b of lessons) for (const x of a.coaches) for (const y of b.coaches) {
+        if (a === b || !placed.has(x.id) || !placed.has(y.id) || !same(x.id, y.id)) continue
+        if (!worth(mins(x.id, b) - mins(x.id, a), mins(y.id, a) - mins(y.id, b))) continue
+        const before = [cover(a), cover(b)]
+        ;[x.id, y.id] = [y.id, x.id]
+        if (kept(before[0], cover(a)) && kept(before[1], cover(b))) swapped = true
+        else [x.id, y.id] = [y.id, x.id] // a school would lose its Advanced / Intermediate coach: undo
       }
     }
     if (isWeekend(day.key)) {
       // Leftovers go to programmes that are running; only open an empty one if none are.
-      const programs = day.blocks.filter((b) => b.kind === 'program')
-      const running = programs.filter((b) => b.coaches.length || requiredCoaches(b))
-      const targets = running.length ? running : programs
-      while (free.length && targets.length) {
-        const emptiest = targets.reduce((a, b) => (b.coaches.length < a.coaches.length ? b : a))
-        emptiest.coaches.push({ id: free.shift(), role: 'coach' })
-      }
+      const targets = open(day.blocks.filter((b) => b.kind === 'program'))
+      while (free.length && targets.length) emptiest(targets).coaches.push({ id: free.shift(), role: 'coach' })
     }
     for (const b of day.blocks) {
       const pool = b.coaches.filter((c) => c.role !== 'shadow')
       if (needsLead(b) && pool.length && !b.coaches.some((c) => c.role === 'lead')) {
-        const lead = pickLead(pool, leadCount)
+        const top = Math.max(...pool.map((c) => rank(byId[c.id]))) // the highest level there leads
+        const lead = pickLead(pool.filter((c) => rank(byId[c.id]) === top), leadCount)
         lead.role = 'lead'
         leadCount[lead.id] = (leadCount[lead.id] ?? 0) + 1
       }

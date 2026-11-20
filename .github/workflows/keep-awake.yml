@@ -1,0 +1,17 @@
+# Pings the roster server so it doesn't fall asleep and the first load stays fast.
+# The ping is a CORS "OPTIONS" request: the server answers "ok" before the roster code check,
+# so it needs no secret and never touches the database or the lesson plan sheet.
+# To stop it: delete this file, or disable the workflow in GitHub > Actions.
+name: Keep server awake
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # GitHub may run it a few minutes late; that's fine
+  workflow_dispatch: # lets you run it by hand from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: curl -fsS -X OPTIONS --max-time 30 https://kfqaaehcjqzfqxhmtskg.supabase.co/functions/v1/roster/

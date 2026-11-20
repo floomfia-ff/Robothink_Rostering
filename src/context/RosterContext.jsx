@@ -1,25 +1,28 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import * as api from '../lib/api.js'
 import * as R from '../lib/roster.js'
+import { currentMonday } from '../../supabase/functions/roster/logic.js'
 
-const MAX_UNDO = 50
 const RosterContext = createContext(null)
 export const useRoster = () => useContext(RosterContext)
 
 export function RosterProvider({ children }) {
-  const [roster, setRoster] = useState(null) // { coaches, weeks }
+  const [roster, setRoster] = useState(null) // { coaches, schools, bases, weeks, planError, unmatchedSchools }
   const [weekId, setWeekId] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [notice, setNotice] = useState('')
   const [noticeError, setNoticeError] = useState(false)
-  const [busy, setBusy] = useState('') // 'Saving' | 'Publishing' | 'Generating' while a server call runs
+  const [busy, setBusy] = useState('') // 'Generating' | 'Creating' while a server call runs
+  const [saving, setSaving] = useState('') // '' | 'saving' | 'saved' | an error message
+  const [retry, setRetry] = useState(0)
   const [loadError, setLoadError] = useState('')
   const [swapTarget, setSwapTarget] = useState(null) // { dayKey, blockId, index? } — no index = add mode
-  const [history, setHistory] = useState([]) // [{ roster, weekId }] before each change, newest last
-  const lastEditKey = useRef(null)
   const [highlight, setHighlight] = useState('') // coach id picked in "Find coach"
-  const [dragging, setDragging] = useState(null) // { dayKey, coachId } while a chip is dragged
+  const [dragging, setDragging] = useState(null) // { dayKey, coachId, swapWith? } while a chip is dragged; swapWith = coach under the cursor
   const [changes, setChanges] = useState(null) // last Auto-Generate: { weekId, added, removed, newLeads, keys }
+  // Undo / redo: earlier and undone versions of `roster.weeks`. Edits copy the week, so old versions stay intact.
+  const [history, setHistory] = useState({ past: [], future: [] })
+  useEffect(() => setHistory({ past: [], future: [] }), [weekId]) // switching, creating or deleting a week starts fresh
 
   const load = () => {
     setLoadError('')
@@ -27,7 +30,7 @@ export function RosterProvider({ children }) {
       .loadRoster()
       .then((r) => {
         setRoster(r)
-        setWeekId(r.weeks[0].id)
+        setWeekId((r.weeks.find((w) => w.id === currentMonday(new Date())) ?? r.weeks.at(-1)).id)
       })
       .catch((e) => setLoadError(e.message || 'Unknown error'))
   }
@@ -41,6 +44,27 @@ export function RosterProvider({ children }) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
+  // Changes save themselves a second after the last edit. Edits made while a save runs go out with the next
+  // one (only what differs from the server is sent); a failed save keeps the changes and retries in 10 seconds.
+  const latest = useRef(roster)
+  latest.current = roster
+  useEffect(() => {
+    if (!dirty || !roster) return
+    const timer = setTimeout(async () => {
+      const snapshot = roster
+      setSaving('saving')
+      try {
+        await api.saveDraft(snapshot)
+        if (latest.current === snapshot) setDirty(false)
+        setSaving('saved')
+      } catch (e) {
+        setSaving(`Couldn't save: ${e.message || 'unknown error'}. Your changes are kept and will be retried.`)
+        setTimeout(() => setRetry((n) => n + 1), 10000)
+      }
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [roster, dirty, retry])
+
   if (loadError) {
     return (
       <div role="alert" className="m-8 max-w-md rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
@@ -52,29 +76,33 @@ export function RosterProvider({ children }) {
       </div>
     )
   }
-  if (!roster) return <p className="p-8 text-slate-500">Loading roster…</p>
+  if (!roster) return <LoadingScreen />
 
   const week = roster.weeks.find((w) => w.id === weekId)
-  const coaches = roster.coaches
-  const coachById = Object.fromEntries(coaches.map((c) => [c.id, c]))
+  const coachById = Object.fromEntries(roster.coaches.map((c) => [c.id, c]))
+  const coaches = roster.coaches.filter((c) => c.active)
 
-  // Save the current roster for Undo. Repeated edits with the same key (typing in one field) share one step.
-  const remember = (key) => {
-    if (!key || key !== lastEditKey.current) setHistory((h) => [...h.slice(1 - MAX_UNDO), { roster, weekId }])
-    lastEditKey.current = key ?? null
+  // Remembers the weeks as they are now, before an edit changes them. A new edit drops anything undone.
+  const remember = () => setHistory((h) => ({ past: [...h.past, roster.weeks].slice(-20), future: [] }))
+  // Puts back a remembered version; it then saves like any other edit.
+  const travel = (from, to) => {
+    const h = history
+    if (busy || !h[from].length) return
+    setHistory({ [from]: h[from].slice(0, -1), [to]: [...h[to], roster.weeks] })
+    setRoster((r) => ({ ...r, weeks: h[from].at(-1) }))
+    setChanges(null) // the Auto-Generate highlights no longer match
+    setDirty(true)
   }
 
   // Every week change goes through here: clone the week and mutate the clone.
-  // A published week stays published but is flagged until it's published again.
-  const edit = (fn, key) => {
-    remember(key)
+  const edit = (fn) => {
+    remember()
     setRoster((r) => ({
       ...r,
       weeks: r.weeks.map((w) => {
         if (w.id !== weekId) return w
         const copy = structuredClone(w)
         fn(copy)
-        if (copy.status === 'published') copy.changedSincePublish = true
         return copy
       }),
     }))
@@ -82,8 +110,7 @@ export function RosterProvider({ children }) {
   }
 
   // Changes that aren't tied to one week (coach profiles, venues).
-  const editRoster = (fn, key) => {
-    remember(key)
+  const editRoster = (fn) => {
     setRoster((r) => {
       const copy = structuredClone(r)
       fn(copy)
@@ -91,131 +118,223 @@ export function RosterProvider({ children }) {
     })
     setDirty(true)
   }
-  const blockIn = (w, dayKey, blockId) => w.days.find((x) => x.key === dayKey).blocks.find((b) => b.id === blockId)
 
   const say = (text, error = false) => {
     setNotice(text)
     setNoticeError(error)
   }
   // One server call at a time. On failure nothing is marked saved, so the admin can just retry.
-  const run = async (doing, fn) => {
+  // `undone`: the caller put the screen back, so the message says it wasn't saved.
+  const run = async (doing, fn, undone = false) => {
     if (busy) return false
     setBusy(doing)
     try {
       await fn()
       return true
     } catch (e) {
-      say(`${doing} failed: ${e.message || 'unknown error'}. Your changes are still here — try again.`, true)
+      say(`${doing} failed: ${e.message || 'unknown error'}. ${undone ? "It wasn't saved." : 'Your changes are still here — try again.'}`, true)
       return false
     } finally {
       setBusy('')
     }
   }
-  const savedAt = (label) => {
-    setDirty(false)
-    say(`${label} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
+
+  // An older week arrives as a stub ({ archived: true }); it is loaded in full before it is shown.
+  const openWeek = (id) => {
+    if (!roster.weeks.find((w) => w.id === id)?.archived) return setWeekId(id)
+    return run('Loading', async () => {
+      const full = await api.openArchivedWeek(id)
+      setRoster((r) => ({ ...r, weeks: r.weeks.map((w) => (w.id === id ? full : w)) }))
+      setWeekId(id)
+    })
   }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, venues: R.venueList(roster), dirty, notice, noticeError, busy,
-    setWeekId, swapTarget, setSwapTarget,
+    coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [], rules: roster.rules ?? [], schools: roster.schools, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
+    setWeekId: openWeek,
+    swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
     closeSwap: () => setSwapTarget(null),
     assignCoach: (d, b, i, id) => edit((w) => R.assignCoach(w, d, b, i, id)),
     addCoach: (d, b, id) => edit((w) => R.addCoach(w, d, b, id)),
     removeCoach: (d, b, i) => edit((w) => R.removeCoach(w, d, b, i)),
     setRole: (d, b, i, role) => edit((w) => R.setRole(w, d, b, i, role)),
-    setAvailability: (d, id, s) => edit((w) => R.setAvailability(w, d, id, s)),
-    updateSlot: (d, blockId, i, patch) =>
-      edit((w) => Object.assign(blockIn(w, d, blockId).slots[i], patch), `slot:${blockId}:${i}:${Object.keys(patch)}`),
-    addSlot: (d, blockId) => edit((w) => blockIn(w, d, blockId).slots.push({ time: '', students: 0 })),
-    removeSlot: (d, blockId, i) => edit((w) => blockIn(w, d, blockId).slots.splice(i, 1)),
+    // An intern's day off (or back on) carries into every later week too, so it only needs setting once.
+    setAvailability: (d, id, s) => {
+      const intern = coachById[id]?.employment_type === 'intern'
+      remember()
+      setRoster((r) => ({
+        ...r,
+        weeks: r.weeks.map((w) => {
+          if (w.archived || (w.id !== weekId && !(intern && w.id > weekId))) return w
+          const copy = structuredClone(w)
+          R.setAvailability(copy, d, id, s)
+          return copy
+        }),
+      }))
+      setDirty(true)
+    },
+    clearCoaches: () => {
+      edit((w) => R.clearCoaches(w))
+      setChanges(null)
+      say('All coaches cleared')
+    },
     addBlock: (d, name, base) => edit((w) => R.addBlock(w, d, name, base)),
     removeBlock: (d, blockId) => edit((w) => R.removeBlock(w, d, blockId)),
     setNoLesson: (d, blockId, on) => edit((w) => R.setNoLesson(w, d, blockId, on)),
     dragging, setDragging,
     moveCoach: (d, coachId, toBlockId) => edit((w) => R.moveCoach(w, d, coachId, toBlockId)),
+    swapCoaches: (d, draggedId, targetId) => edit((w) => R.swapCoaches(w, d, draggedId, targetId)),
     changes: changes?.weekId === weekId ? changes : null,
     clearChanges: () => setChanges(null),
-    removeVenue: (name) => editRoster((r) => (r.venues = (r.venues ?? []).filter((v) => v.name !== name))),
     highlight, setHighlight,
-    // Venues are keyed by name, so renaming a venue in the roster starts a fresh entry.
-    updateVenue: (name, patch) =>
-      editRoster((r) => {
-        r.venues ??= []
-        let v = r.venues.find((x) => x.name === name)
-        if (!v) r.venues.push((v = { name, address: '', postalCode: '' }))
-        Object.assign(v, patch)
-      }, `venue:${name}:${Object.keys(patch)}`),
-    updateCoach: (id, patch) =>
-      editRoster((r) => Object.assign(r.coaches.find((c) => c.id === id), patch), `coach:${id}:${Object.keys(patch)}`),
-    createCoach: () =>
-      editRoster((r) => {
-        const id = `coach-${Date.now()}`
-        r.coaches.push({ id, name: '', type: 'intern', mrt: '' })
-        // New coaches start unavailable every day; set their days in the availability panel.
-        for (const w of r.weeks) w.availability[id] = w.days.map(() => 'unavailable')
-      }),
-    deleteCoach: (id) =>
-      editRoster((r) => {
-        r.coaches = r.coaches.filter((c) => c.id !== id)
-        for (const w of r.weeks) {
-          delete w.availability[id]
-          for (const d of w.days) for (const b of d.blocks) b.coaches = b.coaches.filter((c) => c.id !== id)
-        }
-      }),
+    canUndo: !busy && history.past.length > 0,
+    canRedo: !busy && history.future.length > 0,
+    undo: () => travel('past', 'future'),
+    redo: () => travel('future', 'past'),
+    updateVenue: (kind, id, patch) =>
+      editRoster((r) => Object.assign(r[kind === 'school' ? 'schools' : 'bases'].find((v) => v.id === id), patch)),
+    updateCoach: (id, patch) => editRoster((r) => Object.assign(r.coaches.find((c) => c.id === id), patch)),
     // Applies to the week that was open when clicked, even if the admin switches weeks meanwhile.
     autoGenerate: () =>
       run('Generating', async () => {
-        const filled = await api.generateRoster(week, coaches)
+        const filled = structuredClone(week) // filled in the browser; there is no server call
+        R.autoFill(filled, coaches, roster.travelTimes ?? {}, roster.rules ?? [])
         const diff = R.diffAssignments(week, filled)
-        edit((w) => (w.days = filled.days))
+        edit((w) => Object.assign(w, { days: filled.days, availability: filled.availability })) // days off it set, too
         setChanges({ weekId: week.id, ...diff, keys: new Set([...diff.added, ...diff.newLeads]) })
-        say('Draft auto-generated — review, then save')
+        say('Auto-generated — review it')
       }),
-    createWeek: () => {
-      const next = R.nextWeek(week, roster.weeks.at(-1))
-      remember()
-      setRoster((r) => ({ ...r, weeks: [...r.weeks, next] }))
-      setWeekId(next.id)
-      setDirty(true)
-      say(`Created ${next.label} from ${week.label}`)
-    },
-    canUndo: history.length > 0,
-    undo: () => {
-      const prev = history.at(-1)
-      if (!prev) return
-      setHistory((h) => h.slice(0, -1))
-      lastEditKey.current = null
-      setRoster(prev.roster)
-      setWeekId(prev.weekId) // back to the week the change was made on
-      setChanges(null)
-      setDirty(true)
-      say('Undone')
-    },
-    saveDraft: async () => (await run('Saving', () => api.saveDraft(roster))) && savedAt('Draft saved'),
-    // Marked published only once the server says so.
-    publish: async () => {
-      const next = {
-        ...roster,
-        weeks: roster.weeks.map((w) => (w.id === weekId ? { ...w, status: 'published', changedSincePublish: false } : w)),
-      }
-      if (await run('Publishing', () => api.publishRoster(next, weekId))) {
-        setRoster(next)
-        savedAt('Published')
+    // Asks the server for batches until nothing is left; each reply carries the fresh times. Only those two
+    // fields change, so the save baseline and anything on screen are untouched.
+    refreshTravelTimes: async (onProgress) => {
+      try {
+        for (;;) {
+          const { done, remaining, total, travelTimes, unrecognisedStations } = await api.refreshTravelTimes()
+          onProgress(total - remaining, total)
+          setRoster((r) => ({ ...r, travelTimes, unrecognisedStations }))
+          if (!remaining || !done) break
+        }
+        say('Travel times up to date')
+        return true
+      } catch (e) {
+        say(`Travel times: ${e.message || 'unknown error'}`, true)
+        return false
       }
     },
-    resetToMock: async () => {
-      api.resetToMock()
-      const r = await api.loadRoster()
-      setRoster(r)
-      setWeekId(r.weeks[0].id)
-      setHistory([])
-      setChanges(null)
-      setDirty(false)
-      say('Reset to mock data')
+    // Rules tab. Each change shows at once; if the server refuses it, the old rules come back with the error.
+    addRule: (rule) =>
+      run('Saving rule', async () => {
+        const { id } = await api.createRule(rule)
+        setRoster((r) => ({ ...r, rules: [...(r.rules ?? []), { active: true, note: null, coach_id: null, school_id: null, value: null, ...rule, id }] }))
+        say('Rule added')
+      }),
+    // Busy means another server call is running and this one would be dropped, so nothing changes on screen.
+    updateRule: (id, patch) => {
+      if (busy) return Promise.resolve(false)
+      const before = roster.rules
+      setRoster((r) => ({ ...r, rules: r.rules.map((x) => (x.id === id ? { ...x, ...patch } : x)) }))
+      return run('Saving rule', async () => {
+        try {
+          await api.updateRule(id, patch)
+        } catch (e) {
+          setRoster((r) => ({ ...r, rules: before }))
+          throw e
+        }
+        say('Rule saved')
+      }, true)
     },
+    removeRule: (id) => value.removeRules([id]),
+    // Several rules at once (a coach's whole card). One at a time, so a failure puts back only what wasn't removed.
+    removeRules: (ids) => {
+      if (busy || !ids.length) return Promise.resolve(false)
+      const before = roster.rules
+      setRoster((r) => ({ ...r, rules: r.rules.filter((x) => !ids.includes(x.id)) }))
+      return run('Removing rules', async () => {
+        const done = []
+        try {
+          for (const id of ids) {
+            await api.deleteRule(id)
+            done.push(id)
+          }
+        } catch (e) {
+          setRoster((r) => ({ ...r, rules: before.filter((x) => !done.includes(x.id)) }))
+          throw e
+        }
+        say(ids.length === 1 ? 'Rule removed' : `${ids.length} rules removed`)
+      }, true)
+    },
+    // `id` is the week's Monday. A week that's already there is just opened.
+    createWeek: (id) => {
+      if (roster.weeks.some((w) => w.id === id)) {
+        openWeek(id) // an archived stub is loaded first
+        return Promise.resolve(true)
+      }
+      return run('Creating', async () => {
+        const next = await api.loadWeek(id)
+        // a new week on a deleted week's date replaces that deleted copy when it saves
+        setRoster((r) => ({
+          ...r,
+          weeks: [...r.weeks, next].sort((a, b) => a.id.localeCompare(b.id)),
+          deletedWeeks: (r.deletedWeeks ?? []).filter((w) => w.id !== next.id),
+        }))
+        setWeekId(next.id)
+        setDirty(true)
+        say(`Created ${next.label}`)
+      })
+    },
+    // Leaves the neighbouring week open. Opening the site again re-creates the current week empty if it was deleted.
+    deleteWeek: () =>
+      run('Deleting', async () => {
+        await api.deleteWeek(week.id)
+        const i = roster.weeks.findIndex((w) => w.id === week.id)
+        setRoster((r) => ({
+          ...r,
+          weeks: r.weeks.filter((w) => w.id !== week.id),
+          deletedWeeks: [{ id: week.id, label: week.label }, ...(r.deletedWeeks ?? []).filter((w) => w.id !== week.id)],
+        }))
+        // Prefer a loaded neighbour; if only older stubs are left, load the nearest one in full first.
+        const others = roster.weeks.filter((w) => w.id !== week.id)
+        const loaded = roster.weeks.slice(i + 1).find((w) => !w.archived) ?? roster.weeks.slice(0, i).findLast((w) => !w.archived)
+        const nearest = loaded ?? others.at(-1)
+        if (nearest?.archived) {
+          const full = await api.openArchivedWeek(nearest.id)
+          setRoster((r) => ({ ...r, weeks: r.weeks.map((w) => (w.id === nearest.id ? full : w)) }))
+        }
+        if (nearest) setWeekId(nearest.id)
+        say(`Deleted ${week.label}`)
+      }),
+    restoreWeek: (id) =>
+      run('Restoring', async () => {
+        const back = await api.restoreWeek(id)
+        setRoster((r) => ({
+          ...r,
+          weeks: [...r.weeks.filter((w) => w.id !== id), back].sort((a, b) => a.id.localeCompare(b.id)),
+          deletedWeeks: r.deletedWeeks.filter((w) => w.id !== id),
+        }))
+        setWeekId(id)
+        say(`Restored ${back.label}`)
+      }),
   }
 
   return <RosterContext.Provider value={value}>{children}</RosterContext.Provider>
+}
+
+// Shown until the roster arrives; after 5 s it explains the wait (the server sleeps when nobody has used it for a while).
+function LoadingScreen() {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 5000)
+    return () => clearTimeout(t)
+  }, [])
+  return (
+    <div role="status" aria-live="polite" className="grid min-h-screen place-items-center bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100 p-8">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <img src="/robothink-logo.png" alt="RoboThink" className="h-12 w-auto" />
+        <span className="h-9 w-9 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600 motion-reduce:animate-none" aria-hidden="true" />
+        <p className="font-semibold text-slate-700">Loading roster…</p>
+        {slow && <p className="max-w-xs text-sm text-slate-500">Waking the server up — this can take a few seconds after a quiet spell.</p>}
+      </div>
+    </div>
+  )
 }
