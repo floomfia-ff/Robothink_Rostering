@@ -14,7 +14,7 @@ const FEEDBACK_URL = 'https://robothink-student-feedback.vercel.app'
 
 const ITEM = 'rt-rise group inline-flex h-11 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:px-5 sm:text-[15px]'
 const IDLE = 'text-slate-800 hover:-translate-y-0.5 hover:bg-white hover:text-indigo-700 hover:shadow-md hover:shadow-indigo-100'
-const ACTIVE = 'rt-glow bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-500 text-white shadow-lg shadow-indigo-500/30'
+const ACTIVE = 'rt-rise bg-indigo-600 text-white shadow-sm'
 const ICON = 'h-5 w-5 shrink-0 transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-110'
 
 export default function TopNav({ tab, setTab }) {
@@ -71,11 +71,7 @@ function Decorations() {
         <circle cx="308" cy="56" r="3" fill="currentColor" />
         <circle cx="384" cy="54" r="3" fill="currentColor" />
       </svg>
-      <span className="rt-bob absolute right-[14%] top-2 hidden h-4 w-4 rounded-full bg-gradient-to-br from-violet-300 to-violet-600 shadow-md shadow-violet-400/50 2xl:block" />
-      <span className="rt-bob absolute right-[9%] bottom-3 hidden h-3.5 w-3.5 rounded-full bg-gradient-to-br from-amber-200 to-orange-500 shadow-md shadow-orange-400/50 xl:block" style={{ animationDelay: '-2s' }} />
-      <span className="rt-bob absolute bottom-2 right-[30%] hidden h-2.5 w-2.5 rounded-full bg-gradient-to-br from-sky-200 to-sky-500 2xl:block" style={{ animationDelay: '-4s' }} />
       <Gear className="rt-spin absolute -right-5 -top-5 hidden h-20 w-20 text-indigo-300/70 xl:block" />
-      <div className="absolute -left-10 -top-16 h-40 w-64 rounded-full bg-sky-100/70 blur-2xl" />
     </div>
   )
 }

@@ -234,7 +234,6 @@ export default function HeaderControls() {
       <div className="relative rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6 print:border-0 print:p-0 print:shadow-none">
         {/* soft lavender wash in the top-right corner; clipped on its own so menus can open past the card */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-clip rounded-3xl print:hidden">
-          <div className="absolute -right-32 -top-40 h-80 w-[40rem] max-w-full rounded-full bg-indigo-100/50 blur-3xl" />
         </div>
 
         <div className="relative flex flex-wrap items-center gap-4">
