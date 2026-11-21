@@ -34,20 +34,22 @@ export default function TopNav({ tab, setTab }) {
       <div className="rt-rise rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-2.5 sm:px-5">
           {/* The brand reads once: the logo is the mark, and "Roster Admin"
-              says which of the two sites you are on. It was set in extrabold
-              at the same size as a heading, which made a label compete with
-              the logo beside it. */}
+              says which of the two sites you are on. Still bold, but at text
+              size rather than the extrabold heading it was - at that weight a
+              label was competing with the logo next to it. */}
           <div className="flex min-w-0 items-center gap-3">
             <img src="/robothink-logo.png" alt="RoboThink" className="h-8 w-auto shrink-0 sm:h-9" />
             <span aria-hidden="true" className="hidden h-6 w-px bg-slate-200 sm:block" />
-            <span className="truncate text-sm font-medium text-slate-500">Roster Admin</span>
+            <span className="truncate text-sm font-semibold text-slate-900">Roster Admin</span>
           </div>
 
-          {/* phones: a 2 x 2 grid under the brand; wider screens: one row, pushed right */}
+          {/* phones: a 2 x 2 grid under the brand; wider screens: one row straight
+              after the label. Pushing them to the far right left a gulf across the
+              middle of the bar on a wide window. */}
           <nav
             role="tablist"
             aria-label="Sections"
-            className="grid w-full grid-cols-2 gap-1.5 md:ml-auto md:flex md:w-auto md:items-center md:gap-1"
+            className="grid w-full grid-cols-2 gap-1.5 md:flex md:w-auto md:items-center md:gap-1"
           >
             {TABS.map(([key, label, Icon], i) => (
               <button
