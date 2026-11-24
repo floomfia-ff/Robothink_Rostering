@@ -123,7 +123,11 @@ export function leadWarnings(week, coaches) {
 // The Rules tab's rows as Auto-Generate uses them; rules that are off are ignored.
 export function ruleSettings(rules = []) {
   const on = rules.filter((r) => r.active !== false)
-  const num = (kind, fallback) => on.find((r) => r.kind === kind)?.value ?? fallback
+  // Postgres numeric can arrive as a string, so read it as a number; anything unusable falls back.
+  const num = (kind, fallback) => {
+    const v = Number(on.find((r) => r.kind === kind)?.value ?? fallback)
+    return Number.isFinite(v) && v > 0 ? v : fallback
+  }
   return {
     ratio: num('students_per_coach', 3),
     max: num('max_coaches', 4),
@@ -428,9 +432,9 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
       free.splice(free.indexOf(r.coach_id), 1)
       b.coaches.push({ id: r.coach_id, role: 'coach' })
     }
-    // Shortest trips are handed out first. Schools take turns: in each round a school short of coaches gets at most
-    // one, so a school close to everyone can't take them all while another has none.
-    const served = new Set()
+    // Shortest trips are handed out first, but the school with the most students per coach always goes next, so
+    // when there aren't enough coaches to fill everyone the shortfall is shared out by class size instead of
+    // leaving one school full and another on two. Travel time then picks between schools that are equally busy.
     for (;;) {
       const under = lessons.filter((b) => countedCoaches(b) < target(b))
       const needs = under.filter((b) => !hasLevel(b, 2))
@@ -441,14 +445,11 @@ export function autoFill(week, coaches, travel = {}, rules = []) {
       if (advanced.length && needs.length) placeNearest(needs, advanced)
       // 2b. out of Advanced coaches: an Intermediate at every school still without either
       else if (intermediate.length && backup.length) placeNearest(backup, intermediate)
-      // 3. up to each school's target, shortest trip first, one per school per round; anyone left stays at WCP
+      // 3. up to each school's target, the school with the most students per coach first and the shortest trip
+      // among those; anyone left stays at WCP
       else if (free.length && under.length) {
-        let open = under.filter((b) => !served.has(b))
-        if (!open.length) {
-          served.clear()
-          open = under
-        }
-        served.add(placeNearest(open))
+        const busiest = Math.max(...under.map(load))
+        placeNearest(under.filter((b) => load(b) === busiest))
       } else break
     }
     // 4. two coaches placed above (same type: intern with intern, part-timer with part-timer) trade schools when both get

@@ -228,6 +228,18 @@ kids(second, 12)
 const three = freeMon(w).slice(0, 3)
 R.autoFill(w, coaches.filter((c) => three.includes(c.id)))
 assert.deepEqual([R.countedCoaches(first), R.countedCoaches(second)], [1, 2], 'kids per coach decides who picks next')
+// a head start from fixed coaches does not keep: two schools the same size, one starting with two fixed
+// coaches and two free coaches to share, end up 2 and 2 rather than 3 and 1
+w = fresh()
+;[first, second] = w.days[0].blocks
+kids(first, 12)
+kids(second, 12)
+const [f1, f2, g1, g2] = freeMon(w).slice(0, 4)
+R.autoFill(w, coaches.filter((c) => [f1, f2, g1, g2].includes(c.id)), {}, [
+  { kind: 'fixed_coach', coach_id: f1, school_id: first.schoolId, active: true },
+  { kind: 'fixed_coach', coach_id: f2, school_id: first.schoolId, active: true },
+])
+assert.deepEqual([R.countedCoaches(first), R.countedCoaches(second)], [2, 2], 'the shortfall is shared, not stacked')
 // 8 students -> 3 coaches; never more than the max; the rest stay at WCP
 w = fresh()
 ;[first, second] = w.days[0].blocks
@@ -283,8 +295,10 @@ if (other) {
   assert.ok(at(tp).includes(M), 'fixed coach stays put')
   for (const b of [dover, tp]) assert.ok(b.coaches.some((c) => level[c.id] === 'advanced'), `${b.name} still has an Advanced coach`)
 }
-// the real Tuesday from 17 Nov: shortest trips first, so OUE Shenton gets its two nearest free coaches (Pei Qi 36,
-// Matin 38) and Matin is not moved to Fusionopolis just to save Yong Hao more time than it costs Matin.
+// the real Tuesday from 17 Nov. Fusionopolis (11 kids) is busier per coach than OUE Shenton (6), so it picks
+// before OUE on every round and takes Pei Qi at 52; OUE keeps Matin (38) and takes Yong Hao (46). That is 217
+// minutes in all against the 223 of giving OUE both its nearest, and Matin is still not moved to Fusionopolis
+// just to save Yong Hao more time than it costs Matin.
 {
   const wk = fresh()
   const [fus, oue] = wk.days[0].blocks
@@ -295,8 +309,8 @@ if (other) {
   const team = coaches.filter((c) => level[c.id]).map((c) => ({ ...c, employment_type: 'intern', coach_level: level[c.id], can_lead: level[c.id] === 'advanced' }))
   const t = (f, o) => ({ [fus.schoolId]: f, [oue.schoolId]: o })
   R.autoFill(wk, team, { [K]: t(19, 23), [M]: t(54, 38), [YH]: t(68, 46), [N]: t(62, 52), [P]: t(52, 36) })
-  assert.deepEqual(oue.coaches.map((c) => c.id).sort(), [M, P].sort(), 'OUE Shenton: Matin and Pei Qi')
-  assert.deepEqual(fus.coaches.map((c) => c.id).sort(), [K, N, YH].sort(), 'Fusionopolis: Kathleen, Nicole, Yong Hao')
+  assert.deepEqual(oue.coaches.map((c) => c.id).sort(), [M, YH].sort(), 'OUE Shenton: Matin and Yong Hao')
+  assert.deepEqual(fus.coaches.map((c) => c.id).sort(), [K, N, P].sort(), 'Fusionopolis: Kathleen, Nicole, Pei Qi')
 }
 // a fixed coach whose school has no lesson that day stays at WCP (not sent to another school), with no warning
 w = fresh()

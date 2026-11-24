@@ -165,7 +165,11 @@ export const CENTRES = ['WCP', 'DV']
 export function validateRule(rule, { coachIds, schoolIds, rules }) {
   if (!RULE_KINDS.includes(rule.kind)) return 'Unknown rule kind.'
   if (rule.kind !== 'fixed_coach') {
-    return Number.isInteger(rule.value) && rule.value >= 1 && rule.value <= 20 ? null : 'Value must be a whole number from 1 to 20.'
+    const v = rule.value
+    const inRange = typeof v === 'number' && Number.isFinite(v) && v >= 1 && v <= 20
+    // Students per coach may be a half, so 3.5 students per coach is allowed; everything else stays whole.
+    if (rule.kind === 'students_per_coach') return inRange && Number.isInteger(v * 2) ? null : 'Students per coach must be a number from 1 to 20, in steps of 0.5.'
+    return inRange && Number.isInteger(v) ? null : 'Value must be a whole number from 1 to 20.'
   }
   if (!coachIds.has(rule.coach_id)) return 'Unknown coach.'
   // A centre rule (WCP / DV) applies on the days picked; a preschool rule on that school's one lesson day.

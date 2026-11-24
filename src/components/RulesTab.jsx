@@ -8,14 +8,16 @@ import { Close, Info, Plus, Rules, School, Trash } from './coachIcons.jsx'
 import { WEEKDAYS } from '../lib/roster.js'
 
 // Rules Auto-Generate always follows. Each change goes straight to the server (see RosterContext addRule etc.).
+// Each row reads as the sentence the number finishes, so the setting says what it does without a separate label.
+// [kind, fallback, step, words before the box, words after it, the fine print]
 const NUMBERS = [
-  ['students_per_coach', 'Students per coach', 'One coach for every this many students, rounded up.', 3],
-  ['max_coaches', 'Max coaches per school', 'Auto-Generate never puts more than this at one preschool.', 4],
+  ['students_per_coach', 3, 0.5, 'One coach for every', 'students', 'Rounded up, so at 3.5 a class of 10 asks for 3 coaches. Halves are allowed.'],
+  ['max_coaches', 4, 1, 'Never send more than', 'coaches to one preschool', 'A hard ceiling: Auto-Generate stops here even when the ratio asks for more.'],
 ]
+const CLASS_SIZES = [6, 9, 12, 15, 18]
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
 const CENTRES = ['WCP', 'DV']
 const dayList = (days) => DAYS.filter((d) => days?.includes(d)).map((d) => d[0].toUpperCase() + d.slice(1)).join(', ')
-const FIELD = 'rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none'
 const DAY_ORDER = Object.fromEntries(DAYS.map((d, i) => [d, i]))
 // A soft colour per coach, picked from the name so it stays the same between visits.
 const AVATARS = ['bg-sky-100 text-sky-700', 'bg-amber-100 text-amber-700', 'bg-emerald-100 text-emerald-700', 'bg-rose-100 text-rose-700', 'bg-violet-100 text-violet-700', 'bg-teal-100 text-teal-700']
@@ -53,12 +55,7 @@ export default function RulesTab() {
       </p>
 
       <Card title="Numbers" Icon={Rules}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {NUMBERS.map(([kind, label, help, fallback]) => (
-            // keyed by the saved value, so the box resets when a save is undone or the rule changes
-            <NumberRule key={`${kind}:${rules.find((r) => r.kind === kind)?.value ?? fallback}`} rule={rules.find((r) => r.kind === kind)} kind={kind} label={label} help={help} fallback={fallback} addRule={addRule} updateRule={updateRule} busy={busy} />
-          ))}
-        </div>
+        <NumbersPanel rules={rules} addRule={addRule} updateRule={updateRule} busy={busy} />
       </Card>
 
       <Card title="Fixed coaches" Icon={School} count={fixed.length}>
@@ -201,33 +198,116 @@ function Card({ title, Icon, count, children }) {
   )
 }
 
-// Sends when the box loses focus or Enter is pressed, and only if the number changed.
-// A send that doesn't go through puts the saved number back in the box.
-function NumberRule({ rule, kind, label, help, fallback, addRule, updateRule, busy }) {
-  const saved = rule?.value ?? fallback
-  const [text, setText] = useState(String(saved))
-  const send = async () => {
-    const value = Number(text)
-    if (!Number.isInteger(value) || value < 1 || value > 20) return setText(String(saved))
-    if (value === saved) return
-    if (!(await (rule ? updateRule(rule.id, { value }) : addRule({ kind, value })))) setText(String(saved))
-  }
+// The two numbers, each as a sentence with the value in it, and underneath what they add up to for a
+// few real class sizes - which is the thing people actually want to know before changing either one.
+function NumbersPanel({ rules, addRule, updateRule, busy }) {
+  const saved = (kind, fallback) => rules.find((r) => r.kind === kind)?.value ?? fallback
+  const ratio = Number(saved('students_per_coach', 3))
+  const max = Number(saved('max_coaches', 4))
   return (
-    <label className="block rounded-xl border border-slate-200 bg-white p-4">
-      <span className="block text-sm font-semibold text-slate-800">{label}</span>
-      <span className="mb-2 block text-xs text-slate-500">{help}</span>
-      <input
-        type="number"
-        min="1"
-        max="20"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={send}
-        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        disabled={!!busy}
-        className={`${FIELD} w-24 disabled:opacity-50`}
-      />
-    </label>
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      {NUMBERS.map(([kind, fallback, step, before, after, help]) => (
+        // keyed by the saved value, so the box resets when a save is undone or the rule changes elsewhere
+        <NumberRule
+          key={`${kind}:${saved(kind, fallback)}`}
+          rule={rules.find((r) => r.kind === kind)}
+          kind={kind}
+          fallback={fallback}
+          step={step}
+          before={before}
+          after={after}
+          help={help}
+          addRule={addRule}
+          updateRule={updateRule}
+          busy={busy}
+        />
+      ))}
+      <ClassSizes ratio={ratio} max={max} />
+    </div>
+  )
+}
+
+// Reads the two numbers back as coach counts, with the ones the max is holding down called out, so the
+// ceiling is visible here rather than something you find out later on the roster.
+function ClassSizes({ ratio, max }) {
+  if (!(ratio > 0) || !(max > 0)) return null
+  return (
+    <div className="border-t border-slate-200 bg-slate-50 px-4 py-3.5">
+      <p className="mb-2 text-xs text-slate-500">With these numbers, Auto-Generate aims for:</p>
+      <ul className="flex flex-wrap gap-2">
+        {CLASS_SIZES.map((students) => {
+          const wanted = Math.ceil(students / ratio)
+          const coaches = Math.min(max, wanted)
+          const capped = coaches < wanted
+          return (
+            <li key={students} className={`rounded-lg border px-3 py-1.5 ${capped ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+              <span className="block text-sm font-bold tabular-nums text-slate-900">{students} students</span>
+              <span className={`block text-xs font-semibold tabular-nums ${capped ? 'text-amber-700' : 'text-slate-500'}`}>
+                {coaches} coach{coaches === 1 ? '' : 'es'}{capped ? ' · at the max' : ''}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+// One number, as the sentence it finishes. Minus and plus move it by one step; the box also takes typing.
+// Sends on a step, on losing focus or on Enter, and only if the number changed. A send that doesn't go
+// through puts the saved number back in the box.
+function NumberRule({ rule, kind, fallback, step, before, after, help, addRule, updateRule, busy }) {
+  const saved = Number(rule?.value ?? fallback)
+  const [text, setText] = useState(String(saved))
+  const ok = (v) => Number.isFinite(v) && v >= 1 && v <= 20 && Number.isInteger(v / step)
+  const send = async (v) => {
+    if (!ok(v)) return setText(String(saved))
+    setText(String(v))
+    if (v === saved) return
+    if (!(await (rule ? updateRule(rule.id, { value: v }) : addRule({ kind, value: v })))) setText(String(saved))
+  }
+  const typed = Number(text)
+  const now = Number.isFinite(typed) && text !== '' ? typed : saved
+  const nudge = (d) => send(Math.min(20, Math.max(1, Math.round((now + d * step) / step) * step)))
+  const name = `${before} … ${after}`
+  return (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-b border-slate-100 px-4 py-3.5 last:border-b-0">
+      <span className="text-sm font-semibold text-slate-800">{before}</span>
+      <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 focus-within:border-indigo-400">
+        <StepButton label={`Lower: ${name}`} onClick={() => nudge(-1)} disabled={!!busy || now <= 1}>{'−'}</StepButton>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="1"
+          max="20"
+          step={step}
+          aria-label={name}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => send(Number(text))}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          disabled={!!busy}
+          className="w-14 bg-transparent text-center text-base font-bold tabular-nums text-slate-900 focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <StepButton label={`Raise: ${name}`} onClick={() => nudge(1)} disabled={!!busy || now >= 20}>+</StepButton>
+      </span>
+      <span className="text-sm font-semibold text-slate-800">{after}</span>
+      <p className="w-full text-xs text-slate-500">{help}</p>
+    </div>
+  )
+}
+
+function StepButton({ label, onClick, disabled, children }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="grid h-7 w-7 place-items-center rounded-md text-base font-bold leading-none text-slate-500 transition-colors hover:bg-white hover:text-indigo-600 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
+    >
+      {children}
+    </button>
   )
 }
 

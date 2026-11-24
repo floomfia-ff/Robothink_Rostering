@@ -18,3 +18,17 @@
 @media (prefers-reduced-motion: reduce) {
   .rt-rise { animation: none; }
 }
+
+/* Clicking the logo, a tab, a button or a heading used to drop a text caret and
+   leave a blue drag-selection across the page - those are controls, not prose.
+   Real content (coach names, addresses, times, anything in a field) stays
+   selectable so it can still be copied out. */
+h1, h2, h3, h4, label, button, a, img, svg {
+  -webkit-user-select: none;
+  user-select: none;
+}
+img, svg { cursor: default; }
+input, textarea, select, [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}

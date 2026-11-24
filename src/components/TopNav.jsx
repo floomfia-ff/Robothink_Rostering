@@ -37,7 +37,7 @@ export default function TopNav({ tab, setTab }) {
               says which of the two sites you are on. Still bold, but at text
               size rather than the extrabold heading it was - at that weight a
               label was competing with the logo next to it. */}
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 cursor-default items-center gap-3 select-none">
             <img src="/robothink-logo.png" alt="RoboThink" className="h-8 w-auto shrink-0 sm:h-9" />
             <span aria-hidden="true" className="hidden h-6 w-px bg-slate-200 sm:block" />
             <span className="truncate text-sm font-semibold text-slate-900">Roster Admin</span>
