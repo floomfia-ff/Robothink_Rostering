@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
+import SearchBox from './SearchBox.jsx'
 import { ActionButton } from './HeaderControls.jsx'
 import CoachProfileModal from './CoachProfileModal.jsx'
 import { Briefcase, GradCap, Info, Pencil, Person } from './coachIcons.jsx'
@@ -54,14 +55,7 @@ export default function CoachProfiles() {
         </span>
       </p>
 
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search coaches…"
-        aria-label="Search coaches"
-        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none"
-      />
+      <SearchBox value={search} onChange={setSearch} label="Search coaches" />
 
       {GROUPS.map(({ type, title, Icon, empty }) => {
         const members = shown.filter((c) => c.employment_type === type).sort((a, b) => a.name.localeCompare(b.name))
