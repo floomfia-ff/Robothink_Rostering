@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
 import SearchPick from './SearchPick.jsx'
@@ -55,7 +55,7 @@ export default function RulesTab() {
       </p>
 
       <Card title="Numbers" Icon={Rules}>
-        <NumbersPanel rules={rules} addRule={addRule} updateRule={updateRule} busy={busy} />
+        <NumbersPanel rules={rules} addRule={addRule} updateRule={updateRule} />
       </Card>
 
       <Card title="Fixed coaches" Icon={School} count={fixed.length}>
@@ -200,7 +200,7 @@ function Card({ title, Icon, count, children }) {
 
 // The two numbers, each as a sentence with the value in it, and underneath what they add up to for a
 // few real class sizes - which is the thing people actually want to know before changing either one.
-function NumbersPanel({ rules, addRule, updateRule, busy }) {
+function NumbersPanel({ rules, addRule, updateRule }) {
   const saved = (kind, fallback) => rules.find((r) => r.kind === kind)?.value ?? fallback
   const ratio = Number(saved('students_per_coach', 3))
   const max = Number(saved('max_coaches', 4))
@@ -219,7 +219,6 @@ function NumbersPanel({ rules, addRule, updateRule, busy }) {
           help={help}
           addRule={addRule}
           updateRule={updateRule}
-          busy={busy}
         />
       ))}
       <ClassSizes ratio={ratio} max={max} />
@@ -254,27 +253,31 @@ function ClassSizes({ ratio, max }) {
 }
 
 // One number, as the sentence it finishes. Minus and plus move it by one step; the box also takes typing.
-// Sends on a step, on losing focus or on Enter, and only if the number changed. A send that doesn't go
-// through puts the saved number back in the box.
-function NumberRule({ rule, kind, fallback, step, before, after, help, addRule, updateRule, busy }) {
+function NumberRule({ rule, kind, fallback, step, before, after, help, addRule, updateRule }) {
   const saved = Number(rule?.value ?? fallback)
   const [text, setText] = useState(String(saved))
   const ok = (v) => Number.isFinite(v) && v >= 1 && v <= 20 && Number.isInteger(v / step)
-  const send = async (v) => {
-    if (!ok(v)) return setText(String(saved))
-    setText(String(v))
-    if (v === saved) return
-    if (!(await (rule ? updateRule(rule.id, { value: v }) : addRule({ kind, value: v })))) setText(String(saved))
-  }
   const typed = Number(text)
-  const now = Number.isFinite(typed) && text !== '' ? typed : saved
-  const nudge = (d) => send(Math.min(20, Math.max(1, Math.round((now + d * step) / step) * step)))
+  const now = text.trim() !== '' && Number.isFinite(typed) ? typed : saved
+  const nudge = (d) => setText(String(Math.min(20, Math.max(1, Math.round((now + d * step) / step) * step))))
+  // Saves a beat after the last click or keystroke rather than on each one, so holding + is a single
+  // request and nothing has to grey out while it runs. The row's key is the stored number, so a save that
+  // lands - or one the context rolls back after a failure - remounts this row on the right value.
+  useEffect(() => {
+    const v = Number(text)
+    if (text.trim() === '' || !ok(v) || v === saved) return
+    const timer = setTimeout(async () => {
+      // false means it never went (another server call was running), so put the stored number back.
+      if (!(await (rule ? updateRule(rule.id, { value: v }) : addRule({ kind, value: v })))) setText(String(saved))
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [text]) // eslint-disable-line react-hooks/exhaustive-deps
   const name = `${before} … ${after}`
   return (
     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-b border-slate-100 px-4 py-3.5 last:border-b-0">
       <span className="text-sm font-semibold text-slate-800">{before}</span>
       <span className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 focus-within:border-indigo-400">
-        <StepButton label={`Lower: ${name}`} onClick={() => nudge(-1)} disabled={!!busy || now <= 1}>{'−'}</StepButton>
+        <StepButton label={`Lower: ${name}`} onClick={() => nudge(-1)} disabled={now <= 1}>{'−'}</StepButton>
         <input
           type="number"
           inputMode="decimal"
@@ -284,12 +287,11 @@ function NumberRule({ rule, kind, fallback, step, before, after, help, addRule, 
           aria-label={name}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onBlur={() => send(Number(text))}
+          onBlur={() => ok(Number(text)) || setText(String(saved))}
           onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          disabled={!!busy}
-          className="w-14 bg-transparent text-center text-base font-bold tabular-nums text-slate-900 focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="w-14 bg-transparent text-center text-base font-bold tabular-nums text-slate-900 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
-        <StepButton label={`Raise: ${name}`} onClick={() => nudge(1)} disabled={!!busy || now >= 20}>+</StepButton>
+        <StepButton label={`Raise: ${name}`} onClick={() => nudge(1)} disabled={now >= 20}>+</StepButton>
       </span>
       <span className="text-sm font-semibold text-slate-800">{after}</span>
       <p className="w-full text-xs text-slate-500">{help}</p>
