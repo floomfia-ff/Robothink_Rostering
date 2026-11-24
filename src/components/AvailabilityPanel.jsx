@@ -88,7 +88,7 @@ export default function AvailabilityPanel() {
 
       <div className={`${STICKY_NAME} border-t border-slate-200 bg-slate-50 px-2 py-1 font-bold text-slate-700`}>Total Coaches</div>
       {totals.map((t, i) => (
-        <div key={i} className="border-t border-l border-slate-200 bg-yellow-200 px-2 py-0.5 text-right text-base font-bold text-slate-900">{t.assigned}</div>
+        <div key={i} className="border-t border-l border-slate-200 bg-amber-100 px-2 py-0.5 text-right text-base font-bold text-slate-900">{t.assigned}</div>
       ))}
 
       <div className={`${STICKY_NAME} border-t border-slate-200 bg-slate-50 px-2 py-1 font-bold text-slate-700`}>Coaches Available</div>

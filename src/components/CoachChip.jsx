@@ -11,6 +11,8 @@ const ROLE_BADGE = {
 // "Find coach" rings the picked coach and fades the rest; Auto-Generate rings what it added in green.
 export default function CoachChip({ coach, role = 'coach', onClick, dayKey, blockId }) {
   const { highlight, changes, dragging, setDragging, swapCoaches, coachById } = useRoster()
+  // A week can name a coach who has since been removed from the roster. Show that rather than crash the page.
+  if (!coach) return <span className="rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-xs text-slate-400">Unknown coach</span>
   const badge = ROLE_BADGE[role]
   const changed = changes?.keys.has(`${blockId}:${coach.id}`)
   // While another coach from the same day is dragged, this chip is a drop target: dropping swaps the two.

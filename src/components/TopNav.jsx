@@ -47,7 +47,6 @@ export default function TopNav({ tab, setTab }) {
               after the label. Pushing them to the far right left a gulf across the
               middle of the bar on a wide window. */}
           <nav
-            role="tablist"
             aria-label="Sections"
             className="grid w-full grid-cols-2 gap-1.5 md:flex md:w-auto md:items-center md:gap-1"
           >
@@ -55,8 +54,7 @@ export default function TopNav({ tab, setTab }) {
               <button
                 key={key}
                 type="button"
-                role="tab"
-                aria-selected={tab === key}
+                aria-current={tab === key ? 'page' : undefined}
                 onClick={() => setTab(key)}
                 style={{ animationDelay: `${120 + i * 70}ms` }}
                 className={`${ITEM} ${tab === key ? ACTIVE : IDLE}`}
@@ -65,7 +63,7 @@ export default function TopNav({ tab, setTab }) {
                 {label}
               </button>
             ))}
-            <a href={FEEDBACK_URL} style={{ animationDelay: '400ms' }} className={`${ITEM} ${IDLE}`}>
+            <a href={FEEDBACK_URL} style={{ animationDelay: '400ms' }} className={`${ITEM} ${IDLE} col-span-2 md:col-span-1`}>
               <Gear className={ICON} />
               Feedback
             </a>

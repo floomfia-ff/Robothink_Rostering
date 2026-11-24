@@ -150,7 +150,7 @@ export function RosterProvider({ children }) {
   }
 
   const value = {
-    coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [], rules: roster.rules ?? [], schools: roster.schools, venues: R.venueList(roster), planError: roster.planError, unmatchedSchools: roster.unmatchedSchools, travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
+    coaches, coachById, week, weekId, weeks: roster.weeks, deletedWeeks: roster.deletedWeeks ?? [], rules: roster.rules ?? [], schools: roster.schools, venues: R.venueList(roster), planError: roster.planError ?? null, unmatchedSchools: roster.unmatchedSchools ?? [], travelTimes: roster.travelTimes ?? {}, unrecognisedStations: roster.unrecognisedStations ?? [], dirty, notice, noticeError, busy, saving,
     setWeekId: openWeek,
     swapTarget, setSwapTarget,
     openSwap: (dayKey, blockId, index) => setSwapTarget({ dayKey, blockId, index }),
