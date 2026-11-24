@@ -5,7 +5,7 @@ import SaveStatus from './SaveStatus.jsx'
 import { useConfirm } from './ConfirmProvider.jsx'
 import { coachDay, isValidSlotTime, leadWarnings, mondayOf, quotaWarnings, ruleWarnings } from '../lib/roster.js'
 import { addDays, weekShell } from '../../supabase/functions/roster/logic.js'
-import { Alert, ArrowLeft, ArrowRight, Calendar, CheckCircle, Close, ChevronDown, Download, Eraser, Plus, Search, Sparkle, Trash, Undo } from './coachIcons.jsx'
+import { Alert, ArrowLeft, ArrowRight, Calendar, CalendarClock, CheckCircle, Close, ChevronDown, Download, Eraser, Plus, Search, Sparkle, Trash, Undo } from './coachIcons.jsx'
 
 // Shared look for the header's pill controls
 const PILL = 'inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white disabled:hover:text-slate-700'
@@ -231,39 +231,23 @@ export default function HeaderControls() {
       {unmatchedSchools.length > 0 && (
         <p className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm text-amber-900 print:hidden">Not found on the lesson plan: {unmatchedSchools.join(', ')}</p>
       )}
-      {/* Same page header as Coach Profiles, Venues and Rules: the title, how it is saving, then this page's
-          own actions. The roster used to open with a hero card - a 56px icon, a 2xl heading repeating the tab
-          already lit in the nav above, and "Manage and view your coach roster for the week", which told nobody
-          anything - and on a phone that pushed the grid, the thing people come here for, below the fold. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-bold text-slate-900">Weekly Roster</h1>
-        <SaveStatus />
-        <span className="ml-auto flex flex-wrap items-center gap-2 print:hidden">
-          {alerts.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setShowWarnings((s) => !s)}
-              aria-expanded={showWarnings}
-              aria-controls="roster-warnings"
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100"
-            >
-              <Alert className="h-4 w-4 text-amber-600" /> {alerts.length} warning{alerts.length === 1 ? '' : 's'}
-              <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${showWarnings ? 'rotate-180' : ''}`} />
-            </button>
-          ) : (
-            <span className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
-              <CheckCircle className="h-5 w-5 text-emerald-600" /> No warnings
-            </span>
-          )}
+      <div className="relative rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6 print:border-0 print:p-0 print:shadow-none">
+        <div className="relative flex flex-wrap items-center gap-4">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100 print:hidden">
+            <CalendarClock />
+          </span>
+          <div className="mr-auto min-w-0 sm:border-l sm:border-slate-200 sm:pl-4">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Weekly Roster</h1>
+            <p className="text-sm text-slate-500">Manage and view your coach roster for the week</p>
+          </div>
+          <SaveStatus />
           <PopMenu trigger={<><Download /> Export</>} className={`${PILL} px-4`}>
             <ActionButton action={copyPicture} label="Copy Picture" working="Copying…" done="Copied" failed="Couldn't copy" size="rounded-xl px-3 py-2 text-left text-sm" className="text-slate-700 hover:bg-indigo-50 hover:text-indigo-700" />
             <ActionButton action={() => downloadXlsx(week, coaches, everyone)} label="Export to Excel" working="Exporting…" done="Exported" failed="Couldn't export" size="rounded-xl px-3 py-2 text-left text-sm" className="text-slate-700 hover:bg-indigo-50 hover:text-indigo-700" />
           </PopMenu>
-        </span>
-      </div>
+        </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm print:border-0 print:p-0 print:shadow-none">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="relative mt-5 flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setWeekId(weeks[at - 1].id)} disabled={at <= 0} aria-label="Previous week" className={`${PILL} w-10 justify-center print:hidden`}>
             <ArrowLeft />
           </button>
@@ -304,9 +288,27 @@ export default function HeaderControls() {
             </PillSelect>
           )}
 
+          <span className="ml-auto print:hidden">
+            {alerts.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowWarnings((s) => !s)}
+                aria-expanded={showWarnings}
+                aria-controls="roster-warnings"
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+              >
+                <Alert className="h-4 w-4 text-amber-600" /> {alerts.length} warning{alerts.length === 1 ? '' : 's'}
+                <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${showWarnings ? 'rotate-180' : ''}`} />
+              </button>
+            ) : (
+              <span className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700">
+                <CheckCircle className="h-5 w-5 text-emerald-600" /> No warnings
+              </span>
+            )}
+          </span>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 print:hidden">
+        <div className="relative mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 print:hidden">
           <ActionButton action={autoGenerate} label={<span className="inline-flex items-center gap-1.5"><Sparkle /> Auto-Generate Draft</span>} working="Generating…" done="Generated" failed="Couldn't generate" disabled={!!busy} size="h-10 rounded-full px-4 text-sm" className="bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100" />
           <span className="inline-flex items-center gap-1">
             <PopMenu
@@ -335,7 +337,7 @@ export default function HeaderControls() {
         </div>
 
         {highlight && coachById[highlight] && (
-          <p className="mt-2 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900 print:hidden">
+          <p className="relative mt-4 rounded-2xl bg-amber-50 px-4 py-2 text-sm text-amber-900 print:hidden">
             <b>{coachById[highlight].name}:</b>{' '}
             {week.days
               .map((d) => {
