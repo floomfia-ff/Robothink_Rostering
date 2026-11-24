@@ -4,7 +4,7 @@ import SaveStatus from './SaveStatus.jsx'
 import SearchBox from './SearchBox.jsx'
 import { ActionButton } from './HeaderControls.jsx'
 import CoachProfileModal from './CoachProfileModal.jsx'
-import { Briefcase, GradCap, Info, Pencil, Person } from './coachIcons.jsx'
+import { Briefcase, GradCap, Info, MapPin, Pencil, Person } from './coachIcons.jsx'
 import { coachLevel } from '../lib/roster.js'
 import StationName from './StationName.jsx'
 
@@ -38,11 +38,12 @@ export default function CoachProfiles() {
         <h1 id="profiles-title" className="text-xl font-bold text-slate-900">Coach Profiles</h1>
         <ActionButton
           action={() => refreshTravelTimes((done, total) => setProgress({ done, total }))}
-          label="Work out travel times"
+          label={<span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" /> Work out travel times</span>}
           working={`Working out travel times… ${progress.done} / ${progress.total || '…'}`}
           done={`${progress.total} travel times up to date`}
           failed="Couldn't work out travel times"
-          className="bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+          size="h-10 rounded-full px-4 text-sm"
+          className="bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100"
         />
         <SaveStatus />
       </div>
