@@ -9,8 +9,8 @@ import StationName from './StationName.jsx'
 
 // Preschools first, then the weekend bases. Same card layout as Coach Profiles.
 const GROUPS = [
-  { kind: 'school', title: 'Preschools', Icon: School },
-  { kind: 'base', title: 'Weekend bases', Icon: MapPin },
+  { kind: 'school', title: 'Preschools', Icon: School, empty: 'No preschools yet. They are added on the feedback site.' },
+  { kind: 'base', title: 'Weekend bases', Icon: MapPin, empty: 'No weekend bases yet.' },
 ]
 
 // Where each preschool and weekend base is. Schools are added and removed in the feedback site;
@@ -40,7 +40,7 @@ export default function VenueProfiles() {
 
       <SearchBox value={search} onChange={setSearch} label="Search venues" />
 
-      {GROUPS.map(({ kind, title, Icon }) => {
+      {GROUPS.map(({ kind, title, Icon, empty }) => {
         const members = shown.filter((v) => v.kind === kind)
         return (
           <section key={kind} aria-labelledby={`group-${kind}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -55,7 +55,7 @@ export default function VenueProfiles() {
             </div>
 
             {members.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">No matches.</p>
+              <p className="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm text-slate-500">{search ? 'No matches.' : empty}</p>
             ) : (
               <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {members.map((v) => {

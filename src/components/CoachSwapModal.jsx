@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useRoster } from '../context/RosterContext.jsx'
 import { coachDay, needsLead } from '../lib/roster.js'
+import { trapTab } from '../lib/focusTrap.js'
 import CoachChip from './CoachChip.jsx'
 
 const ROLES = [
@@ -55,6 +56,7 @@ export default function CoachSwapModal() {
         aria-modal="true"
         aria-labelledby="swap-title"
         onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => trapTab(e, dialogRef.current)}
         className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl outline-none"
       >
         <header className="flex items-start justify-between border-b border-slate-200 px-5 py-4">

@@ -47,6 +47,7 @@ export default function SearchPick({ options, value, onChange, placeholder, labe
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
+          aria-activedescendant={open && shown[active] ? `${listId}-${active}` : undefined}
           value={open ? query : picked?.label ?? ''}
           placeholder={picked ? picked.label : placeholder}
           onFocus={() => { setOpen(true); setActive(0) }}
@@ -77,6 +78,7 @@ export default function SearchPick({ options, value, onChange, placeholder, labe
               ),
               <li
                 key={o.value}
+                id={`${listId}-${i}`}
                 role="option"
                 aria-selected={String(o.value) === String(value)}
                 onMouseDown={(e) => { e.preventDefault(); choose(o) }}

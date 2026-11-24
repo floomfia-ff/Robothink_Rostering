@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Close, Pencil } from './coachIcons.jsx'
-
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled])'
+import { trapTab } from '../lib/focusTrap.js'
 export const FIELD = 'w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200'
 const BTN = 'rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
 
@@ -22,17 +21,7 @@ export default function Dialog({ title, onSave, onClose, children }) {
       e.stopPropagation()
       onClose()
     }
-    if (e.key !== 'Tab') return
-    const items = [...dialogRef.current.querySelectorAll(FOCUSABLE)]
-    const first = items[0]
-    const last = items.at(-1)
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault()
-      last.focus()
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault()
-      first.focus()
-    }
+    trapTab(e, dialogRef.current)
   }
 
   return (
