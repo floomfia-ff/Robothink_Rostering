@@ -32,7 +32,11 @@
 /* The lit pill in the top bar is one element that moves to whichever tab is current, rather than a
    background switching off one button and on at another. left/top as well as width/height, because on a
    phone the tabs are a two-column grid and the pill has to drop to the next row. */
-.rt-pill { transition: transform .26s cubic-bezier(.2, .8, .2, 1), width .26s cubic-bezier(.2, .8, .2, 1); }
+/* .2s, not .3s: while it travels the pill passes over the tabs between, whose labels stay dark, so the
+   shorter the crossing the better. A white copy of the row clipped to the pill would remove that overlap
+   entirely, and did - but it also tripled the label on screen at some window widths, a paint artifact of
+   clipping a big transformed layer inside a rounded overflow-hidden box, so it was backed out. */
+.rt-pill { transition: left .2s cubic-bezier(.2, .8, .2, 1), top .2s cubic-bezier(.2, .8, .2, 1), width .2s cubic-bezier(.2, .8, .2, 1), height .2s cubic-bezier(.2, .8, .2, 1); }
 .rt-fade { animation: rt-fade .18s ease-out both; }
 .rt-pop { animation: rt-pop .18s cubic-bezier(.2, .8, .2, 1) both; }
 
