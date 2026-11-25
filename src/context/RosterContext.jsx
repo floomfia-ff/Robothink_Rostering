@@ -195,6 +195,20 @@ export function RosterProvider({ children }) {
     updateVenue: (kind, id, patch) =>
       editRoster((r) => Object.assign(r[kind === 'school' ? 'schools' : 'bases'].find((v) => v.id === id), patch)),
     updateCoach: (id, patch) => editRoster((r) => Object.assign(r.coaches.find((c) => c.id === id), patch)),
+    // Adding, which used to mean going to the feedback site. Both tables are shared, so a coach or preschool
+    // added here shows up there too. `addCoach` above is a different thing - that puts a coach on a venue.
+    createCoach: (fields) =>
+      run('Adding coach', async () => {
+        const coach = await api.createCoach(fields)
+        setRoster((r) => ({ ...r, coaches: [...r.coaches, coach] }))
+        say(`Added ${coach.name}`)
+      }),
+    createSchool: (fields) =>
+      run('Adding preschool', async () => {
+        const school = await api.createSchool(fields)
+        setRoster((r) => ({ ...r, schools: [...r.schools, school] }))
+        say(`Added ${school.name}`)
+      }),
     // Applies to the week that was open when clicked, even if the admin switches weeks meanwhile.
     autoGenerate: () =>
       run('Generating', async () => {

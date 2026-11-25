@@ -165,6 +165,23 @@ assert.equal(L.routeMinutes({ plan: { itineraries: [{ duration: 2400 }, { durati
 assert.equal(L.routeMinutes({ plan: { itineraries: [] } }), null)
 assert.equal(L.routeMinutes({}), null)
 
+// adding a coach / a preschool
+{
+  const taken = new Set(['ameer', 'mbr dover'])
+  assert.equal(L.validateNewCoach({ name: 'Nadia' }, taken), null)
+  assert.match(L.validateNewCoach({ name: '  ' }, taken), /needs a name/)
+  assert.match(L.validateNewCoach({ name: 'ameer' }, taken), /already a coach/)
+  assert.match(L.validateNewCoach({ name: 'Nadia', employment_type: 'boss' }, taken), /intern or part-timer/)
+
+  const school = { name: 'MBR Yishun', brand: 'MBR', class_day: 'tue', form_code: 'RT-YIS', address: 'Blk 1 Yishun Ave, Singapore 760123' }
+  assert.equal(L.validateNewSchool(school, taken), null)
+  assert.equal(L.validateNewSchool({ name: 'MBR Yishun', brand: 'SPL' }, taken), null) // the optional ones may be absent
+  assert.match(L.validateNewSchool({ ...school, name: 'MBR Dover' }, taken), /already a preschool/)
+  assert.match(L.validateNewSchool({ ...school, brand: 'XYZ' }, taken), /MBR, ASH, SPL/)
+  assert.match(L.validateNewSchool({ ...school, class_day: 'someday' }, taken), /day of the week/)
+  assert.match(L.validateNewSchool({ ...school, address: 'no postcode' }, taken), /postcode/)
+}
+
 // roster rules
 const ids = { coachIds: new Set([11]), schoolIds: new Set([5]), rules: [{ id: 1, kind: 'fixed_coach', coach_id: 11, school_id: 5 }] }
 assert.equal(L.validateRule({ kind: 'students_per_coach', value: 3 }, ids), null)

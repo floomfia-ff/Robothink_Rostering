@@ -4,7 +4,8 @@ import SaveStatus from './SaveStatus.jsx'
 import SearchBox from './SearchBox.jsx'
 import { ActionButton } from './HeaderControls.jsx'
 import CoachProfileModal from './CoachProfileModal.jsx'
-import { Briefcase, GradCap, Info, MapPin, Pencil, Person } from './coachIcons.jsx'
+import Dialog, { FIELD } from './Dialog.jsx'
+import { Briefcase, GradCap, Info, MapPin, Pencil, Person, Plus } from './coachIcons.jsx'
 import { coachLevel } from '../lib/roster.js'
 import StationName from './StationName.jsx'
 
@@ -22,12 +23,14 @@ const GROUPS = [
 ]
 
 // Nearest MRT and intern / part-timer per coach, saved by the page into the shared coaches table.
-// Coaches are added, renamed and removed in the feedback site.
+// A coach can now be added here as well as on the feedback site - it is one table either way. Renaming and
+// removing stay there.
 export default function CoachProfiles() {
   const { coaches, updateCoach, refreshTravelTimes, unrecognisedStations } = useRoster()
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null) // coach id whose window is open
+  const [adding, setAdding] = useState(false)
   const missing = coaches.filter((c) => !c.mrt_station?.trim()).length
   const shown = coaches.filter((c) => `${c.name} ${c.mrt_station ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
   const editingCoach = coaches.find((c) => c.id === editing)
@@ -45,13 +48,22 @@ export default function CoachProfiles() {
           size="h-10 rounded-full px-4 text-sm"
           className="bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 hover:bg-indigo-100"
         />
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="inline-flex h-10 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+        >
+          <Plus className="h-4 w-4" /> Add coach
+        </button>
         <SaveStatus />
       </div>
+
+      {adding && <AddCoach onClose={() => setAdding(false)} />}
 
       <p className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-indigo-500" />
         <span>
-          Each coach's nearest MRT station, so the roster can suggest the closest venue later. Click a coach to edit.
+          Each coach's nearest MRT station, so the roster can suggest the closest venue later. Click a coach to edit. A coach added here appears on the feedback site too — the two share one list.
           {missing > 0 && <span className="font-semibold text-orange-600"> {missing} coach{missing === 1 ? '' : 'es'} still need a nearest MRT.</span>}
         </span>
       </p>
@@ -139,5 +151,78 @@ export default function CoachProfiles() {
 
       {editingCoach && <CoachProfileModal key={editingCoach.id} coach={editingCoach} onClose={() => setEditing(null)} />}
     </section>
+  )
+}
+
+// Adding a coach, which used to mean opening the feedback site. The coaches table is shared, so this writes
+// the same row its Coaches tab would. Only the name is required; the rest is what the roster itself uses and
+// every bit of it can be changed afterwards by clicking the card.
+function AddCoach({ onClose }) {
+  const { createCoach, coaches } = useRoster()
+  const [name, setName] = useState('')
+  const [type, setType] = useState('intern')
+  const [level, setLevel] = useState('beginner')
+  const [mrt, setMrt] = useState('')
+  const [problem, setProblem] = useState('')
+  const stations = [...new Set(coaches.map((c) => c.mrt_station?.trim()).filter(Boolean))].sort()
+  const taken = !!name.trim() && coaches.some((c) => c.name.trim().toLowerCase() === name.trim().toLowerCase())
+
+  // The server checks all of this again; this is just so a mistake is caught before a round trip.
+  const save = async () => {
+    if (!name.trim()) return setProblem('A coach needs a name.')
+    if (taken) return setProblem(`There is already a coach called ${name.trim()}.`)
+    // can_lead is kept in step with the level, as the cards do.
+    const sent = await createCoach({ name: name.trim(), employment_type: type, coach_level: level, can_lead: level === 'advanced', mrt_station: mrt.trim() || null })
+    if (sent) onClose()
+    else setProblem("That didn't save. The message beside the page title says why.")
+  }
+
+  return (
+    <Dialog title="Add a coach" onSave={save} onClose={onClose}>
+      {problem && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{problem}</p>}
+      <div>
+        <label htmlFor="new-coach-name" className="mb-1 block text-sm font-medium text-slate-700">Name</label>
+        <input
+          id="new-coach-name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value)
+            setProblem('')
+          }}
+          autoComplete="off"
+          aria-invalid={taken}
+          className={`${FIELD} ${taken ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}
+        />
+        {taken && <p className="mt-1 text-xs text-red-600">That name is already on the list.</p>}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="new-coach-type" className="mb-1 block text-sm font-medium text-slate-700">Employment type</label>
+          <select id="new-coach-type" value={type} onChange={(e) => setType(e.target.value)} className={`${FIELD} border-slate-200`}>
+            <option value="intern">Intern</option>
+            <option value="part-timer">Part-timer</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="new-coach-level" className="mb-1 block text-sm font-medium text-slate-700">Coach level</label>
+          <select id="new-coach-level" value={level} onChange={(e) => setLevel(e.target.value)} className={`${FIELD} border-slate-200`}>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label htmlFor="new-coach-mrt" className="mb-1 block text-sm font-medium text-slate-700">
+          Nearest MRT <span className="font-normal text-slate-400">— optional</span>
+        </label>
+        <input id="new-coach-mrt" value={mrt} onChange={(e) => setMrt(e.target.value)} list="new-coach-stations" placeholder="e.g. Toa Payoh" autoComplete="off" className={`${FIELD} border-slate-200`} />
+        <datalist id="new-coach-stations">
+          {stations.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      </div>
+    </Dialog>
   )
 }

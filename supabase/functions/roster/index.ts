@@ -7,7 +7,7 @@ import { isRecent, recentCutoff } from './recent.js'
 import { DOUBLES_RANGE, DOUBLES_TAB, RANGE, TAB, parsePlan, readDoubles } from './plan.js'
 import {
   buildWeek, currentMonday, isMonday, isValidAddress, matchSchools, pendingPairs, pickFields, routeMinutes, stationQuery,
-  toStored, travelMap, validateCoachFields, validateRule, validateWeek, weekShell,
+  toStored, travelMap, validateCoachFields, validateNewCoach, validateNewSchool, validateRule, validateWeek, weekShell,
 } from './logic.js'
 
 // CORS. Only our own two addresses are echoed back - it used to be '*', which
@@ -420,6 +420,27 @@ async function handle(req: Request) {
         ok(await db.from('roster_rules').update(patch).eq('id', id))
         return noContent()
       }
+    }
+
+    // Add a coach or a preschool. The same two tables the feedback site's Coaches and Schools tabs write,
+    // so the roster is a second way in rather than a separate list. Bases (WCP / DV) are fixed and not here.
+    if (m === 'POST' && (path === '/coaches' || path === '/schools')) {
+      const coaches = path === '/coaches'
+      const table = coaches ? 'coaches' : 'schools'
+      const fields = pickFields(body ?? {}, coaches
+        ? ['name', 'mrt_station', 'employment_type', 'can_lead', 'coach_level']
+        : ['name', 'brand', 'class_day', 'form_code', 'address', 'station'])
+      // blank is stored as null, as it is on a PATCH
+      for (const k of ['mrt_station', 'class_day', 'form_code', 'address', 'station']) {
+        if (k in fields && (fields[k] === null || (typeof fields[k] === 'string' && !fields[k].trim()))) fields[k] = null
+        else if (typeof fields[k] === 'string') fields[k] = fields[k].trim()
+      }
+      if (typeof fields.name === 'string') fields.name = fields.name.trim()
+      const taken = new Set(ok(await db.from(table).select('name')).map((row: { name: string }) => row.name?.toLowerCase()))
+      const problem = coaches ? validateNewCoach(fields, taken) : validateNewSchool(fields, taken)
+      if (problem) return fail(problem, 400)
+      const columns = coaches ? 'id,name,active,mrt_station,employment_type,can_lead,coach_level' : 'id,name,brand,class_day,active,address,station'
+      return json(ok(await db.from(table).insert({ ...fields, active: true }).select(columns).single()), 201)
     }
 
     if (m === 'PATCH' && (r = path.match(/^\/(coaches|schools|bases)\/(\d+)$/))) {

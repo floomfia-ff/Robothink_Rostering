@@ -156,6 +156,35 @@ export function validateCoachFields(f) {
   return null
 }
 
+// A preschool's brand, as the feedback site's Schools tab writes it.
+export const BRANDS = ['MBR', 'ASH', 'SPL']
+
+// Adding a coach or a preschool from the roster, which until now could only be done on the feedback site.
+// Both tables are shared between the two sites, so what is written here has to be what that site would have
+// written: for a preschool that means brand, class_day and form_code as well as the name, because its Google
+// Form matching and lesson-plan lookup read all three. A row created without them looks complete on the
+// roster and quietly does nothing over there.
+// `taken` is the existing names, lowercased.
+export function validateNewCoach(f, taken) {
+  const name = typeof f.name === 'string' ? f.name.trim() : ''
+  if (!name) return 'A coach needs a name.'
+  if (taken.has(name.toLowerCase())) return `There is already a coach called ${name}.`
+  return validateCoachFields(f)
+}
+
+export function validateNewSchool(f, taken) {
+  const name = typeof f.name === 'string' ? f.name.trim() : ''
+  if (!name) return 'A preschool needs a name.'
+  if (taken.has(name.toLowerCase())) return `There is already a preschool called ${name}.`
+  if (!BRANDS.includes(f.brand)) return `Brand must be one of: ${BRANDS.join(', ')}.`
+  if (f.class_day != null && !DAY_KEYS.includes(f.class_day)) return 'Class day must be a day of the week.'
+  for (const k of ['form_code', 'station']) {
+    if (f[k] != null && typeof f[k] !== 'string') return `${k === 'form_code' ? 'Form code' : 'Station'} must be text.`
+  }
+  if (f.address != null && !isValidAddress(f.address)) return 'Address must end with a 6-digit postcode.'
+  return null
+}
+
 // ---- roster rules ----
 
 export const RULE_KINDS = ['fixed_coach', 'max_coaches', 'students_per_coach']
