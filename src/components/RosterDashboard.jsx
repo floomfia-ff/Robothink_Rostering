@@ -18,7 +18,7 @@ export default function RosterDashboard() {
       <div className="min-h-screen bg-gradient-to-b from-indigo-50/60 via-slate-50 to-slate-100">
         <TopNav tab={tab} setTab={setTab} />
 
-        <main className="mx-auto max-w-[1700px] space-y-4 p-4 print:p-0">
+        <main key={tab} className="rt-page mx-auto max-w-[1700px] space-y-4 p-4 print:p-0">
           {tab === 'roster' ? (
             <>
               <HeaderControls />

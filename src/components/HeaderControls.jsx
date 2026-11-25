@@ -44,7 +44,7 @@ function PopMenu({ trigger, className, align = 'right-0', width = 'w-48', childr
         {trigger} <ChevronDown className={`h-4 w-4 transition-transform motion-reduce:transition-none ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className={`absolute ${align} z-20 mt-2 flex ${width} flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg`}>
+        <div className={`rt-pop absolute ${align} z-20 mt-2 flex ${width} flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg`}>
           {typeof children === 'function' ? children(() => setOpen(false)) : children}
         </div>
       )}

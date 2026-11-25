@@ -65,7 +65,7 @@ export default function SearchPick({ options, value, onChange, placeholder, labe
       </div>
 
       {open && (
-        <ul id={listId} role="listbox" className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+        <ul id={listId} role="listbox" className="rt-pop absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
           {shown.length === 0 && <li className="px-3 py-2 text-sm text-slate-400">No match for “{query}”</li>}
           {shown.map((o, i) => {
             const heading = o.group && o.group !== lastGroup ? o.group : null

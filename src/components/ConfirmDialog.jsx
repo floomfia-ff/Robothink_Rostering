@@ -17,7 +17,7 @@ export default function ConfirmDialog({ title, children, confirmLabel = 'Remove'
   }, [])
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onMouseDown={onClose}>
+    <div className="rt-fade fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onMouseDown={onClose}>
       <div
         ref={box}
         role="alertdialog"
@@ -28,7 +28,7 @@ export default function ConfirmDialog({ title, children, confirmLabel = 'Remove'
           if (e.key === 'Escape') return e.stopPropagation(), onClose()
           trapTab(e, box.current)
         }}
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl"
+        className="rt-pop w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl"
       >
         <div className="flex items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-50 text-red-600">

@@ -25,7 +25,7 @@ export default function Dialog({ title, onSave, onClose, children }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onMouseDown={onClose}>
+    <div className="rt-fade fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onMouseDown={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
@@ -33,7 +33,7 @@ export default function Dialog({ title, onSave, onClose, children }) {
         aria-labelledby="dialog-title"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
-        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        className="rt-pop flex max-h-[90vh] w-full max-w-md flex-col overflow-y-auto rounded-2xl bg-white shadow-2xl"
       >
         <header className="flex items-center gap-3 border-b border-slate-200 px-5 py-4">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-indigo-50 text-indigo-600">

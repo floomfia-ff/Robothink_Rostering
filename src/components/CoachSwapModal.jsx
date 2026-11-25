@@ -48,7 +48,7 @@ export default function CoachSwapModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onMouseDown={closeSwap}>
+    <div className="rt-fade fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onMouseDown={closeSwap}>
       <div
         ref={dialogRef}
         tabIndex={-1}
@@ -57,7 +57,7 @@ export default function CoachSwapModal() {
         aria-labelledby="swap-title"
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => trapTab(e, dialogRef.current)}
-        className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl outline-none"
+        className="rt-pop flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-2xl outline-none"
       >
         <header className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
           <div>

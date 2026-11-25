@@ -15,8 +15,29 @@
 
 .rt-rise { animation: rt-rise .5s cubic-bezier(.2, .8, .2, 1) both; }
 
+/* Switching pages, and anything that opens over them.
+   Each one runs once and stops - nothing here loops, which is what made the old top-bar
+   decoration worth deleting. The curve is the top bar's, so arriving on a page and opening
+   a window feel like the same site.
+   Page changes: the content is keyed on the tab in RosterDashboard, so React swaps the
+   subtree and this plays again. It ends on `transform: none`, so it leaves behind no
+   containing block for the fixed-position windows inside it.
+   rt-pop is for things that open from a point - dialogs, menus, the combobox list - so they
+   grow from slightly small rather than appearing fully formed. */
+@keyframes rt-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rt-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+
+.rt-page { animation: rt-rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+.rt-fade { animation: rt-fade .18s ease-out both; }
+.rt-pop { animation: rt-pop .18s cubic-bezier(.2, .8, .2, 1) both; }
+
 @media (prefers-reduced-motion: reduce) {
-  .rt-rise { animation: none; }
+  .rt-rise, .rt-page, .rt-fade, .rt-pop { animation: none; }
+}
+
+/* Nothing animates on paper. */
+@media print {
+  .rt-rise, .rt-page, .rt-fade, .rt-pop { animation: none; }
 }
 
 /* Clicking the logo, a tab, a button or a heading used to drop a text caret and
