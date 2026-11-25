@@ -28,11 +28,17 @@
 @keyframes rt-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 
 .rt-page { animation: rt-rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+
+/* The lit pill in the top bar is one element that moves to whichever tab is current, rather than a
+   background switching off one button and on at another. left/top as well as width/height, because on a
+   phone the tabs are a two-column grid and the pill has to drop to the next row. */
+.rt-pill { transition: left .3s cubic-bezier(.2, .8, .2, 1), top .3s cubic-bezier(.2, .8, .2, 1), width .3s cubic-bezier(.2, .8, .2, 1), height .3s cubic-bezier(.2, .8, .2, 1); }
 .rt-fade { animation: rt-fade .18s ease-out both; }
 .rt-pop { animation: rt-pop .18s cubic-bezier(.2, .8, .2, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
   .rt-rise, .rt-page, .rt-fade, .rt-pop { animation: none; }
+  .rt-pill { transition: none; }
 }
 
 /* Nothing animates on paper. */

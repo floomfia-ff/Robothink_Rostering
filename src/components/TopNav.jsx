@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { Calendar, Gear, MapPin, Rules, Users } from './coachIcons.jsx'
 
 // The site's top bar: RoboThink branding, the section tabs and the link to the
@@ -23,12 +24,32 @@ const TABS = [
 // page's own header has an Admin link if the dashboard is what you wanted.
 const FEEDBACK_URL = 'https://robothink-student-feedback.vercel.app'
 
-const ITEM = 'rt-rise group inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:px-4'
+const ITEM = 'rt-rise group relative z-10 inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:px-4'
 const IDLE = 'text-slate-700 hover:bg-slate-100 hover:text-indigo-700'
-const ACTIVE = 'rt-rise bg-indigo-600 text-white'
+const ACTIVE = 'rt-rise text-white'
 const ICON = 'h-[18px] w-[18px] shrink-0'
 
 export default function TopNav({ tab, setTab }) {
+  const nav = useRef(null)
+  const [pill, setPill] = useState(null)
+
+  // Measured from offsetLeft / offsetTop rather than getBoundingClientRect, which would include the
+  // entrance animation's transform and put the pill 8px high on the first paint. Re-measured whenever the
+  // bar changes size, because the tabs reflow from one row to a two-column grid.
+  useLayoutEffect(() => {
+    const bar = nav.current
+    if (!bar) return
+    const measure = () => {
+      const on = bar.querySelector('[data-current="true"]')
+      if (!on) return setPill(null)
+      setPill({ left: on.offsetLeft, top: on.offsetTop, width: on.offsetWidth, height: on.offsetHeight })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [tab])
+
   return (
     <header className="mx-auto max-w-[1700px] px-4 pt-4 print:hidden">
       <div className="rt-rise rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -47,14 +68,24 @@ export default function TopNav({ tab, setTab }) {
               after the label. Pushing them to the far right left a gulf across the
               middle of the bar on a wide window. */}
           <nav
+            ref={nav}
             aria-label="Sections"
-            className="grid w-full grid-cols-2 gap-1.5 md:flex md:w-auto md:items-center md:gap-1"
+            className="relative grid w-full grid-cols-2 gap-1.5 md:flex md:w-auto md:items-center md:gap-1"
           >
+            {/* A transition never runs on an element's first values, so this does not fly in from the corner. */}
+            {pill && (
+              <span
+                aria-hidden="true"
+                className="rt-pill absolute rounded-full bg-indigo-600"
+                style={{ left: pill.left, top: pill.top, width: pill.width, height: pill.height }}
+              />
+            )}
             {TABS.map(([key, label, Icon], i) => (
               <button
                 key={key}
                 type="button"
                 aria-current={tab === key ? 'page' : undefined}
+                data-current={tab === key}
                 onClick={() => setTab(key)}
                 style={{ animationDelay: `${120 + i * 70}ms` }}
                 className={`${ITEM} ${tab === key ? ACTIVE : IDLE}`}
