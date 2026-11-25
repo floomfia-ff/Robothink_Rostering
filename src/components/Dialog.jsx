@@ -4,6 +4,9 @@ import { trapTab } from '../lib/focusTrap.js'
 export const FIELD = 'w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200'
 const BTN = 'rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500'
 
+// Opens at the top of the screen, not the middle: these are reached from a card that may be far down the
+// page, and centring put the fields lower still. The backdrop scrolls, so a window taller than the screen is
+// still reachable.
 // The edit window both profile pages use: Escape or the backdrop closes it, Tab stays inside, focus returns to
 // whatever opened it. `onSave` runs on Save (or Enter); the page saves to the database by itself.
 export default function Dialog({ title, onSave, onClose, children }) {
@@ -25,7 +28,7 @@ export default function Dialog({ title, onSave, onClose, children }) {
   }
 
   return (
-    <div className="rt-fade fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4" onMouseDown={onClose}>
+    <div className="rt-fade fixed inset-0 z-50 grid items-start justify-items-center overflow-y-auto bg-slate-900/50 p-4" onMouseDown={onClose}>
       <div
         ref={dialogRef}
         role="dialog"

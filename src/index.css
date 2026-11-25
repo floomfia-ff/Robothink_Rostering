@@ -27,7 +27,11 @@
 @keyframes rt-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rt-pop { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 
-.rt-page { animation: rt-rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+/* Opacity only, deliberately. A transform here - even one ending at none, with fill both - leaves <main> a
+   containing block in Chrome, and every position: fixed inside it then resolves against the page instead of
+   the screen. That put the coach and venue editors partway down a long page: measured at top 126 with the
+   rise, top 0 without it. So the page change fades and does not move. */
+.rt-page { animation: rt-fade .3s ease-out both; }
 
 /* The lit pill in the top bar is one element that moves to whichever tab is current, rather than a
    background switching off one button and on at another. left/top as well as width/height, because on a
