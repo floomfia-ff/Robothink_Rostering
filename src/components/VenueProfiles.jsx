@@ -3,7 +3,9 @@ import { useRoster } from '../context/RosterContext.jsx'
 import SaveStatus from './SaveStatus.jsx'
 import SearchBox from './SearchBox.jsx'
 import Dialog, { FIELD } from './Dialog.jsx'
-import { Info, MapPin, Pencil, Plus, School } from './coachIcons.jsx'
+import Removed from './Removed.jsx'
+import { useConfirm } from './ConfirmProvider.jsx'
+import { Info, MapPin, Pencil, Plus, School, Trash } from './coachIcons.jsx'
 import { isValidAddress } from '../lib/roster.js'
 import StationName from './StationName.jsx'
 
@@ -20,7 +22,8 @@ const GROUPS = [
 // Where each preschool and weekend base is. Schools are added and removed in the feedback site;
 // address edits here save themselves into the shared tables.
 export default function VenueProfiles() {
-  const { venues } = useRoster()
+  const { venues, schools, updateVenue } = useRoster()
+  const removed = schools.filter((s) => s.active === false).sort((a, b) => a.name.localeCompare(b.name))
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null) // `${kind}-${id}` of the open card
   const [adding, setAdding] = useState(false)
@@ -111,6 +114,8 @@ export default function VenueProfiles() {
         )
       })}
 
+      <Removed list={removed} noun="preschool" bringBack={(id) => updateVenue('school', id, { active: true })} />
+
       {editingVenue && <VenueModal key={editing} venue={editingVenue} onClose={() => setEditing(null)} />}
     </section>
   )
@@ -118,6 +123,7 @@ export default function VenueProfiles() {
 
 function VenueModal({ venue, onClose }) {
   const { updateVenue } = useRoster()
+  const confirm = useConfirm()
   const [address, setAddress] = useState(venue.address ?? '')
   const [station, setStation] = useState(venue.station ?? '')
   const bad = !!address.trim() && !isValidAddress(address)
@@ -128,6 +134,20 @@ function VenueModal({ venue, onClose }) {
     if (address.trim() !== (venue.address ?? '').trim()) patch.address = address.trim()
     if (venue.kind === 'school' && station.trim() !== (venue.station ?? '').trim()) patch.station = station.trim()
     if (Object.keys(patch).length) updateVenue(venue.kind, venue.id, patch)
+    onClose()
+  }
+
+  // Marks the preschool inactive rather than deleting the row. A delete would take its fixed-coach rules
+  // with it, and for any preschool that has students or feedback the foreign keys refuse it outright. The
+  // bases (WCP / DV) are not removable at all - the roster is built around them.
+  const remove = async () => {
+    const yes = await confirm({
+      title: `Remove ${venue.name} from the roster?`,
+      body: 'It comes off the roster and Auto-Generate stops staffing it. Weeks already saved keep it. You can bring it back from "Removed preschools" on this page.',
+      confirmLabel: 'Remove preschool',
+    })
+    if (!yes) return
+    updateVenue('school', venue.id, { active: false })
     onClose()
   }
 
@@ -161,19 +181,32 @@ function VenueModal({ venue, onClose }) {
           <p className="mt-1 text-xs text-slate-500">Travel times run to this station. Leave blank to use the postal code.</p>
         </div>
       )}
-      <p className="text-xs text-slate-500">To add or remove a preschool, use the Schools tab on the feedback site.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-4">
+        <p className="text-xs text-slate-500">To rename a preschool, use the Schools tab on the feedback site.</p>
+        {venue.kind === 'school' && (
+          <button
+            type="button"
+            onClick={remove}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-red-600 ring-1 ring-red-200 transition-colors hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+          >
+            <Trash className="h-4 w-4" /> Remove from roster
+          </button>
+        )}
+      </div>
     </Dialog>
   )
 }
 
 // Adding a preschool, which used to mean opening the feedback site. The schools table is shared, so this
-// writes the same row its Schools tab would - and that is why brand, class day and form code are here and
-// not just the name. Its Google Form matching and its lesson-plan lookup read all three; a preschool created
-// without them looks finished on this page and quietly does nothing over there.
+// writes the same row its Schools tab would. Brand and class day are here as well as the name because both
+// are read: the roster works out a preschool's lesson day from class_day.
+// There is no form code field. The column exists and the feedback site lets you edit it, but nothing in
+// either codebase reads it - it is selected once in that site's ShiftSetup.jsx and then never used. Fill it
+// in over there if you keep track of form codes by hand; this form will not ask for something unread.
 // Weekend bases (WCP / DV) are fixed and are not created from either site.
 function AddSchool({ onClose }) {
   const { createSchool, venues } = useRoster()
-  const [form, setForm] = useState({ name: '', brand: 'MBR', class_day: '', form_code: '', address: '', station: '' })
+  const [form, setForm] = useState({ name: '', brand: 'MBR', class_day: '', address: '', station: '' })
   const [problem, setProblem] = useState('')
   const set = (k) => (e) => {
     setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -191,7 +224,6 @@ function AddSchool({ onClose }) {
       name: form.name.trim(),
       brand: form.brand,
       class_day: form.class_day || null,
-      form_code: form.form_code.trim() || null,
       address: form.address.trim() || null,
       station: form.station.trim() || null,
     })
@@ -225,11 +257,6 @@ function AddSchool({ onClose }) {
             ))}
           </select>
         </div>
-      </div>
-      <div>
-        <label htmlFor="new-school-code" className="mb-1 block text-sm font-medium text-slate-700">Form code</label>
-        <input id="new-school-code" value={form.form_code} onChange={set('form_code')} placeholder="e.g. RT-YIS" autoComplete="off" className={`${FIELD} border-slate-200`} />
-        <p className="mt-1 text-xs text-slate-500">The feedback site matches Google Form replies to a preschool by this. Leave it blank only if there is no form yet.</p>
       </div>
       <div>
         <label htmlFor="new-school-address" className="mb-1 block text-sm font-medium text-slate-700">

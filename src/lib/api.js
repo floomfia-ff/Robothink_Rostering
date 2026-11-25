@@ -68,8 +68,8 @@ export async function saveDraft(roster) {
       return was && Object.keys(patch).length ? [{ path: `${path}/${item.id}`, patch, item, was }] : []
     })
   const sends = [
-    ...patches(roster.coaches, baseline.coaches, ['mrt_station', 'employment_type', 'can_lead', 'coach_level'], '/coaches'),
-    ...patches(roster.schools, baseline.schools, ['address', 'station'], '/schools'),
+    ...patches(roster.coaches, baseline.coaches, ['mrt_station', 'employment_type', 'can_lead', 'coach_level', 'active'], '/coaches'),
+    ...patches(roster.schools, baseline.schools, ['address', 'station', 'active'], '/schools'),
     ...patches(roster.bases, baseline.bases, ['address'], '/bases'),
   ].filter((s) => !s.patch.address?.trim() || isValidAddress(s.patch.address)) // half-typed addresses wait (the field shows red)
   // weeks first: they are the valuable data, so a bad venue edit can't block them

@@ -5,6 +5,7 @@ import SearchBox from './SearchBox.jsx'
 import { ActionButton } from './HeaderControls.jsx'
 import CoachProfileModal from './CoachProfileModal.jsx'
 import Dialog, { FIELD } from './Dialog.jsx'
+import Removed from './Removed.jsx'
 import { Briefcase, GradCap, Info, MapPin, Pencil, Person, Plus } from './coachIcons.jsx'
 import { coachLevel } from '../lib/roster.js'
 import StationName from './StationName.jsx'
@@ -26,7 +27,9 @@ const GROUPS = [
 // A coach can now be added here as well as on the feedback site - it is one table either way. Renaming and
 // removing stay there.
 export default function CoachProfiles() {
-  const { coaches, updateCoach, refreshTravelTimes, unrecognisedStations } = useRoster()
+  const { coaches, coachById, updateCoach, refreshTravelTimes, unrecognisedStations } = useRoster()
+  // coachById holds everyone, active or not; `coaches` is only the active ones.
+  const removed = Object.values(coachById).filter((c) => c.active === false).sort((a, b) => a.name.localeCompare(b.name))
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(null) // coach id whose window is open
@@ -148,6 +151,8 @@ export default function CoachProfiles() {
           </section>
         )
       })}
+
+      <Removed list={removed} noun="coach" bringBack={(id) => updateCoach(id, { active: true })} />
 
       {editingCoach && <CoachProfileModal key={editingCoach.id} coach={editingCoach} onClose={() => setEditing(null)} />}
     </section>

@@ -445,7 +445,11 @@ async function handle(req: Request) {
 
     if (m === 'PATCH' && (r = path.match(/^\/(coaches|schools|bases)\/(\d+)$/))) {
       const [, table, id] = r
-      const fields = table === 'coaches' ? pickFields(body, ['mrt_station', 'employment_type', 'can_lead', 'coach_level']) : pickFields(body, table === 'schools' ? ['address', 'station'] : ['address'])
+      // 'active' is how a coach or preschool is removed: hidden everywhere, not erased. Deleting the row
+      // would cascade through coach_logins and roster_rules, and for a school with students or feedback the
+      // foreign keys would refuse it outright. The feedback site keeps the permanent delete.
+      const fields = table === 'coaches' ? pickFields(body, ['mrt_station', 'employment_type', 'can_lead', 'coach_level', 'active']) : pickFields(body, table === 'schools' ? ['address', 'station', 'active'] : ['address'])
+      if ('active' in fields && typeof fields.active !== 'boolean') return fail('Active must be true or false.', 400)
       if (!Object.keys(fields).length) return fail('Nothing to update.', 400)
       // clearing an address or station is allowed: blank is stored as null
       for (const k of ['address', 'station']) if (k in fields && (fields[k] === null || (typeof fields[k] === 'string' && !fields[k].trim()))) fields[k] = null
