@@ -90,6 +90,15 @@ export async function saveDraft(roster) {
   }
 }
 
+// Adding a coach or a preschool. Straight to the server, like the rules; the new row comes back and goes
+// into the save baseline too, so the next saveDraft does not see it as an edit of something it never had.
+const created = (list) => (row) => {
+  baseline[list].push(structuredClone(row))
+  return row
+}
+export const createCoach = (fields) => request('POST', '/coaches', fields).then(created('coaches'))
+export const createSchool = (fields) => request('POST', '/schools', fields).then(created('schools'))
+
 // Rules tab: each change goes straight to the server (not through saveDraft).
 export const createRule = (rule) => request('POST', '/rules', rule)
 export const updateRule = (id, patch) => request('PATCH', `/rules/${id}`, patch)
