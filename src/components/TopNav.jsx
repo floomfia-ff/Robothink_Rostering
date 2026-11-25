@@ -24,7 +24,7 @@ const TABS = [
 // page's own header has an Admin link if the dashboard is what you wanted.
 const FEEDBACK_URL = 'https://robothink-student-feedback.vercel.app'
 
-const ITEM = 'rt-rise group relative z-10 inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:px-4'
+const ITEM = 'rt-rise group relative z-10 inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:px-4'
 const IDLE = 'text-slate-700 hover:bg-slate-100 hover:text-indigo-700'
 const ACTIVE = 'rt-rise text-white'
 const ICON = 'h-[18px] w-[18px] shrink-0'
@@ -76,7 +76,7 @@ export default function TopNav({ tab, setTab }) {
             {pill && (
               <span
                 aria-hidden="true"
-                className="rt-pill absolute rounded-full bg-indigo-600"
+                className="rt-pill absolute rounded-full"
                 style={{ left: pill.left, top: pill.top, width: pill.width, height: pill.height }}
               />
             )}
@@ -90,7 +90,7 @@ export default function TopNav({ tab, setTab }) {
                 style={{ animationDelay: `${120 + i * 70}ms` }}
                 className={`${ITEM} ${tab === key ? ACTIVE : IDLE}`}
               >
-                <Icon className={ICON} />
+                <Icon key={tab === key ? 'on' : 'off'} className={`${ICON} ${tab === key ? 'rt-flip' : ''}`} />
                 {label}
               </button>
             ))}
