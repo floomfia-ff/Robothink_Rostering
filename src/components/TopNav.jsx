@@ -26,23 +26,55 @@ const FEEDBACK_URL = 'https://robothink-student-feedback.vercel.app'
 
 const ITEM = 'rt-rise group relative z-10 inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold transition duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:px-4'
 const IDLE = 'text-slate-700 hover:bg-slate-100 hover:text-indigo-700'
-const ACTIVE = 'rt-rise text-white'
 const ICON = 'h-[18px] w-[18px] shrink-0'
+// One row of tabs. Shared by the real bar and the white copy inside the pill, so the two cannot drift apart.
+const ROW = 'grid w-full grid-cols-2 gap-1.5 md:flex md:w-auto md:items-center md:gap-1'
+
+// `ghost`: the copy that lives inside the pill. Same markup and classes, so it lays out identically, but white,
+// unreachable by the keyboard and invisible to a screen reader.
+function TabRow({ tab, setTab, ghost = false }) {
+  return (
+    <>
+      {TABS.map(([key, label, Icon], i) => (
+        <button
+          key={key}
+          type="button"
+          {...(ghost
+            ? { tabIndex: -1, 'aria-hidden': true }
+            : { 'aria-current': tab === key ? 'page' : undefined, 'data-current': tab === key, onClick: () => setTab(key) })}
+          style={{ animationDelay: `${120 + i * 70}ms` }}
+          className={`${ITEM} ${ghost ? 'text-white' : tab === key ? 'text-white' : IDLE}`}
+        >
+          <Icon className={ICON} />
+          {label}
+        </button>
+      ))}
+      <a
+        {...(ghost ? { tabIndex: -1, 'aria-hidden': true } : { href: FEEDBACK_URL })}
+        style={{ animationDelay: '400ms' }}
+        className={`${ITEM} ${ghost ? 'text-white' : IDLE} col-span-2 md:col-span-1`}
+      >
+        <Gear className={ICON} />
+        Feedback
+      </a>
+    </>
+  )
+}
 
 export default function TopNav({ tab, setTab }) {
   const nav = useRef(null)
-  const [pill, setPill] = useState(null)
+  const [pill, setPill] = useState(null) // the current tab's box, and the whole bar's, in nav coordinates
 
-  // Measured from offsetLeft / offsetTop rather than getBoundingClientRect, which would include the
-  // entrance animation's transform and put the pill 8px high on the first paint. Re-measured whenever the
-  // bar changes size, because the tabs reflow from one row to a two-column grid.
+  // Measured from offsetLeft / offsetTop rather than getBoundingClientRect, which would include the entrance
+  // animation's transform and put the pill 8px high on the first paint. Re-measured whenever the bar changes
+  // size, because the tabs reflow from one row to a two-column grid.
   useLayoutEffect(() => {
     const bar = nav.current
     if (!bar) return
     const measure = () => {
       const on = bar.querySelector('[data-current="true"]')
       if (!on) return setPill(null)
-      setPill({ left: on.offsetLeft, top: on.offsetTop, width: on.offsetWidth, height: on.offsetHeight })
+      setPill({ left: on.offsetLeft, top: on.offsetTop, width: on.offsetWidth, height: on.offsetHeight, barW: bar.offsetWidth, barH: bar.offsetHeight })
     }
     measure()
     const ro = new ResizeObserver(measure)
@@ -67,37 +99,30 @@ export default function TopNav({ tab, setTab }) {
           {/* phones: a 2 x 2 grid under the brand; wider screens: one row straight
               after the label. Pushing them to the far right left a gulf across the
               middle of the bar on a wide window. */}
-          <nav
-            ref={nav}
-            aria-label="Sections"
-            className="relative grid w-full grid-cols-2 gap-1.5 md:flex md:w-auto md:items-center md:gap-1"
-          >
-            {/* A transition never runs on an element's first values, so this does not fly in from the corner. */}
+          <nav ref={nav} aria-label="Sections" className={`relative ${ROW}`}>
+            {/* The lit pill moves to whichever tab is current, on transform so the move is composited and does
+                not fight the page re-render happening behind it at the same moment.
+
+                It carries a white copy of the whole row, counter-translated so it lands exactly over the real
+                one. The pill is rounded and clips what overflows, so the copy shows only through the pill:
+                letters turn white as it crosses them instead of staying dark on indigo, which was the one part
+                of this that looked unfinished. A transition never runs on an element's first values, so none of
+                this flies in from the corner on load. */}
             {pill && (
               <span
                 aria-hidden="true"
-                className="rt-pill absolute rounded-full bg-indigo-600"
-                style={{ left: pill.left, top: pill.top, width: pill.width, height: pill.height }}
-              />
-            )}
-            {TABS.map(([key, label, Icon], i) => (
-              <button
-                key={key}
-                type="button"
-                aria-current={tab === key ? 'page' : undefined}
-                data-current={tab === key}
-                onClick={() => setTab(key)}
-                style={{ animationDelay: `${120 + i * 70}ms` }}
-                className={`${ITEM} ${tab === key ? ACTIVE : IDLE}`}
+                className="rt-pill absolute left-0 top-0 overflow-hidden rounded-full bg-indigo-600"
+                style={{ transform: `translate3d(${pill.left}px, ${pill.top}px, 0)`, width: pill.width, height: pill.height }}
               >
-                <Icon className={ICON} />
-                {label}
-              </button>
-            ))}
-            <a href={FEEDBACK_URL} style={{ animationDelay: '400ms' }} className={`${ITEM} ${IDLE} col-span-2 md:col-span-1`}>
-              <Gear className={ICON} />
-              Feedback
-            </a>
+                <span
+                  className={`rt-pill absolute left-0 top-0 ${ROW}`}
+                  style={{ transform: `translate3d(${-pill.left}px, ${-pill.top}px, 0)`, width: pill.barW, height: pill.barH }}
+                >
+                  <TabRow tab={tab} ghost />
+                </span>
+              </span>
+            )}
+            <TabRow tab={tab} setTab={setTab} />
           </nav>
         </div>
       </div>
